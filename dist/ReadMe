@@ -1,0 +1,358 @@
+SimpleDock 1.0 (15.10.2026)
+A simple, macOS-inspired dock for AmigaOS 3.2
+
+Copyright (C) 2026 renewable-intel
+Free software under the GNU General Public License, version 3 or later
+(see LICENSE). It comes with ABSOLUTELY NO WARRANTY.
+
+Source code: https://github.com/renewable-intel/SimpleDock
+This version: https://github.com/renewable-intel/SimpleDock/releases/tag/v1.0
+
+
+WHAT IT IS
+----------
+
+A macOS-like dock for your Workbench.
+
+Launch programs with a click, drag icons to rearrange them, and add icons
+from Workbench. Choose a solid or tinted transparent background, display
+labels below icons or on hover, and use auto-hide to keep the dock out of
+the way. A configurable hotkey brings it back into view.
+
+
+REQUIREMENTS
+------------
+
+Minimum
+  - AmigaOS 3.2
+  - A 68030 with Fast RAM
+    (it also runs on a stock 68020 A1200, but animations are slow)
+
+Recommended
+  - A 68040 or 68060 accelerator, or a PiStorm / Emu68 system
+  - A graphics card (Picasso96) with a 16- or 24-bit screen mode
+    for smoother animations and better transparency performance
+
+SimpleDock works on AGA screens as well as on graphics cards;
+Picasso96 is used when present but is not required.
+
+
+INSTALLING
+----------
+
+Place the SimpleDock drawer wherever you prefer, then double-click
+SimpleDock to run it. No installer is required.
+
+The drawer has no icon of its own, so Workbench uses your default drawer
+icon. If it is not visible, choose Window > Show > All Files, then use
+Icons > Snapshot to give it an icon.
+
+To start SimpleDock with Workbench, put a copy of the SimpleDock icon
+(or the program) in SYS:WBStartup.
+
+On first launch, SimpleDock creates ENVARC:SimpleDock.config and adds
+standard Workbench icons found on your system: the Workbench disk, Shell,
+MultiView, Clock, Calculator, IconEdit, Exchange, the Prefs, Tools and
+Utilities drawers, and Ram Disk. It adds as many as fit on your screen.
+
+To remove SimpleDock, delete its drawer and ENVARC:SimpleDock.config.
+Also remove any copy you placed in SYS:WBStartup.
+
+
+USING IT
+--------
+
+Click            Launches a program or opens a drawer, disk or project.
+
+Drag along       Repositions an icon; the other icons move aside.
+
+Drag off         Removes the icon from the dock (not from the disk).
+
+Drop icons       Drag icons from Workbench onto the dock:
+                   - between two icons: they are added there
+                   - onto the middle of an icon: they are opened with it
+                     (for example a text file onto your editor)
+
+Missing item     An icon is dimmed and marked with "?" if its program,
+                 file, drawer or disk is unavailable. Click it to choose
+                 whether to remove it from the dock. SimpleDock never
+                 removes it automatically: an item on a removable disk
+                 becomes available again when the disk is inserted.
+
+Full dock        The dock is always one row. It holds as many icons as
+                 fit along the screen edge at the icon size and spacing
+                 you choose. When full, the dock appears greyed out if
+                 you drag icons over a gap. Dropping there sounds a beep
+                 without adding the icons. You can still drop files onto
+                 an icon to open them with that program. Settings that
+                 would leave icons off the dock are rejected with a beep.
+
+Hotkey           CTRL ALT D (change it in the settings window). With
+                 auto-hide it brings the dock out until the pointer has
+                 entered and left it; press it before dragging an icon
+                 onto a hidden dock. Without auto-hide it brings the dock
+                 to the front.
+
+Dock menu        In the Workbench menu bar (shown when Workbench is the
+                 active window):
+                   Settings...    the settings window
+                   About...
+                   Quit
+
+Changes made with the mouse are saved automatically. Adding, moving or
+removing an icon saves immediately; settings are saved when you close
+the settings window.
+
+
+SETTINGS WINDOW
+---------------
+
+Click a list to see its choices, then select one.
+
+Position         Top, Bottom, Left or Right edge
+Text             labels below the icons, on hover, off, or Labels
+                 only (the names without the icons)
+Icon size        original size, or shrunk to small / medium / large
+Icon spacing     space between the icons
+Gap to edge      space between the dock and the screen edge
+Auto-hide        off, or how fast the dock slides away
+In front         keep the dock in front of other windows
+Colour           six colours or your own. The "Custom..." button next
+                 to it opens a colour picker (red, green and blue
+                 sliders); OK adds that colour to the list (as #RRGGBB)
+                 and uses it. There is one custom colour; picking a new
+                 one replaces it.
+Transparent      Off: a solid dock in the colour. On: the screen shows
+                 through the dock, tinted with the colour.
+Opacity          how dark the Transparent dock is
+Corners          square to round
+Hotkey           the keys that bring the dock out. CTRL ALT D is the
+                 default; you can type another combination, for example
+                 LCOMMAND D (left Amiga + D) or CTRL HELP (Ctrl + Help)
+
+Click Advanced >> to show advanced settings beside the basic controls.
+On smaller screens, they replace the basic controls. Click << Simple to
+hide them again. The corresponding configuration keywords are shown below
+in parentheses.
+
+Alignment        Centre, Start or End along the edge (POS)
+Offset           shift along the edge, in pixels (OFFSET)
+Gap to edge      any number of pixels (DISTANCE)
+Icon spacing     any number of pixels (ICONDIST)
+Icon size        shrink icons bigger than this many pixels, 0 = own
+                 size (SCALEICONW and SCALEICONH together)
+Most icons       maximum number of icons, 0 = as many as fit (LIMIT)
+Corner radius    in pixels, 0-32 (RADIUS)
+Opacity          0-100, for the Transparent look (OPACITY)
+Auto-hide speed  0 = off; a slide takes this x 70 ms (AUTOHIDE)
+Start delay      wait n/50 s before the dock opens (DELAY)
+Colour           any colour as #rrggbb (TINT)
+Font             name/size for the labels, empty = screen font (FONT)
+Screen           a public screen, empty = Workbench (PUBSCREEN)
+No border        no thin border around the dock (NOBORDER)
+Messages         Normal; Quiet (no message requesters at all); Verbose
+                 (also messages that are normally silent, for example a
+                 hotkey that is not valid) (QUIET, VERBOSE)
+Crash reports    off by default; see BUG REPORTS below (CRASHLOG)
+
+Numeric and text values take effect when you press Return or Tab. The
+basic and advanced controls stay in sync: choosing Large corners sets
+the corner radius to 18. A value without a matching basic preset is
+shown as "Other" in the basic controls.
+
+Load... reads another settings file (its settings and icons) into the
+dock; they are kept when you close the window. Save as... writes a copy
+of your settings and icons to another file. SimpleDock always saves to
+and starts from its own file, ENVARC:SimpleDock.config.
+
+Changes appear immediately and are saved when you close the window.
+With auto-hide enabled, the dock stays visible while the settings window
+is open and hides again when you close it.
+
+Recall restores the settings in use when the window opened, in both
+basic and advanced controls. It remains greyed out until you make a
+change. Invalid values and changes that would leave icons off the dock
+are rejected with a beep; the previous value is restored.
+
+
+SETTINGS FILE AND TOOLTYPES
+---------------------------
+
+ENVARC:SimpleDock.config is plain text: settings lines first, then one
+line per icon (the path of the icon, without .info). A keyword in
+parentheses is disabled. Example:
+
+  ; SimpleDock settings - a keyword in parentheses is disabled
+  POS=B
+  HOVERTEXT
+  (AUTOHIDE=3)
+  TINT=#383838
+  ; icons
+  SYS:Utilities/MultiView
+  LABEL Viewer
+  SYS:System/Shell
+
+LABEL changes the label of the preceding icon. IMAGE <path> uses the
+image from another icon.
+
+The same keywords work as tooltypes of the SimpleDock icon and on the
+command line:
+
+  CONFIG=<file>       settings file (default ENVARC:SimpleDock.config)
+  POS=<T|B|L|R>       screen edge, with an optional alignment letter
+  DISTANCE=<n>        gap to the screen edge in pixels (default 4)
+  OFFSET=<n>          shift along the edge in pixels
+  FONT=<name/size>    font for the labels
+  PUBSCREEN=<name>    public screen to open on
+  NOTEXT              no labels
+  HOVERTEXT           a name only for the icon under the pointer
+  NOICON              the names without the icons (Text: Labels only)
+  NOBORDER            no thin border
+  ICONDIST=<n>        extra space between icons (default 2)
+  SCALEICONW=<n>      shrink icons wider than this (0 = own size)
+  SCALEICONH=<n>      shrink icons taller than this
+  LIMIT=<n>           at most n icons (default: as many as fit)
+  AUTOHIDE=<n>        auto-hide; a slide takes n x 70 ms
+  ONTOP               stay in front of other windows
+  TRANSPARENT         transparent (tinted) background
+  TINT=#rrggbb        colour (default #383838)
+  OPACITY=<n>         darkness of the transparent background, 0-100
+  RADIUS=<n>          corner radius in pixels (default 12)
+  DELAY=<n>           wait n/50 s before opening
+  HOTKEY=<keys>       hotkey (default ctrl alt d)
+  QUIET / VERBOSE     fewer / more messages
+  CUSTOMTINT=#rrggbb  the custom colour of the settings window's list
+  CRASHLOG            crash reports (see BUG REPORTS)
+
+Settings are applied in this order: icon tooltypes, settings file, then
+Shell command line. Each overrides the preceding source.
+
+To run multiple docks, give a settings file a project icon and set
+SimpleDock as its default tool. Double-click it to start another dock
+using that settings file.
+
+
+AREXX
+-----
+
+SimpleDock's ARexx port is SIMPLEDOCK (a second dock uses the name of its
+settings file). Every command returns a code: 0 = success,
+5 = busy (you are dragging a dock icon - try again), 10 = failed (no such
+icon, file or setting, or a value that is not valid). Commands marked
+with -> also give a RESULT (use OPTIONS RESULTS in your script).
+
+Identify an icon by its label, file name or path (case-insensitive),
+or by its position: #1 is the first icon.
+
+The dock
+
+  SHOW                    open the dock again after HIDE
+  HIDE                    close the dock window; SimpleDock keeps running
+  REVEAL                  the same as pressing the hotkey
+  REFRESH                 reopen the dock (a fresh look at the screen)
+  GETPOS               -> "x y w h" of the dock, then "x y w h" of the
+                          icon clicked last (if any)
+  QUIT                    quit SimpleDock
+
+Icons
+
+  LIST                 -> the icons' paths, one per line, in dock order
+  LIST NAMES           -> the icons' labels, one per line
+  ADD <path> [AT <n> | AFTER <icon> | BEFORE <icon>] [LABEL <text>]
+                          add an icon (at the end unless a place is
+                          given); for a disk give its name, e.g. Work:
+  REMOVE <icon>           remove an icon from the dock (not from disk)
+  MOVE <icon> AT <n> | AFTER <icon> | BEFORE <icon>
+                          move an icon
+
+Settings
+
+  SET <setting> ...       change one or more settings using the same
+                          keywords as the settings file and tooltypes;
+                          parentheses disable a setting; enclose values
+                          containing spaces in quotes
+  GET [<setting>]      -> the value of one setting: its value, 1 / 0 for
+                          a switch that is on / off, empty when it is not
+                          set (the default); without a setting: all
+                          settings, one per line
+  SAVE [<file>]           save settings and icons (to the dock's own
+                          settings file unless a file is given)
+  RELOAD                  read the dock's own settings file again
+                          (unsaved changes are dropped)
+  LOAD <file>             read another settings file into the dock
+  SETTINGS [ADVANCED]     open the settings window (folded out)
+  BENCH                -> drawing times on your machine (the dock
+                          flickers while it runs)
+
+ARexx changes are saved when you use SAVE or make a manual change that
+saves the configuration. Settings supplied on the Shell command line
+at startup remain in force. SET closes an open settings window and
+keeps any changes made there.
+
+Examples
+
+  /* show the dock, open the settings */
+  address SIMPLEDOCK 'SHOW'
+  address SIMPLEDOCK 'SETTINGS'
+
+  /* add Ram Disk after the Shell, then save */
+  address SIMPLEDOCK 'ADD "RAM:" AFTER Shell LABEL "Ram Disk"'
+  address SIMPLEDOCK 'SAVE'
+
+  /* auto-hide on and the corners square, then read a value back */
+  options results
+  address SIMPLEDOCK 'SET AUTOHIDE=3 RADIUS=0'
+  address SIMPLEDOCK 'GET AUTOHIDE'
+  say 'Auto-hide speed:' result
+
+  /* list the icons */
+  options results
+  address SIMPLEDOCK 'LIST NAMES'
+  say result
+
+  /* a different hotkey */
+  address SIMPLEDOCK 'SET HOTKEY="ctrl alt x"'
+
+
+KNOWN LIMITATIONS
+-----------------
+
+  - With auto-hide, icons cannot be dropped onto the hidden dock:
+    Workbench locks the screen during an icon drag, so the dock cannot
+    appear. Press the hotkey before starting the drag.
+  - AmigaOS 3.2 windows cannot be round or transparent, so the rounded
+    corners and the Transparent look use a picture of what is behind the
+    dock. When something behind it changes, the dock takes a new picture
+    the next time it comes out, or after a click.
+  - Over a Shell window, a hover label can leave a faint box behind
+    (Shell windows redraw only part of what a closed window uncovers).
+
+
+BUG REPORTS
+-----------
+
+Report problems through the Issues page at:
+https://github.com/renewable-intel/SimpleDock/issues
+
+Describe the steps that led to the problem and what happened. Include
+your CPU, graphics card or AGA chipset, and screen mode.
+
+If SimpleDock crashes, enable Crash reports in the advanced settings,
+then repeat the steps that caused the crash. If it crashes again,
+SimpleDock writes ENVARC:SimpleDock-crash.txt, displays a message and
+closes. The report includes the error, its location in the program, and
+your system and settings. Attach the file to your issue.
+
+Crash reporting adds no overhead during normal operation. It only
+catches errors within SimpleDock; reboot if the whole system becomes
+unstable.
+
+
+HISTORY
+-------
+
+1.0 (15.10.2026)  First release.
+
+
+AmigaOS is a trademark of its owner; macOS is a trademark of Apple Inc.
+No AmigaOS artwork is included; SimpleDock's icons are its own.

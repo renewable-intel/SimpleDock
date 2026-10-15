@@ -1,0 +1,8 @@
+build/
+obj/
+*.o
+__pycache__/
+.DS_Store
+# never commit third-party binaries or AmigaOS artwork
+local.env
+backup-*/

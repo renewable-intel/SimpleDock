@@ -1,0 +1,64 @@
+/* SimpleDock - start the program, project or drawer behind a dock icon
+   Copyright (C) 2026 renewable-intel
+   SPDX-License-Identifier: GPL-3.0-or-later */
+#include <proto/exec.h>
+#include <proto/dos.h>
+#include <proto/intuition.h>
+#include <proto/wb.h>
+#include <workbench/workbench.h>
+#include <workbench/startup.h>
+#include <utility/tagitem.h>
+#include "sd.h"
+
+/* Start the icon's program, or open its drawer, disk or project. If its
+   file is gone, the icon is marked (dimmed, with a "?") and the user is
+   asked whether to remove it. It is never removed on its own: it may be on
+   a disk that isn't inserted. */
+BOOL launch_item(struct Dock *d, struct Item *it)
+{
+    static struct EasyStruct es = { sizeof(struct EasyStruct), 0, SD_NAME,
+        "\"%s\" cannot be found.\nRemove it from the dock?", "Remove|Keep" };
+    CONST_STRPTR name = it->label ? it->label : FilePart(it->path);
+    BOOL was = it->missing;
+    if ((it->missing = !dock_exists(it->path)) == FALSE) {
+        if (was) dock_show_item(d, it, FALSE);   /* back (a disk inserted): unmarked */
+        if (OpenWorkbenchObject(it->path, TAG_END)) return TRUE;
+        DisplayBeep(d->scr);
+        sd_msg(d, "Cannot open %s", (LONG)it->path);
+        return FALSE;
+    }
+    dock_show_item(d, it, FALSE);                /* marked as missing */
+    if (EasyRequest(d->win, &es, NULL, (LONG)(*name ? name : it->path)) == 1) {
+        dz_suspend();                            /* the list changes: not for the zone hook now */
+        dock_unhide(d);
+        config_remove(d, it);
+        dock_reopen_glide(d);
+        config_store(d);
+    }
+    return FALSE;
+}
+
+#ifdef SD_DEBUG
+LONG lw_count, lw_args;
+char *lw_path = "";
+#endif
+
+/* Icons dropped onto the middle of a dock icon: opened with its program
+   (Workbench passes them as arguments, as a drop onto a tool's icon does). */
+BOOL launch_with(struct Dock *d, struct Item *it, struct AppMessage *am)
+{
+    struct TagItem tags[2 * 32 + 1];
+    LONG i, n = 0;
+    for (i = 0; i < am->am_NumArgs && i < 32; i++) {
+        tags[n].ti_Tag = WBOPENA_ArgLock; tags[n++].ti_Data = (ULONG)am->am_ArgList[i].wa_Lock;
+        tags[n].ti_Tag = WBOPENA_ArgName; tags[n++].ti_Data = (ULONG)am->am_ArgList[i].wa_Name;
+    }
+    tags[n].ti_Tag = TAG_END;
+#ifdef SD_DEBUG
+    { extern LONG lw_count, lw_args; extern char *lw_path; lw_count++; lw_args = i; lw_path = it->path; }
+#endif
+    if (OpenWorkbenchObjectA(it->path, tags)) return TRUE;
+    DisplayBeep(d->scr);
+    sd_msg(d, "Cannot open %s", (LONG)it->path);
+    return FALSE;
+}
