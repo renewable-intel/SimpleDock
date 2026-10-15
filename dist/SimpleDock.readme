@@ -1,11 +1,10 @@
-Short:        Simple, macOS-inspired dock for OS 3.2
+Short:        Simple, macOS-inspired Workbench dock
 Author:       renewable-intel
-Uploader:     renewable-intel
+Uploader:     renew.intel.soft@gmail.com (renewable-intel)
 Type:         util/wb
 Version:      1.0
 Architecture: m68k-amigaos >= 3.2.0
 Requires:     AmigaOS 3.2, 68030+ with fast RAM
-Distribution: Aminet
 URL:          https://github.com/renewable-intel/SimpleDock
 
 SimpleDock is an app dock at the edge of your Workbench screen, in the
