@@ -57,11 +57,11 @@ static UBYTE pen_at(struct BitMap *bm, LONG depth, LONG x, LONG y)
 /* More than 8 bits: premultiplied colour + alpha, shrunk with a box filter. */
 static BOOL scale_true(struct Dock *d, struct Item *it, WORD w, WORD h, WORD sw, WORD sh, LONG depth)
 {
-    struct BitMap *bk = render_on(d, it, w, h, depth, d->shadowpen);   /* over black */
-    struct BitMap *wh = render_on(d, it, w, h, depth, d->textpen);     /* over white */
+    struct BitMap *bk = render_on(d, it, w + 1, h, depth, d->shadowpen);   /* over black (a spare column) */
+    struct BitMap *wh = render_on(d, it, w + 1, h, depth, d->textpen);     /* over white */
     UBYTE *a = AllocVec(w * h * 3 * 2, MEMF_ANY), *b, *out = AllocVec(sw * sh * 4, MEMF_ANY);
     struct RastPort rp;
-    LONG x, y, tx, ty;
+    LONG x, y, tx, ty, full = 255;
     BOOL ok = bk && wh && a && out;
 
     if (ok) {
@@ -69,6 +69,13 @@ static BOOL scale_true(struct Dock *d, struct Item *it, WORD w, WORD h, WORD sw,
         InitRastPort(&rp);
         rp.BitMap = bk; pix_read(&rp, 0, 0, w, h, a);
         rp.BitMap = wh; pix_read(&rp, 0, 0, w, h, b);
+        {                                        /* black to white as this screen shows them (16 bits: */
+            UBYTE pk[3], pw[3];                  /* 248..): the spare column, background only */
+            rp.BitMap = bk; pix_read(&rp, w, 0, 1, 1, pk);
+            rp.BitMap = wh; pix_read(&rp, w, 0, 1, 1, pw);
+            x = ((LONG)pw[0] - pk[0] + (LONG)pw[1] - pk[1] + (LONG)pw[2] - pk[2]) / 3;
+            if (x > 128) full = x;               /* (else the pens are too alike: as before) */
+        }
         for (ty = 0; ty < sh; ty++)
             for (tx = 0; tx < sw; tx++) {
                 LONG x0 = tx * w / sw, x1 = (tx + 1) * w / sw, y0 = ty * h / sh, y1 = (ty + 1) * h / sh;
@@ -79,7 +86,7 @@ static BOOL scale_true(struct Dock *d, struct Item *it, WORD w, WORD h, WORD sw,
                 for (y = y0; y < y1; y++)
                     for (x = x0; x < x1; x++) {
                         UBYTE *pa = a + (y * w + x) * 3, *pb = b + (y * w + x) * 3;
-                        LONG diff = ((LONG)pb[0] - pa[0] + (LONG)pb[1] - pa[1] + (LONG)pb[2] - pa[2]) / 3;
+                        LONG diff = ((LONG)pb[0] - pa[0] + (LONG)pb[1] - pa[1] + (LONG)pb[2] - pa[2]) * 255 / (3 * full);
                         sa += diff < 0 ? 255 : diff > 255 ? 0 : 255 - diff;
                         sr += pa[0]; sg += pa[1]; sb += pa[2];   /* over black = premultiplied */
                         n++;

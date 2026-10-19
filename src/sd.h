@@ -9,8 +9,9 @@
 #include <graphics/rastport.h>
 
 #define SD_NAME    "SimpleDock"
-#define SD_VERSION "1.0"
-#define SD_DATE    "15.10.2026"
+#define SD_VERSION "1.1"
+#define SD_BUILD   " T48"            /* test build ("" for a release): shown with the version */
+#define SD_DATE    "17.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
 void sd_trace(CONST_STRPTR s);
@@ -32,10 +33,12 @@ void sd_prof(LONG slot, struct timeval *t0);
 #define SD_CONFIG   "ENVARC:SimpleDock.config"   /* settings + icons, when CONFIG is not given */
 
 struct Opts {
-    STRPTR config, pos, font, pubscreen, tint, hotkey, customtint;
+    STRPTR config, pos, font, pubscreen, tint, hotkey, customtint, ignore;
     LONG   distance, offset, icondist, delay, limit, scalew, scaleh;
     LONG   autohide, ahspeed, radius, opacity;
     BOOL   notext, hovertext, noicon, noborder, ontop, transparent, quiet, verbose, crashlog;
+    LONG   running, holdtime;         /* RUNNING 0-2, HOLDTIME tenths of a second */
+    BOOL   clicknew, wbstart, dropmove, runhide, wbhide;
     BOOL   defconfig;                 /* CONFIG not given: SD_CONFIG */
 };
 
@@ -58,15 +61,26 @@ struct Item {
     struct BitMap *sbm;               /* shrunk icon, <= 8 bits, with ... */
     UBYTE *smask;                     /* ... its mask */
     struct BitMap *cbm;               /* solid dock: the icon on the dock colour (scale.c) */
-    struct BitMap *lbm;               /* solid dock: the label on the dock colour (render.c) */
+    struct BitMap *lbm;               /* solid dock: the label on the dock colour (render.c) ... */
+    WORD   lbmw;                      /* ... made for this cell width */
     WORD   iw, ih;                    /* icon image size */
     WORD   lw;                        /* label width in pixels */
+    WORD   running;                   /* copies of its program that run (running.c) */
+    UBYTE  temp;                      /* not kept: RUN_TEMP a program running, RUN_MORE the "more" cell,
+                                         RUN_WB Workbench's drawer windows */
+    BOOL   mini;                      /* windows of its program are minimised (running.c) */
+    BOOL   nofile;                    /* RUN_TEMP: its program file is not known (path = its name) */
+    char   wbname[32];                /* a docked drawer or disk open in Workbench: its windows' title */
 };
+#define RUN_TEMP 1
+#define RUN_MORE 2
+#define RUN_WB   3
 
 struct Dock {
     struct Opts      *o;
     struct MinList    items;          /* the icons shown, in order */
     struct MinList    extra;          /* then those that do not fit (kept in the file) */
+    struct MinList    runs;           /* programs running, not on the dock, not shown (running.c) */
     char              portname[32];
     char              edge, align;    /* T/B/L/R, and T/B/L/R or 'C' */
     struct Screen    *scr;
@@ -109,7 +123,19 @@ struct Dock {
     volatile BOOL     want;           /* pointer says: show (set by the input handler) */
     /* grid (also read by the input handler) */
     WORD              cw, ch, per, ncells;
-    WORD              fit;            /* icons per row the screen allows (no LIMIT) */
+    WORD              nkept;          /* the first cells: icons kept on the dock; then the running others */
+    WORD              ndiv;           /* the cells before the first divider (the kept icons) */
+    WORD              gapc[2];        /* the dividers' places at rest: after the kept icons, after the
+                                         Workbench icon when programs follow it (-1: none) */
+    WORD              pushed;         /* kept icons out of room because of the "more" cell */
+    WORD              divb[2];        /* the dividers: in front of these places (-1: none) ... */
+    WORD              divx[2], divox[2], divtx[2];   /* ... drawn here along the dock: now, glide start, target */
+    BOOL              dragkeep;       /* a running other dragged to be kept (drag.c): the divider after it */
+    BOOL              fromlist;       /* the drag began as a long press (window list): off the dock = cancel */
+    LONG              divpen;         /* its colour */
+    LONG              pulsepen[4];    /* a minimised program's dot: bright to dim (pulse) */
+    UBYTE             pulse;          /* its step, 0..7 */
+    WORD              fit;            /* icons per row the screen (or LIMIT) allows */
     BOOL              horiz;
     volatile WORD     hover;          /* cell under the pointer, -1 = none (input handler) */
     volatile BOOL     raisecheck;     /* input handler: windows may have changed (dock_settle) */
@@ -117,8 +143,17 @@ struct Dock {
     volatile BOOL     pinned;         /* auto-hide: out by the hotkey until the pointer was on it and left */
     volatile BOOL     pinentered;
     volatile BOOL     showing;        /* auto-hide: held out while the settings window is open */
+    struct Window    *list;           /* the held list of a program's windows (running.c) */
+    volatile BOOL     liststicky;     /* ... still open after the button went up */
+    volatile UBYTE    listev;         /* ... what the input handler saw then (LE_...) */
+    WORD              lbx, lby, lbw, lbh;   /* ... where it is (screen) */
+    UWORD             holdticks;      /* how long the button is held on an icon */
     ULONG             behind;         /* the windows behind the dock when the snapshot was taken */
     volatile BOOL     lmb;            /* left button held: maybe a Workbench drag (input handler) */
+    volatile BOOL     winchange;      /* input handler: another window became active */
+    volatile BOOL     userin;         /* input handler: a key or button was used (dock_raise) */
+    UBYTE             runcell[64];    /* the cells of running programs (read by the input handler) */
+    volatile WORD     delquit;        /* input handler: Del over running cell delquit - 1 (0: none) */
     /* hover label (tooltip.c) */
     struct Window    *tip;
     WORD              tipcell;
@@ -131,12 +166,22 @@ struct Dock {
 
 #define LABELS(d) ((d)->o->noicon || (!(d)->o->notext && !(d)->o->hovertext))   /* names in the dock (NOICON: */
                                                                                /* always, they are all it shows) */
+#define RUNBAND 3                     /* under every icon: room for the running dot */
+#define DIVGAP  8                     /* the space at the divider, its line in the middle */
+#define SECTION(d) ((d)->ncells > (d)->ndiv)    /* running others shown: the first divider's space is there */
+#define NGAPS(d) (((d)->gapc[0] >= 0) + ((d)->gapc[1] >= 0))   /* dividers at rest */
+#define LE_MOVE 1                     /* the open list (input handler): the pointer moved */
+#define LE_PICK 2                     /*   a click on it */
+#define LE_AWAY 4                     /*   a click elsewhere */
+#define LE_DEL  8                     /*   Del */
+#define LE_ESC  16                    /*   Esc */
 /* Icon top in its cell: on a common baseline above labels, else centred. */
 #define ICON_DY(d, it) (2 + (d)->spy + (LABELS(d) ? (d)->maxih - (it)->ih : ((d)->maxih - (it)->ih) / 2))
 #define FOR_ITEMS(d, it) for ((it) = (struct Item *)(d)->items.mlh_Head; (it)->node.mln_Succ; \
                               (it) = (struct Item *)(it)->node.mln_Succ)
 #define SD_EASE(t) ((((t) * (t)) >> 10) * (3072 - 2 * (t)) >> 10)   /* smoothstep, 0..1024 */
-#define DOCKFULL(d) ((d)->ncells >= (d)->fit)   /* as long as the screen (or LIMIT) allows */
+#define DOCKFULL(d) ((d)->nkept + (d)->pushed >= (d)->fit)   /* as long as the screen (or LIMIT) allows; */
+                                                 /* (pushed: a kept icon gave its place to the "more" cell) */
 
 /* main.c */
 void sd_putch(void);                                        /* rawfmt.s, for RawDoFmt */
@@ -175,19 +220,18 @@ BOOL dock_open(struct Dock *d);
 void dock_close(struct Dock *d);
 void dock_show_item(struct Dock *d, struct Item *it, BOOL selected);   /* one cell again, shown */
 BOOL dock_exists(CONST_STRPTR path);                        /* without "Please insert volume" requesters */
-void dock_refresh(struct Dock *d);
 BOOL dock_event(struct Dock *d, struct IntuiMessage *im);   /* FALSE = quit */
 void dock_reopen(struct Dock *d);
-void dock_refresh(struct Dock *d);                           /* reopen with a fresh look at the screen */
 void dock_set_pos(struct Dock *d, char edge);
 BOOL dock_raise(struct Dock *d);                            /* TRUE: brought forward (a moment later) */
+void dock_raise_now(struct Dock *d);                        /* ... also with the settings window open */
 void dock_settle(struct Dock *d);                           /* after a click: in front, new snapshot */
 ULONG dock_behind(struct Dock *d);                          /* signature of the windows behind it */
 void ah_peek(struct Dock *d);                               /* step aside, new snapshot, back */
 void ah_peek_end(struct Dock *d);
 void ah_strip_grab(struct Dock *d, BOOL hiding);            /* what the hidden strip shows */
 void ah_hotkey(struct Dock *d);
-void ah_show(struct Dock *d, BOOL on);                      /* held out (the settings window) or not */                             /* the hotkey: out (and stay) / in */
+void ah_show(struct Dock *d, BOOL on);                      /* held out (the settings window) or not */
 BOOL in_set_hotkey(CONST_STRPTR desc);                      /* commodities description; FALSE: not valid */
 BOOL in_hotkey_valid(CONST_STRPTR desc);                    /* the same check, the hotkey in use unchanged */
 void dock_show(struct Dock *d);                             /* blit img into the window */
@@ -201,6 +245,8 @@ void box_clip(struct Dock *d, struct Box *b);               /* to the dock image
 void item_box(struct Dock *d, struct Item *it, struct Box *b);   /* add where it is drawn */
 void box_cells(struct Dock *d, struct Box *b);              /* grow to whole cells */
 void dock_reopen_glide(struct Dock *d);                     /* reopen, icons glide from where they were */
+BOOL dock_relayout_hidden(struct Dock *d);                  /* the same while auto-hide keeps it away (FALSE: not now) */
+void ah_hidden_moved(struct Dock *d);                       /* ... the edge strip follows (autohide.c) */
 struct Item *dock_item(struct Dock *d, LONG cell);
 void dock_unhide(struct Dock *d);                            /* the icons that did not fit back into items */
 LONG dock_extra(struct Dock *d);                             /* how many icons do not fit */
@@ -250,7 +296,6 @@ BOOL drag_drop_wb(struct Dock *d, struct AppMessage *am);   /* TRUE = reopen the
 void dz_add(struct Dock *d);                                /* dock fully shown */
 void dz_remove(struct Dock *d);                             /* dock hidden or closing */
 LONG dz_gap(ULONG id);                                      /* drop zone id -> gap, -1 */
-LONG dz_target(void);                                       /* the icon shown pressed, -1 */
 LONG dz_icon(ULONG id);                                     /* drop zone id -> the icon it is on, -1 */
 void dz_reset(struct Dock *d);
 void dz_lock(void);                                         /* drawing / list changes vs the zone hook */
@@ -267,12 +312,50 @@ BOOL am_choose(struct Dock *d, CONST_STRPTR name);          /* debug ARexx MENU 
 ULONG am_prefs_sig(void);                                   /* the settings window's signal (0: closed) */
 void am_prefs_handle(struct Dock *d);
 struct Window *am_prefs_win(void);                          /* the settings window (NULL: closed) */
+void am_prefs_sync(struct Dock *d);                         /* ... shows settings changed elsewhere */
 void am_prefs_close(struct Dock *d);                        /* close it, keeping its changes (ARexx) */
 void am_prefs_store(struct Dock *d);                        /* the same, when quitting */
 void am_note_overflow(struct Dock *d, LONG n);              /* "n icons do not fit" (not modal) */
 void am_settings(struct Dock *d, BOOL more);                /* the settings window (more: Advanced) */
 void am_close(void);
 void dock_bench(struct Dock *d, char *res);                 /* ARexx BENCH (bench.c) */
+
+/* running.c - programs on the dock that are running */
+BOOL run_is_tool(struct Item *it);                          /* a program icon (not drawer, disk, project) */
+BOOL run_trackable(struct Item *it);                        /* a program icon, the Shell, a drawer, Workbench */
+BOOL run_is_drawer(struct Item *it);                        /* a docked drawer, disk or Trash */
+void run_list_input(struct Dock *d);                        /* the list stays open: clicks, Del, Esc */
+BOOL in_send_eof(struct Window *w);                         /* Ctrl+\ into a console window (input.c) */
+ULONG run_open(void);                                       /* timer signal (0: none) */
+void run_close(void);
+void run_check(struct Dock *d);                             /* the dock was shown or hidden: look, or stop */
+void run_timer(struct Dock *d);
+void run_clicked(struct Dock *d);                           /* look soon (a program may start or close) */
+BOOL run_launch(struct Dock *d, struct Item *it, struct AppMessage *am);   /* start it as Workbench does */
+void run_forget(struct Item *it);                           /* the icon goes away */
+BOOL run_front(struct Dock *d, struct Item *it);            /* click: to the front (FALSE: not running) */
+void run_hold(struct Dock *d, struct Item *it);             /* button held: the list of its windows */
+void run_list_move(struct Dock *d, WORD sx, WORD sy);
+BOOL run_list_pick(struct Dock *d, WORD sx, WORD sy);       /* button up: the window picked (FALSE: no list) */
+void run_list_close(struct Dock *d);
+void run_soon(struct Dock *d);                              /* a window became active: look in a moment */
+void run_layout_out(struct Dock *d);                        /* the running others out of the icon list */
+void run_layout_all(struct Dock *d);                        /* ... all of them in (to load their icons) */
+void run_layout_in(struct Dock *d, LONG room);              /* ... as many as fit, then the "more" cell */
+void run_free_all(struct Dock *d);
+void run_free_hidden(struct Dock *d);
+void run_wake(struct Dock *d);                              /* a minimised window made active: shown */                          /* forget the running others */
+BOOL run_hide(struct Dock *d, struct Item *it);             /* dragged off: not shown again (IGNORE), asked first */
+BOOL run_locate(struct Dock *d, struct Item *it);           /* its file not known: ask (TRUE: found) */
+void run_images_free(struct Dock *d);                       /* icons of the running others not shown (dock closing) */
+void run_crash_unlock(void);                                /* crash recovery: locks collect() held */
+void run_show_all(void);                                    /* minimised windows shown again (quit, crash) */
+void run_quit(struct Dock *d, LONG cell);                   /* Del over a running icon: it closes */
+void dock_runcells(struct Dock *d);                         /* runcell[] from the icons now */
+
+/* dropcopy.c - icons dropped onto a drawer or disk icon: copied into it */
+BOOL drop_copy(struct Dock *d, struct Item *it, struct AppMessage *am);
+void drop_copy_wait(void);                                  /* quitting: a copy in progress finishes first */
 
 /* picker.c - the colour picker */
 BOOL pick_open(struct Dock *d, ULONG rgb);
@@ -301,9 +384,9 @@ void pix_read(struct RastPort *rp, LONG x, LONG y, LONG w, LONG h, UBYTE *rgb);
 void pix_write(struct RastPort *rp, LONG x, LONG y, LONG w, LONG h, UBYTE *rgb);
 
 /* pixel loops: pixel.s, or the C versions in render.c (-DSD_NOASM, to compare) */
+#ifdef SD_NOASM
 void sd_lut3_c(UBYTE *p, LONG n, const UBYTE *lut);
 void sd_blend_c(UBYTE *p, const UBYTE *s, LONG n, LONG m);
-#ifdef SD_NOASM
 #define SD_LUT3(p, n, lut)   sd_lut3_c(p, n, lut)
 #define SD_BLEND(p, s, n, m) sd_blend_c(p, s, n, m)
 #else
@@ -313,6 +396,12 @@ void sd_blend(__reg("a0") UBYTE *p, __reg("a1") const UBYTE *s, __reg("d0") LONG
 #define SD_BLEND(p, s, n, m) sd_blend(p, s, n, m)
 #endif
 void render_item(struct Dock *d, struct RastPort *rp, struct Item *it, WORD cx, WORD cy, BOOL selected);
+void render_divider(struct Dock *d, struct RastPort *rp, struct Box *b);   /* the divider, inside b */
+void render_dot(struct Dock *d, struct Item *it);           /* a minimised program's dot again (pulse) */
+void render_divider_at(struct Dock *d, struct RastPort *rp, struct Box *b, WORD at);   /* ... drawn at 'at' */
+void divider_box(struct Dock *d, WORD at, struct Box *b);   /* add where it is drawn at 'at' */
+WORD dock_along(struct Dock *d, WORD a);
+BOOL dock_in_gap(struct Dock *d, WORD a);                   /* in a divider's space (input handler too) */                    /* along the dock: without the divider's space */
 BOOL render_image(struct Dock *d);
 void render_free(struct Dock *d);
 BOOL render_resnap(struct Dock *d);

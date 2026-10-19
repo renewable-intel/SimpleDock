@@ -81,16 +81,24 @@ static void rfree(struct RDArgs *rd)
     if (rd) { FreeArgs(rd); FreeDosObject(DOS_RDARGS, rd); }
 }
 
+/* Kept icon n (0 = first) as LIST counts them: the running others left out. */
+static struct Item *kept_item(struct Dock *d, LONG n)
+{
+    struct Item *it;
+    FOR_ITEMS(d, it) if (!it->temp && n-- == 0) return it;
+    return NULL;
+}
+
 /* An icon by name: "#n" (its place, 1 = first), its label, its file name or
    its path, in any case. */
 static struct Item *find(struct Dock *d, CONST_STRPTR name)
 {
     struct Item *it;
     LONG n;
-    if (name[0] == '#') return StrToLong((STRPTR)name + 1, &n) > 0 && n >= 1 ? dock_item(d, n - 1) : NULL;
+    if (name[0] == '#') return StrToLong((STRPTR)name + 1, &n) > 0 && n >= 1 ? kept_item(d, n - 1) : NULL;
     FOR_ITEMS(d, it)
-        if ((it->label && !Stricmp(it->label, (STRPTR)name)) || !Stricmp(FilePart(it->path), (STRPTR)name) ||
-            !Stricmp(it->path, (STRPTR)name))
+        if (!it->temp && ((it->label && !Stricmp(it->label, (STRPTR)name)) || !Stricmp(FilePart(it->path), (STRPTR)name) ||
+                          !Stricmp(it->path, (STRPTR)name)))
             return it;
     return NULL;
 }
@@ -107,7 +115,7 @@ static BOOL where(struct Dock *d, LONG *at, CONST_STRPTR after, CONST_STRPTR bef
         *pb = x->node.mln_Succ->mln_Succ ? (struct Item *)x->node.mln_Succ : NULL;
         return TRUE;
     }
-    if (at) *pb = dock_item(d, *at - 1);         /* past the end: at the end */
+    if (at) *pb = kept_item(d, *at - 1);         /* past the end: at the end */
     return TRUE;
 }
 
@@ -171,7 +179,7 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
         else if (word(&cmd, "HIDE")) { if (!d->hidden) dock_close(d); }
         else if (word(&cmd, "SHOW")) { if (d->hidden) { if (dock_open(d)) ah_start(d); else rc = RC_ERROR; } }
         else if (word(&cmd, "REFRESH")) {
-            dock_refresh(d);
+            dock_reopen(d);
             if (d->hidden) rc = RC_ERROR;
         }
         else if (word(&cmd, "GETPOS")) {
@@ -192,13 +200,14 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
             for (pass = 0; pass < 2; pass++)     /* those shown, then those that do not fit */
                 for (it = (struct Item *)(pass ? &d->extra : &d->items)->mlh_Head; it->node.mln_Succ;
                      it = (struct Item *)it->node.mln_Succ)
-                    len += strlen(it->path) + (it->label ? strlen(it->label) : 0) + 1;
+                    len += strlen(it->path) + (it->label ? strlen(it->label) : 0) + 1;   /* (an upper bound) */
             if ((big = AllocVec(len, MEMF_ANY))) {
                 big[0] = 0;
                 for (pass = 0; pass < 2; pass++)
                     for (it = (struct Item *)(pass ? &d->extra : &d->items)->mlh_Head; it->node.mln_Succ;
                          it = (struct Item *)it->node.mln_Succ) {
                         CONST_STRPTR s = names ? (it->label ? it->label : FilePart(it->path)) : it->path;
+                        if (it->temp) continue;          /* running, not kept */
                         if (names && !*s) s = it->path;   /* a disk without a label */
                         if (n) big[n++] = '\n';
                         strcpy(big + n, s); n += strlen(s);
@@ -211,7 +220,7 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
             BPTR lock = 0;
             if (!(ra = rargs(cmd, "PATH/A,AT/K/N,AFTER/K,BEFORE/K,LABEL/K", a, 5)) ||
                 !(lock = Lock((STRPTR)a[0], ACCESS_READ)) ||                    /* no such file */
-                (!d->hidden && d->ncells + 1 > d->fit)) rc = RC_ERROR;           /* the dock is full */
+                (!d->hidden && d->nkept + d->pushed + 1 > d->fit)) rc = RC_ERROR;            /* the dock is full */
             else if (changing(d), !where(d, (LONG *)a[1], (STRPTR)a[2], (STRPTR)a[3], &before)) {
                 rc = RC_ERROR;
                 changed(d, NULL);
@@ -288,10 +297,11 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
             static char list[256];
             LONG n = 0;
             list[0] = 0;
-            FOR_ITEMS(d, it) {
-                CONST_STRPTR s = FilePart(it->path);
-                if (n + strlen(s) + 2 >= sizeof(list)) break;
+            FOR_ITEMS(d, it) {                   /* (running others marked +, the "more" cell ...) */
+                CONST_STRPTR s = it->temp == RUN_MORE ? "..." : FilePart(it->path);
+                if (n + strlen(s) + 3 >= sizeof(list)) break;
                 if (n) list[n++] = ',';
+                if (it->temp == RUN_TEMP) list[n++] = it->nofile ? '?' : '+';   /* (? : its file not known) */
                 strcpy(list + n, *s ? s : it->path); n += strlen(list + n);
             }
             out = list;
@@ -367,6 +377,24 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
             LONG v[5];
             v[0] = d->cw; v[1] = d->ch; v[2] = d->per; v[3] = d->pad; v[4] = d->ncells;
             SD_FMT(res, "%ld %ld %ld %ld %ld", v);
+            out = res;
+        }
+        else if (word(&cmd, "RUNSTATE")) {
+            extern LONG run_scans, run_skips, run_found, run_redraws;
+            extern ULONG run_us_sum, run_us_max;
+            struct Item *ri;
+            LONG v[8];
+            char *p;
+            v[0] = d->vis; v[1] = run_scans; v[2] = run_skips; v[3] = run_found; v[4] = run_redraws;
+            v[5] = run_scans ? run_us_sum / run_scans : 0; v[6] = run_us_max;
+            SD_FMT(res, "vis %ld scans %ld skips %ld windows %ld redraws %ld avg %ld us max %ld us |", v);
+            p = res + strlen(res);
+            FOR_ITEMS(d, ri)
+                if (ri->running && p < res + sizeof(res) - 40) {
+                    v[0] = (LONG)FilePart(ri->path); v[1] = ri->running;
+                    SD_FMT(p, " %s=%ld", v);
+                    p += strlen(p);
+                }
             out = res;
         }
         else if (word(&cmd, "AHSTATE")) {

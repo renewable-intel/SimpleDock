@@ -2,8 +2,8 @@
 ; Copyright (C) 2026 renewable-intel
 ; SPDX-License-Identifier: GPL-3.0-or-later
 ;
-; Same results as the C versions in render.c / scale.c (built with
-; -DSD_NOASM to compare). Scratch: d0/d1/a0/a1; others are saved.
+; Same results as the C versions in render.c (built with -DSD_NOASM to
+; compare). Scratch: d0/d1/a0/a1; others are saved.
 
         section code,code
 
@@ -28,7 +28,7 @@ _sd_lut3:
 ;               d0 = pixels, d1 = 256 (normal) or less (pressed: darker))
 ; out = (src * d1 >> 8) + (dst * k' >> 8), k' = k + k / 128 (k = 255 - alpha),
 ; at most 255. Fully transparent pixels are skipped, opaque ones copied
-; (the same result: k' = 0, src * 256 >> 8 = src).
+; when d1 = 256 (the same result: k' = 0, src * 256 >> 8 = src).
         xdef    _sd_blend
 _sd_blend:
         movem.l d2-d5,-(sp)

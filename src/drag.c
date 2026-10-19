@@ -2,13 +2,14 @@
    Copyright (C) 2026 renewable-intel
    SPDX-License-Identifier: GPL-3.0-or-later
 
-   Hold an icon and move: the icon (only the icon, drawn on the screen like a
-   Workbench icon drag) follows the pointer and the other icons make way.
-   Release inside the dock: it takes the free place. Release outside: it is
-   removed and the dock shrinks (an empty dock stays as a bar to drop on).
-   During the drag the screen's layers are locked, as Workbench does: no
-   window changes. Icons dragged from Workbench onto the dock are added where
-   they are dropped. Nothing is written to disk until Save in the settings window. */
+   Hold an icon and move: the icon follows the pointer (in the dock image over
+   the dock, on the screen elsewhere) and the other icons make way. Release
+   inside the dock: it takes the free place. Release outside: a kept icon is
+   removed (an empty dock stays as a bar to drop on), a running other is
+   hidden (asked first), a drag begun as a held list goes back. During the
+   drag the screen's layers are locked, as Workbench does: no window
+   changes. Icons dragged from Workbench are added where they are dropped.
+   Every change is saved at once (config_store). */
 #include <string.h>
 #include <intuition/intuition.h>
 #include <workbench/workbench.h>
@@ -27,6 +28,7 @@
 #define MARGIN     8                   /* drop this close to the dock = inside */
 
 static LONG index_of(struct Dock *d, struct Item *it);
+static LONG allowed(struct Dock *d, LONG g, WORD x, WORD y, BOOL *keep);
 
 static WORD offx, offy;                 /* pointer position inside the icon */
 static struct BitMap *save;             /* screen pixels under the dragged icon */
@@ -66,11 +68,13 @@ static void icon_draw(struct Dock *d, WORD x, WORD y)
 
 /* --- the dock while dragging: the other icons make way --- */
 
-/* The cell kept free moves: the other icons glide to make way. */
-static void show_gap(struct Dock *d, LONG g)
+/* The cell kept free moves (or the divider, keep: before or after it): the
+   other icons glide to make way. */
+static void show_gap(struct Dock *d, LONG g, BOOL keep)
 {
-    if (g == gap) return;
+    if (g == gap && keep == d->dragkeep) return;
     gap = g;
+    d->dragkeep = keep;
     dock_targets(d, d->drag, g);
     an_start(d, GLIDE_MS);
 }
@@ -178,6 +182,7 @@ static void finish(struct Dock *d)
     d->win->Flags &= ~WFLG_RMBTRAP;
     Permit();
     d->dragging = FALSE;
+    d->dragkeep = FALSE;
     gap = -2;
 }
 
@@ -230,18 +235,24 @@ static void start(struct Dock *d)
     Forbid();
     d->win->Flags |= WFLG_RMBTRAP;
     Permit();
+    if (d->win->IDCMPFlags & IDCMP_INTUITICKS)   /* (the hold timer: an Intuition call, not under the locks) */
+        ModifyIDCMP(d->win, d->win->IDCMPFlags & ~IDCMP_INTUITICKS);
     LockLayers(&d->scr->LayerInfo);
     base_build(d, NULL);
     gap = -2;
-    show_gap(d, index_of(d, it));                /* its own cell stays free */
+    d->dragkeep = FALSE;
+    show_gap(d, index_of(d, it), FALSE);         /* its own cell stays free */
 }
 
 static void move(struct Dock *d, WORD mx, WORD my)
 {
     LONG g = cell_at(d, mx, my);
+    BOOL keep;
+    LONG at;
     PROF_START(t0);
     px = mx; py = my;
-    show_gap(d, g);                              /* may start a glide (drag_redraw) */
+    at = allowed(d, g, mx, my, &keep);
+    show_gap(d, at, keep);                       /* may start a glide (drag_redraw) */
     if (g >= 0) {                                /* over the dock: drawn into its image */
         struct Box none = { 0, 0, 0, 0 };
         if (!inside) { icon_restore(); inside = TRUE; }
@@ -268,11 +279,44 @@ static LONG index_of(struct Dock *d, struct Item *it)
     return -1;
 }
 
+/* Is window position x, y on the kept icons' side of the divider (or just
+   past it, a quarter of a cell)? */
+static BOOL kept_side(struct Dock *d, WORD x, WORD y)
+{
+    WORD size = d->horiz ? d->cw : d->ch;
+    if (d->dragging && d->dragkeep)              /* (being kept: up to the divider where it is drawn now) */
+        return (d->horiz ? x : y) < d->pad + (d->ndiv + 1) * size + DIVGAP / 2;
+    return dock_along(d, d->horiz ? x : y) < d->pad + d->ndiv * size + size / 4;
+}
+
+/* The place kept free for the dragged icon over cell g (at x, y). Kept icons
+   stay in front of the running others. A running one goes there only to be
+   kept (*keep), into the gap nearest the pointer (the right half of an icon:
+   after it, so also right in front of the divider); else it keeps its own
+   place. */
+static LONG allowed(struct Dock *d, LONG g, WORD x, WORD y, BOOL *keep)
+{
+    struct Item *it = d->drag;
+    WORD size = d->horiz ? d->cw : d->ch, rel = (d->horiz ? x : y) - d->pad;   /* (kept places: before the space) */
+    LONG at;
+    *keep = FALSE;
+    if (!it->temp) return g > d->nkept - 1 ? d->nkept - 1 : g;
+    if (g >= 0 && kept_side(d, x, y) && !DOCKFULL(d)) {
+        *keep = TRUE;
+        at = rel < 0 ? 0 : (rel + size / 2) / size;
+        return at > d->nkept ? d->nkept : at;
+    }
+    return index_of(d, it);
+}
+
 static void drop(struct Dock *d, WORD x, WORD y)
 {
     struct Item *it = d->drag, *before = NULL, *i;
-    LONG cell = cell_at(d, x, y), k = 0;
-    BOOL was_inside = inside;                    /* finish() clears it */
+    LONG cell = cell_at(d, x, y), k = 0, to;
+    BOOL was_inside = inside, keep;              /* finish() clears it */
+    BOOL temp = it->temp, refuse = it->temp && cell >= 0 && kept_side(d, x, y), cancel = cell < 0 && d->fromlist;
+    to = allowed(d, cell, x, y, &keep);
+    d->fromlist = FALSE;
 
     finish(d);
     d->drag = NULL;
@@ -287,9 +331,34 @@ static void drop(struct Dock *d, WORD x, WORD y)
         if (it->y < 0) it->y = 0;
     }
     dz_suspend();                                /* the list changes: not for the zone hook now */
+    if (cancel) {                                /* began as a long press, let go off the dock: */
+        dock_compose(d);                         /* nothing removed or hidden, back to its place */
+        dock_targets(d, NULL, -1);
+        dz_resume(d);
+        an_start(d, GLIDE_MS);
+        ah_pointer(d);
+        return;
+    }
+    if (temp && cell < 0 && run_hide(d, it)) {   /* running, not kept, dropped off the dock: hidden (if wanted) */
+        ah_pointer(d);
+        return;
+    }
+    if (temp && cell < 0) keep = refuse = FALSE; /* (not hidden: back to its place) */
+    if (temp && keep && it->nofile && !run_locate(d, it)) keep = refuse = FALSE;   /* (not found: back) */
+    if (temp && !keep) {                         /* running, not kept: back to its place */
+        if (refuse) DisplayBeep(d->scr);         /* (the dock is full) */
+        dock_compose(d);
+        dock_targets(d, NULL, -1);
+        dz_resume(d);
+        an_start(d, GLIDE_MS);
+        ah_pointer(d);
+        return;
+    }
+    if (temp) it->temp = FALSE;                  /* dropped before the divider: kept */
     if (cell >= 0) {                             /* in the dock: to the free cell */
         dock_compose(d);                         /* the image without the drag: it is drawn at x, y */
         Remove((struct Node *)it);
+        cell = to;
         FOR_ITEMS(d, i)
             if (k++ == cell) { before = i; break; }
         if (before) Insert((struct List *)&d->items, (struct Node *)it, (struct Node *)before->node.mln_Pred);
@@ -297,9 +366,11 @@ static void drop(struct Dock *d, WORD x, WORD y)
         dock_targets(d, NULL, -1);
         dz_resume(d);
         an_start(d, GLIDE_MS);
+        if (temp) dock_reopen_glide(d);          /* kept: the divider's space, its own icon (if found by the user) */
     } else {
         config_remove(d, it);
         dock_reopen_glide(d);                    /* smaller dock, the rest close up */
+        run_clicked(d);                          /* (if it runs, it is back among the running others) */
     }
     config_store(d);
     ah_pointer(d);                               /* the pointer may have left meanwhile */
@@ -310,7 +381,8 @@ BOOL drag_event(struct Dock *d, struct IntuiMessage *im)
 {
     if (im->Class == IDCMP_MOUSEMOVE) {
         if (!d->dragging) {
-            if (!d->pressed || absw(im->MouseX - d->downx) + absw(im->MouseY - d->downy) < DRAG_START)
+            if (!d->pressed || d->pressed->temp == RUN_MORE || d->pressed->temp == RUN_WB || d->pressed->mini ||   /* (minimised: never) */
+                absw(im->MouseX - d->downx) + absw(im->MouseY - d->downy) < DRAG_START)
                 return FALSE;
             start(d);
         }
@@ -361,7 +433,7 @@ BOOL drag_drop_wb(struct Dock *d, struct AppMessage *am)
         dock_show(d);                             /* the pressed look drawn by the zone hook */
         return FALSE;
     }
-    if (d->ncells + am->am_NumArgs > d->fit) {
+    if (d->nkept + d->pushed + am->am_NumArgs > d->fit) {
         DisplayBeep(d->scr);                    /* full: as long as the screen (or LIMIT) allows */
         dz_reset(d);
         dock_show(d);                           /* what the zone hook drew */

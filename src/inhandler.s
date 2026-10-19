@@ -3,9 +3,10 @@
 ; SPDX-License-Identifier: GPL-3.0-or-later
 ;
 ; Called by input.device with A0 = event list (A1 = is_Data), returns the list
-; in D0, unchanged. _in_watch notes the left button (and which window was
-; active when it went down); while auto-hide or hover labels are on (_in_on)
-; _in_check also looks at the pointer, once per batch of events.
+; in D0. _in_watch notes the left button and the active window (and takes
+; the hotkey and the held list's keys); while the pointer matters (_in_on:
+; auto-hide, hover labels, labels only, ONTOP) _in_check also looks at it,
+; once per batch of events.
 
         section code,code
         xdef    _in_handler

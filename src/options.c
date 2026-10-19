@@ -21,16 +21,17 @@ extern struct WBStartup *WBenchMsg;
 static const char TEMPLATE[] =
     "CONFIG,POS=POSITION,DISTANCE/K/N,OFFSET/K/N,FONT/K,PUBSCREEN/K,NOTEXT/S,HOVERTEXT/S,"
     "NOICON/S,NOBORDER/S,ICONDIST/K/N,SCALEICONW/K/N,SCALEICONH/K/N,LIMIT/K/N,AUTOHIDE/K/N,"
-    "ONTOP/S,TRANSPARENT/S,TINT/K,OPACITY/K/N,RADIUS/K/N,DELAY/K/N,QUIET/S,VERBOSE/S,HOTKEY/K,CUSTOMTINT/K,CRASHLOG/S";
+    "ONTOP/S,TRANSPARENT/S,TINT/K,OPACITY/K/N,RADIUS/K/N,DELAY/K/N,QUIET/S,VERBOSE/S,HOTKEY/K,CUSTOMTINT/K,CRASHLOG/S,"
+    "RUNNING/K/N,CLICKNEW/S,WBSTART/S,DROPMOVE/S,HOLDTIME/K/N,RUNHIDE/S,IGNORE/K,WBHIDE/S";
 
 enum { A_CONFIG, A_POS, A_DISTANCE, A_OFFSET, A_FONT, A_PUBSCREEN, A_NOTEXT, A_HOVERTEXT,
        A_NOICON, A_NOBORDER, A_ICONDIST, A_SCALEW, A_SCALEH, A_LIMIT, A_AUTOHIDE,
        A_ONTOP, A_TRANSPARENT, A_TINT, A_OPACITY, A_RADIUS, A_DELAY, A_QUIET, A_VERBOSE, A_HOTKEY, A_CUSTOM,
-       A_CRASHLOG, A_COUNT };
+       A_CRASHLOG, A_RUNNING, A_CLICKNEW, A_WBSTART, A_DROPMOVE, A_HOLDTIME, A_RUNHIDE, A_IGNORE, A_WBHIDE, A_COUNT };
 
 #define TTLINE 2048
 
-static char iconname[512];   /* icon a drawer dock saves its settings to */
+static char iconname[512];   /* the dock's icon: its tooltypes (a drawer dock also saves into it) */
 
 static LONG num(LONG *a, LONG def) { return a ? *a : def; }
 static LONG range(LONG v, LONG lo, LONG hi) { return v < lo ? lo : v > hi ? hi : v; }
@@ -229,7 +230,7 @@ struct RDArgs *opts_read(struct Opts *o, char *portname, LONG portlen)
     return rd;
 }
 
-/* The icon a drawer dock saves its settings to and reads them from again. */
+/* The dock's icon: its tooltypes are read at every load; a drawer dock saves into it. */
 static BOOL icon_path(char *name, LONG size)
 {
     char prog[108];
@@ -306,7 +307,7 @@ static void fill(struct Opts *o, LONG *a, STRPTR projcfg)
     o->pubscreen  = (STRPTR)a[A_PUBSCREEN];
     o->tint       = (STRPTR)a[A_TINT];
     o->customtint = (STRPTR)a[A_CUSTOM];         /* the one custom colour of the settings window */
-    o->hotkey     = a[A_HOTKEY] ? (STRPTR)a[A_HOTKEY] : (STRPTR)"ctrl alt d";   /* reveal the dock */
+    o->hotkey     = a[A_HOTKEY] ? (STRPTR)a[A_HOTKEY] : (STRPTR)"ctrl alt shift";   /* reveal the dock (tapped) */
     o->distance   = num((LONG *)a[A_DISTANCE], 4);       /* gap to the screen edge */
     o->offset     = num((LONG *)a[A_OFFSET], 0);
     o->icondist   = num((LONG *)a[A_ICONDIST], 2);
@@ -328,6 +329,14 @@ static void fill(struct Opts *o, LONG *a, STRPTR projcfg)
     o->quiet      = a[A_QUIET] != 0;
     o->verbose    = a[A_VERBOSE] != 0;
     o->crashlog   = a[A_CRASHLOG] != 0;          /* crash reports (crash.c) */
+    o->running    = range(num((LONG *)a[A_RUNNING], 2), 0, 2);   /* running programs: off, dot, dot + number */
+    o->clicknew   = a[A_CLICKNEW] != 0;          /* a click starts a new copy (Shift+click: to the front) */
+    o->wbstart    = a[A_WBSTART] != 0;           /* programs started by Workbench, not the dock */
+    o->dropmove   = a[A_DROPMOVE] != 0;          /* drops onto a drawer move on the same disk */
+    o->holdtime   = range(num((LONG *)a[A_HOLDTIME], 3), 1, 50);  /* long press, tenths of a second */
+    o->runhide    = a[A_RUNHIDE] != 0;           /* programs not on the dock are not shown */
+    o->ignore     = (STRPTR)a[A_IGNORE];         /* ... nor these ("Name,Name") */
+    o->wbhide     = a[A_WBHIDE] != 0;            /* no Workbench icon for the drawer windows */
     if (o->distance < 0) o->distance = 0;
     if (o->distance > 64) o->distance = 64;
     if (o->icondist < 0) o->icondist = 0;

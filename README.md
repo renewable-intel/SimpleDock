@@ -1,33 +1,39 @@
 # SimpleDock
 
-A simple, macOS-inspired application dock for **AmigaOS 3.2**: small and fast.
+A simple, macOS-inspired application dock for **AmigaOS 3.x** (best on 3.2): small and fast.
 
 A rounded bar of icons at a screen edge, solid or transparent, in the style of
 the macOS dock.
 
-> **Status: v1.0.** Icons with labels below, on hover or labels only, drag to
-> rearrange or remove, drop Workbench icons onto the dock (between icons
-> to add them, onto a program to open them with it), auto-hide with a smooth slide and a
-> hotkey (CTRL ALT D) to bring it out, stays in front of windows if wanted,
-> a "Dock" menu in the Workbench menu bar, a settings window with simple and
-> advanced settings, colours of your own, and crash reports on request.
-> Spec: [docs/SPEC.md](docs/SPEC.md).
+> **Status: v1.1.** Icons with labels below, on hover or labels only, drag to
+> rearrange or remove, drop Workbench icons onto the dock (between icons to add
+> them, onto a program to open them with it, onto a drawer to copy them into
+> it), running programs shown with a dot and a count (a click brings their
+> windows to the front, Shift+click starts another copy, a long press lists the
+> windows to pick or close one), programs not on the dock shown at its end
+> behind a divider (drag one in to keep it), auto-hide with a smooth slide and
+> a hotkey (CTRL ALT SHIFT) to bring it out, a "Dock" menu in the Workbench menu
+> bar, a settings window with simple and advanced settings, colours of your
+> own, and crash reports on request.
+> Spec: [docs/SPEC.md](docs/SPEC.md). Changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Goals
 
-- **Idle means idle.** No periodic wake-ups while nothing on the dock needs them.
+- **Idle means idle.** No periodic wake-ups while nothing on the dock needs
+  them. The exception is the check for running programs (every 2 s while the
+  dock is on screen; off with `RUNNING=0`).
 - **Fast drawing**: one off-screen image, so a redraw or an animation frame is
   one blit.
 - **Small and lean**: 68020+ code; the test commands and traces exist only in
   debug builds (`-DSD_DEBUG`).
-- **Robust**: every allocation checked, clean shutdown, bounded string handling.
+- **Careful**: every allocation checked, clean shutdown, bounded string handling.
 
 ## Settings
 
 Everything is in one text file, `ENVARC:SimpleDock.config`: the settings
 first (`POS=B`, `ONTOP`, `(NOTEXT)` = off ...), then the icons. Dock >
 Settings... opens the settings window: a change shows on the dock at once
-and is kept when the window closes; Recall goes back to how it was; Load...
+and is kept when the window closes; Undo changes goes back to how it was; Load...
 and Save as... for other settings files; Advanced >> for every other keyword.
 Icons added, moved or removed with the mouse are saved at once. The same keywords also work as
 tooltypes and on the command line; see [docs/SPEC.md](docs/SPEC.md).
@@ -43,12 +49,17 @@ rx "options results; address SIMPLEDOCK 'BENCH'; say result"
 
 ## Requirements
 
-- **Minimum:** AmigaOS 3.2, a 68030 with fast RAM. (A stock 68020 A1200
-  runs it, but the animations are too slow to be pleasant.)
-- **Recommended:** a 68040 or 68060 accelerator, or a PiStorm / Emu68
-  system, and a graphics card (RTG, Picasso96) with a 16- or 24-bit
-  screen mode - animations are smoothest there, and Transparent costs
-  the least.
+- **Minimum:** AmigaOS 3.2, or 3.1.4, 3.5 or 3.9 (workbench.library and
+  icon.library 44 or newer; on the older ones a few extras fall back, see
+  the ReadMe), a 68030 with fast RAM. (A stock 68020 A1200 runs it, but the animations
+  are too slow to be pleasant.)
+- **Recommended:** a 68040 or 68060 accelerator, or an accelerated Amiga
+  such as a PiStorm / Emu68 system, and a graphics card (RTG, Picasso96)
+  with a 16- or 24-bit screen mode - animations are smoothest there, and
+  the transparent dock costs the least.
+- AGA (8-bit) screens work too, more slowly. The settings window's lists
+  are ReAction choosers (chooser.gadget, part of OS 3.2), with GadTools
+  cycle gadgets as a fallback.
 
 ## Building
 
@@ -82,7 +93,9 @@ The program icon is the pixel map in `scripts/icon.txt`.
 | `src/input.c`, `src/inhandler.s` | input handler: pointer, button and hotkey, before Intuition |
 | `src/drag.c` | dragging dock icons; Workbench icons dropped on the dock |
 | `src/dropzone.c` | drop zones: the dock makes way while Workbench drags icons over it |
-| `src/launch.c` | starting programs, and opening files with a dock icon |
+| `src/launch.c` | a click or a drop on an icon: start, open, or copy into a drawer |
+| `src/dropcopy.c` | files dropped onto a drawer or disk icon: copied into it |
+| `src/running.c` | running programs: the dock's own launcher, dot and count, click to the front, the held list of windows (Close, Close All), programs not on the dock |
 | `src/tooltip.c` | the label shown on hover |
 | `src/appmenu.c` | the Dock menu, the settings window (simple and Advanced), About |
 | `src/picker.c` | the colour picker of the settings window (its Custom... button) |

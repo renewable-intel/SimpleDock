@@ -2,11 +2,12 @@
    Copyright (C) 2026 renewable-intel
    SPDX-License-Identifier: GPL-3.0-or-later
 
-   AmigaOS 3.2 windows are opaque rectangles, so the background starts as a
+   AmigaOS 3.x windows are opaque rectangles, so the background starts as a
    snapshot of the screen under the dock: inside a rounded rectangle it is
    filled with the colour (solid) or tinted (transparent), with a thin lighter
    border; outside the corners it shows unchanged. The snapshot is taken when
-   the dock opens and, with auto-hide, each time it comes out. */
+   the dock opens, with auto-hide each time it comes out, and after the
+   windows behind it changed (dock_settle). */
 #include <string.h>
 #include <graphics/gfx.h>
 #include <graphics/rastport.h>
@@ -125,6 +126,7 @@ ULONG render_border_colour(ULONG tint)
 }
 
 /* The C versions of pixel.s (same results; built with -DSD_NOASM). */
+#ifdef SD_NOASM
 void sd_lut3_c(UBYTE *p, LONG n, const UBYTE *lut)
 {
     for (; n > 0; n--, p += 3) {
@@ -144,6 +146,8 @@ void sd_blend_c(UBYTE *p, const UBYTE *s, LONG n, LONG m)
         }
     }
 }
+
+#endif
 
 /* A scratch buffer for pixel rows and icons, kept between calls. */
 static UBYTE *rowbuf;
@@ -548,11 +552,6 @@ static void draw_label(struct Dock *d, struct RastPort *rp, struct Item *it, WOR
     Text(rp, (STRPTR)s, fit);
 }
 
-/* Draw one icon and its label in the cell at cx, cy of a dock-sized bitmap
-   (the dock image, the drag base or the drop-zone buffer). The rastport's font
-   and draw mode must be set. These bitmaps have no layer and don't clip, so
-   the cell is clamped here: a glide can start outside a dock that just shrank,
-   and drawing there would overwrite memory. */
 #ifdef SD_DEBUG
 LONG render_clamps;                      /* draws that would have left the bitmap */
 #endif
@@ -563,6 +562,7 @@ static void label_dock(struct Dock *d, struct RastPort *rp, struct Item *it, WOR
 {
     WORD ly = 2 + d->spy + (d->o->noicon ? 0 : d->maxih + 2), lh = d->font->tf_YSize + 2;
     if (!d->o->transparent && d->fillpen >= 0 && in_solid(d, cx, cy + ly, it->w, lh)) {
+        if (it->lbm && it->lbmw != it->w) { WaitBlit(); FreeBitMap(it->lbm); it->lbm = NULL; }   /* (the cells grew) */
         if (!it->lbm &&
             (it->lbm = AllocBitMap(it->w, lh, GetBitMapAttr(d->bg, BMA_DEPTH), BMF_MINPLANES, d->bg))) {
             struct RastPort lrp;
@@ -573,6 +573,7 @@ static void label_dock(struct Dock *d, struct RastPort *rp, struct Item *it, WOR
             SetDrMd(&lrp, JAM1);
             draw_label(d, &lrp, it, 0, -ly, FALSE);
             WaitBlit();
+            it->lbmw = it->w;
         }
         if (it->lbm) {
             BltBitMapRastPort(it->lbm, 0, 0, rp, cx, cy + ly, it->w, lh, 0xC0);
@@ -582,14 +583,29 @@ static void label_dock(struct Dock *d, struct RastPort *rp, struct Item *it, WOR
     draw_label(d, rp, it, cx, cy, FALSE);
 }
 
+/* The "?" of a missing icon, 5 x 7 cells, for badges bigger than a text line. */
+static const UBYTE qmark[7] = { 0x0e, 0x11, 0x01, 0x02, 0x04, 0x00, 0x04 };
+
+/* The "?" in the box gx, gy, gw x gh, each cell a filled rectangle. */
+static void draw_qmark(struct RastPort *r, LONG gx, LONG gy, LONG gw, LONG gh)
+{
+    LONG i, j;
+    for (j = 0; j < 7; j++)
+        for (i = 0; i < 5; i++)
+            if (qmark[j] & 0x10 >> i)
+                RectFill(r, gx + i * gw / 5, gy + j * gh / 7, gx + (i + 1) * gw / 5 - 1, gy + (j + 1) * gh / 7 - 1);
+}
+
 /* An icon whose file was not found (x, y, iw x ih: where it is drawn):
-   dimmed with a 50% dither in the dock colour, and a "?" on a small light
-   badge in its middle, as the macOS dock does. Labels only: the label dimmed. */
+   dimmed with a 50% dither in the dock colour, and a "?" on a light badge in
+   its middle, as the macOS dock does. The badge is about 2/5 of the icon, at
+   least one text line high; the font's "?" is used at that smallest size.
+   Labels only: the label dimmed. */
 static void mark_missing(struct Dock *d, struct RastPort *rp, struct Item *it, WORD x, WORD y, WORD w, WORD h)
 {
     static UWORD pat[2] = { 0x5555, 0xAAAA };
     struct RastPort r = *rp;
-    LONG pen = d->fillpen >= 0 ? d->fillpen : d->shadowpen, bs, bx, by;
+    LONG pen = d->fillpen >= 0 ? d->fillpen : d->shadowpen, bs, bx, by, c, line;
     if (pen < 0 || w <= 0 || h <= 0) return;
     SetAfPt(&r, pat, 1);
     SetDrMd(&r, JAM1);
@@ -597,20 +613,172 @@ static void mark_missing(struct Dock *d, struct RastPort *rp, struct Item *it, W
     RectFill(&r, x, y, x + w - 1, y + h - 1);
     SetAfPt(&r, NULL, 0);
     if (d->o->noicon) return;
-    bs = r.TxHeight + 4;                         /* the badge, about one text line high */
+    line = r.TxHeight + 4;                       /* one text line */
+    bs = (w < h ? w : h) * 2 / 5;
+    if (bs < line) bs = line;
     if (bs > w || bs > h) return;
     bx = x + (w - bs) / 2; by = y + (h - bs) / 2;
+    c = bs > line ? bs / 8 : 1;                  /* the corners cut off */
     SetAPen(&r, d->borderpen >= 0 ? d->borderpen : d->textpen);
-    RectFill(&r, bx + 1, by, bx + bs - 2, by + bs - 1);
-    RectFill(&r, bx, by + 1, bx + bs - 1, by + bs - 2);
-    SetAPen(&r, d->shadowpen);
-    Move(&r, bx + (bs - TextLength(&r, "?", 1)) / 2 + 1, by + 2 + r.TxBaseline + 1);
-    Text(&r, "?", 1);
-    SetAPen(&r, d->textpen);
-    Move(&r, bx + (bs - TextLength(&r, "?", 1)) / 2, by + 2 + r.TxBaseline);
-    Text(&r, "?", 1);
+    RectFill(&r, bx + c, by, bx + bs - 1 - c, by + bs - 1);
+    RectFill(&r, bx, by + c, bx + bs - 1, by + bs - 1 - c);
+    if (c >= 2) RectFill(&r, bx + c / 2, by + c / 2, bx + bs - 1 - c / 2, by + bs - 1 - c / 2);
+    if (bs == line) {                            /* small: the font's "?" */
+        SetAPen(&r, d->shadowpen);
+        Move(&r, bx + (bs - TextLength(&r, "?", 1)) / 2 + 1, by + 2 + r.TxBaseline + 1);
+        Text(&r, "?", 1);
+        SetAPen(&r, d->textpen);
+        Move(&r, bx + (bs - TextLength(&r, "?", 1)) / 2, by + 2 + r.TxBaseline);
+        Text(&r, "?", 1);
+    } else {                                     /* bigger: drawn to the badge's size, with a shadow */
+        LONG gw = bs * 5 / 11, gh = bs * 7 / 11, gx = bx + (bs - gw) / 2, gy = by + (bs - gh) / 2;
+        LONG sh = bs / 16 > 1 ? bs / 16 : 1;
+        if (gw < 5 || gh < 7) return;            /* (a very small font: no empty cells) */
+        SetAPen(&r, d->shadowpen);
+        draw_qmark(&r, gx + sh, gy + sh, gw, gh);
+        SetAPen(&r, d->textpen);
+        draw_qmark(&r, gx, gy, gw, gh);
+    }
 }
 
+/* A running program: a small rounded dot (5 x 3) under its cell (RUNBAND),
+   and with two copies or more their number on the icon's top right corner. */
+/* The dot's pen: a minimised program's steps bright - dim - bright (d->pulse). */
+static LONG dot_pen(struct Dock *d, struct Item *it)
+{
+    static const UBYTE tri[8] = { 0, 1, 2, 3, 3, 2, 1, 0 };
+    LONG p = it->mini ? d->pulsepen[tri[d->pulse & 7]] : -1;
+    return p >= 0 ? p : d->textpen;
+}
+
+static void mark_running(struct Dock *d, struct RastPort *rp, struct Item *it, WORD cx, WORD cy)
+{
+    struct RastPort r = *rp;
+    WORD x = cx + it->w / 2, y = cy + it->h - RUNBAND;
+    char n[3];
+    LONG len, bw, bh, bx, by, tw;
+    if (!d->o->running) return;                  /* RUNNING=0: none shown */
+    SetDrMd(&r, JAM1);
+    if (it->temp != RUN_MORE) {                  /* (the "more" cell: only its number) */
+        SetAPen(&r, dot_pen(d, it));             /* (minimised: pulsing) */
+        RectFill(&r, x - 1, y, x + 1, y + 2);
+        RectFill(&r, x - 2, y + 1, x + 2, y + 1);
+    }
+    SetAPen(&r, d->textpen);
+    if (it->running < 2 || d->o->noicon || d->o->running < 2) return;   /* RUNNING=1: the dot only */
+    n[0] = it->running > 9 ? '0' + (it->running > 99 ? 99 : it->running) / 10 : '0' + it->running;   /* (up to 99) */
+    n[1] = it->running > 9 ? '0' + (it->running > 99 ? 99 : it->running) % 10 : 0;
+    n[2] = 0;
+    len = strlen(n);
+    bh = r.TxHeight + 2;
+    tw = TextLength(&r, n, len);
+    bw = tw + 6;
+    if (bw < bh) bw = bh;
+    if (bw > it->iw || bh > it->ih || it->iw > it->w) return;   /* (inside the cell: the image has no layer) */
+    bx = cx + (it->w - it->iw) / 2 + it->iw - bw;
+    by = cy + ICON_DY(d, it);
+    SetAPen(&r, d->borderpen >= 0 ? d->borderpen : d->textpen);
+    RectFill(&r, bx + 1, by, bx + bw - 2, by + bh - 1);
+    RectFill(&r, bx, by + 1, bx + bw - 1, by + bh - 2);
+    SetAPen(&r, d->shadowpen);
+    Move(&r, bx + (bw - tw) / 2 + 1, by + 1 + r.TxBaseline + 1);
+    Text(&r, n, len);
+    SetAPen(&r, d->textpen);
+    Move(&r, bx + (bw - tw) / 2, by + 1 + r.TxBaseline);
+    Text(&r, n, len);
+}
+
+/* A minimised program's dot drawn again at the next pulse step: only its
+   own little box (cheap enough for several times a second). */
+void render_dot(struct Dock *d, struct Item *it)
+{
+    struct RastPort rp;
+    WORD cx = it->x, cy = it->y, x, y;
+    if (!d->img || !d->bg || !d->win || d->vis != d->full || !d->o->running) return;
+    if (cx > d->w - it->w) cx = d->w - it->w;    /* where render_item draws the cell */
+    if (cy > d->h - it->h) cy = d->h - it->h;
+    if (cx < 0) cx = 0;
+    if (cy < 0) cy = 0;
+    x = cx + it->w / 2; y = cy + it->h - RUNBAND;
+    if (x < 2 || x + 2 >= d->w || y < 0 || y + 2 >= d->h) return;
+    dz_lock();
+    BltBitMap(d->bg, x - 2, y, d->img, x - 2, y, 5, 3, 0xC0, 0xFF, NULL);
+    InitRastPort(&rp);
+    rp.BitMap = d->img;
+    SetDrMd(&rp, JAM1);
+    SetAPen(&rp, dot_pen(d, it));
+    RectFill(&rp, x - 1, y, x + 1, y + 2);
+    RectFill(&rp, x - 2, y + 1, x + 2, y + 1);
+    WaitBlit();
+    dz_unlock();
+    BltBitMapRastPort(d->img, x - 2, y, d->win->RPort, x - 2, y, 5, 3, 0xC0);
+}
+
+/* A divider in front of the running others (and between the Workbench icon
+   and the programs): a line across the dock in the middle of its space
+   (DIVGAP), at 'at' along the dock (-1: none). This adds its place to box b. */
+void divider_box(struct Dock *d, WORD at, struct Box *b)
+{
+    WORD c = d->horiz ? d->h : d->w;
+    if (at < 0) return;
+    if (d->horiz) box_add(b, at - DIVGAP / 2, 0, DIVGAP, c);
+    else box_add(b, 0, at - DIVGAP / 2, c, DIVGAP);
+}
+
+void render_divider_at(struct Dock *d, struct RastPort *rp, struct Box *b, WORD at)
+{
+    struct RastPort r = *rp;
+    WORD size = d->horiz ? d->ch : d->cw, m = size / 8;
+    WORD a0 = d->pad + m, a1 = d->pad + size - 1 - m - (d->horiz ? RUNBAND : 0);
+    WORD x0, y0, x1, y1;
+    if (at < 0 || d->divpen < 0) return;
+    if (d->horiz) { x0 = x1 = at; y0 = a0; y1 = a1; }
+    else { y0 = y1 = at; x0 = a0; x1 = a1; }
+    if (x0 < b->x0) x0 = b->x0;
+    if (y0 < b->y0) y0 = b->y0;
+    if (x1 > b->x1 - 1) x1 = b->x1 - 1;
+    if (y1 > b->y1 - 1) y1 = b->y1 - 1;
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > d->w - 1) x1 = d->w - 1;            /* (no layer: never outside the image) */
+    if (y1 > d->h - 1) y1 = d->h - 1;
+    if (x0 > x1 || y0 > y1) return;
+    SetDrMd(&r, JAM1);
+    SetAPen(&r, d->divpen);
+    RectFill(&r, x0, y0, x1, y1);
+}
+
+void render_divider(struct Dock *d, struct RastPort *rp, struct Box *b)
+{
+    render_divider_at(d, rp, b, d->divx[0]);
+    render_divider_at(d, rp, b, d->divx[1]);
+}
+
+/* The "more" cell's three dots. */
+static void mark_section(struct Dock *d, struct RastPort *rp, struct Item *it, WORD cx, WORD cy, BOOL selected)
+{
+    struct RastPort r = *rp;
+    SetDrMd(&r, JAM1);
+    if (it->temp == RUN_MORE && !d->o->noicon && it->ih > 0) {
+        LONG s = it->ih / 8 < 2 ? 2 : it->ih / 8, i, x0, y0;
+        if (s > (it->w - 2) / 5) s = (it->w - 2) / 5;   /* (inside the cell: the image has no layer) */
+        if (s < 1) return;
+        x0 = cx + (it->w - 5 * s) / 2; y0 = cy + ICON_DY(d, it) + (it->ih - s) / 2;
+        for (i = 0; i < 3; i++) {
+            LONG x = x0 + 2 * s * i + (selected ? 1 : 0), y = y0 + (selected ? 1 : 0);
+            SetAPen(&r, d->shadowpen);
+            RectFill(&r, x + 1, y + 1, x + s, y + s);
+            SetAPen(&r, d->textpen);
+            RectFill(&r, x, y, x + s - 1, y + s - 1);
+        }
+    }
+}
+
+/* Draw one icon and its label in the cell at cx, cy of a dock-sized bitmap
+   (the dock image, the drag base or the drop-zone buffer). The rastport's font
+   and draw mode must be set. These bitmaps have no layer and don't clip, so
+   the cell is clamped here: a glide can start outside a dock that just shrank,
+   and drawing there would overwrite memory. */
 void render_item(struct Dock *d, struct RastPort *rp, struct Item *it, WORD cx, WORD cy, BOOL selected)
 {
 #ifdef SD_DEBUG
@@ -628,7 +796,8 @@ void render_item(struct Dock *d, struct RastPort *rp, struct Item *it, WORD cx, 
     if (it->missing) {
         if (d->o->noicon) mark_missing(d, rp, it, cx, cy, it->w, it->h);
         else mark_missing(d, rp, it, cx + (it->w - it->iw) / 2, cy + ICON_DY(d, it), it->iw, it->ih);
-    }
+    } else if (it->running) mark_running(d, rp, it, cx, cy);
+    if (it->temp) mark_section(d, rp, it, cx, cy, selected);
 }
 
 /* Draw one item (only != NULL) or all, over the background. */
@@ -645,6 +814,11 @@ void render_items(struct Dock *d, struct RastPort *rp, struct Item *only, BOOL s
         if (only && it->x >= 0 && it->y >= 0 && it->x + it->w <= d->w && it->y + it->h <= d->h)
             BltBitMapRastPort(d->bg, it->x, it->y, rp, it->x, it->y, it->w, it->h, 0xC0);
         render_item(d, rp, it, it->x, it->y, selected && it == only);
+    }
+    if (!only) {
+        struct Box all;
+        all.x0 = all.y0 = 0; all.x1 = d->w; all.y1 = d->h;
+        render_divider(d, rp, &all);
     }
     PROF_STOP(0, t0);
 }
@@ -715,8 +889,10 @@ static BOOL compose_rgb(struct Dock *d, struct RastPort *rp, struct Box *b)
         if (it->missing) {
             if (d->o->noicon) mark_missing(d, rp, it, cx, cy, it->w, it->h);
             else mark_missing(d, rp, it, cx + (it->w - it->iw) / 2, cy + ICON_DY(d, it), it->iw, it->ih);
-        }
+        } else if (it->running) mark_running(d, rp, it, cx, cy);
+        if (it->temp) mark_section(d, rp, it, cx, cy, FALSE);
     }
+    render_divider(d, rp, b);
     return TRUE;
 }
 
@@ -738,11 +914,12 @@ void render_items_in(struct Dock *d, struct RastPort *rp, struct Box *b)
         if (c.x0 < b->x1 && c.x1 > b->x0 && c.y0 < b->y1 && c.y1 > b->y0)
             render_item(d, rp, it, it->x, it->y, FALSE);
     }
+    render_divider(d, rp, b);
     PROF_STOP(0, t0);
 }
 
 /* Take a new snapshot of the screen under the dock. The dock must not be
-   covering it: auto-hide does this before it comes out. FALSE without memory;
+   covering it (hidden, or stepped aside: ah_peek). FALSE without memory;
    the old one stays. */
 BOOL render_resnap(struct Dock *d)
 {

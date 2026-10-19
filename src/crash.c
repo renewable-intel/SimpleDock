@@ -105,7 +105,7 @@ static void report(struct Dock *d)
     ULONG off;
     struct Item *it;
     if (!fh) return;
-    FPuts(fh, "SimpleDock crash report\n\nVersion: " SD_NAME " " SD_VERSION " (" SD_DATE ")\n");
+    FPuts(fh, "SimpleDock crash report\n\nVersion: " SD_NAME " " SD_VERSION SD_BUILD " (" SD_DATE ")\n");
     v[0] = (LONG)what(crash_no); v[1] = crash_no;
     put(fh, "Error: %s (trap %ld)\n", v);
     v[0] = where(crash_pc, &off); v[1] = off; v[2] = crash_pc;
@@ -149,7 +149,11 @@ static void report(struct Dock *d)
 void crash_recover(void)
 {
     struct Dock *d = cd;
+    run_crash_unlock();                          /* (Intuition's locks, if it happened while holding them) */
+    run_show_all();                              /* (windows the dock hid: back) */
+    if (d && d->dragging) drag_cancel(d, FALSE); /* (our drag holds the screen's layers: free them first) */
     in_close();
+    drop_copy_wait();                            /* its process runs our code */
     report(d);
     if (crash_rexx) {                            /* the ARexx command that was running */
         crash_rexx->rm_Result1 = RC_FATAL;
@@ -169,6 +173,7 @@ void crash_recover(void)
     am_close();
     an_close();
     ah_close();
+    run_close();
     if (d) config_free(d);
     if (cport) rexx_close(*cport);
     if (crd) opts_free(*crd);

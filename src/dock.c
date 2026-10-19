@@ -114,7 +114,21 @@ static void load_icons(struct Dock *d, WORD *cw, WORD *ch)
         char buf[SD_LINEMAX];
         LONG n = strlen(name);
 
-        if (!it->dobj) {                         /* (loaded: dock_relayout) */
+        if (!it->dobj && it->temp) {             /* a program running, not kept: its icon, or the standard one */
+            it->missing = FALSE;
+            if (!it->nofile)
+                it->dobj = GetIconTags(it->path, ICONGETA_Screen, d->scr, ICONGETA_FailIfUnavailable, FALSE, TAG_END);
+            if (!it->dobj)
+                it->dobj = GetIconTags(NULL, ICONGETA_GetDefaultType, it->temp == RUN_WB ? WBDRAWER : WBTOOL,
+                                       ICONGETA_Screen, d->scr, TAG_END);
+            it->iw = it->ih = 0;
+            if (it->dobj && GetIconRectangle(&rp, it->dobj, NULL, &r, ICONDRAWA_Frameless, TRUE,
+                                             ICONDRAWA_Borderless, TRUE, TAG_END)) {
+                it->iw = r.MaxX - r.MinX + 1;
+                it->ih = r.MaxY - r.MinY + 1;
+                scale_icon(d, it);
+            }
+        } else if (!it->dobj) {                  /* (loaded: dock_relayout) */
             it->missing = !dock_exists(it->path);
             if (n > 5 && !Stricmp((STRPTR)name + n - 5, ".info") && n < (LONG)sizeof(buf)) {
                 strcpy(buf, name); buf[n - 5] = 0; name = buf;
@@ -155,7 +169,7 @@ static void load_icons(struct Dock *d, WORD *cw, WORD *ch)
     d->spy = d->horiz ? 0 : d->o->icondist;
     *cw = maxw + 2 * d->spx + 4;
     *ch = 2 + d->spy + (d->o->noicon ? 0 : d->maxih)            /* same space above and below */
-            + (LABELS(d) ? (d->o->noicon ? 0 : 2) + d->font->tf_YSize + 1 : 0) + d->spy + 2;
+            + (LABELS(d) ? (d->o->noicon ? 0 : 2) + d->font->tf_YSize + 1 : 0) + d->spy + 2 + RUNBAND;
     if (*cw < 8) *cw = 8;                        /* never 0: the grid divides by it */
     if (*ch < 8) *ch = 8;
 }
@@ -163,8 +177,9 @@ static void load_icons(struct Dock *d, WORD *cw, WORD *ch)
 /* Grid of uniform cells; returns FALSE if nothing to show. */
 static BOOL layout(struct Dock *d)
 {
-    WORD cw, ch, per, lines, n = 0, gap, sw = d->scr->Width, sh = d->scr->Height;
+    WORD cw, ch, per, lines, n = 0, gap, keep, sw = d->scr->Width, sh = d->scr->Height;
     BOOL horiz;
+    WORD gaps;                                   /* the dividers: 0, 1 or 2 */
     struct Item *it;
     STRPTR pos = d->o->pos;
 
@@ -177,30 +192,51 @@ static BOOL layout(struct Dock *d)
     horiz = d->edge == 'T' || d->edge == 'B';
     d->horiz = horiz;                            /* load_icons needs it */
 
+    run_layout_out(d);                           /* the running others are placed again below */
+    run_free_hidden(d);                          /* (those switched off: RUNNING=0, RUNHIDE, WBHIDE) */
     dock_unhide(d);                              /* which icons fit is decided again below */
     TRACE("icons");
+    run_layout_all(d);                           /* (their icons count for the cell size too) */
     load_icons(d, &cw, &ch);
+    run_layout_out(d);
     TRACE("icons loaded");
     FOR_ITEMS(d, it) n++;
     d->radius = d->o->radius < 0 ? 0 : d->o->radius;
     d->pad = 2 + d->radius / 6;                  /* icons 6 px from the border (RADIUS 12) */
     /* one row: as many icons as fit along the edge, keeping the gap to the
        edge (DISTANCE) at both ends too; LIMIT allows fewer */
-    d->fit = ((horiz ? sw : sh) - 2 * d->pad - 2 * d->o->distance) / (horiz ? cw : ch);
+    {                                            /* (with running others: the dividers' space) */
+        struct Item *r;
+        BOOL wb = FALSE, prog = FALSE;
+        for (r = (struct Item *)d->runs.mlh_Head; r->node.mln_Succ; r = (struct Item *)r->node.mln_Succ)
+            if (r->temp == RUN_WB) wb = TRUE; else prog = TRUE;
+        gaps = (wb || prog) + (wb && prog);
+    }
+    d->fit = ((horiz ? sw : sh) - 2 * d->pad - 2 * d->o->distance - gaps * DIVGAP) / (horiz ? cw : ch);
     if (d->fit < 1) d->fit = 1;
     if (d->o->limit > 0 && d->o->limit < d->fit) d->fit = d->o->limit;
     FOR_ITEMS(d, it) it->over = FALSE;
-    while (n > d->fit) {                         /* the rest wait in d->extra, in order */
+    keep = d->fit;                               /* a full dock with programs running: the last place */
+    d->pushed = 0;                               /* is the "more" cell */
+    if (d->runs.mlh_Head->mln_Succ && n >= d->fit && d->fit >= 2) { keep = d->fit - 1; d->pushed = 1; }
+    while (n > keep) {                           /* the rest wait in d->extra, in order */
         it = (struct Item *)RemTail((struct List *)&d->items);
         it->over = TRUE;
         AddHead((struct List *)&d->extra, (struct Node *)it);
         n--;
     }
+    run_layout_in(d, d->fit - n);                /* the running others after them */
+    n = 0;
+    {
+        BOOL wb = FALSE, prog = FALSE;
+        FOR_ITEMS(d, it) { n++; if (it->temp == RUN_WB) wb = TRUE; else if (it->temp) prog = TRUE; }
+        gaps = (wb || prog) + (wb && prog);
+    }
     per = n ? n : 3;                             /* empty: three free places to drop on */
     if (!n) n = per;
     lines = 1;
-    d->w = (horiz ? per * cw : lines * cw) + 2 * d->pad;
-    d->h = (horiz ? lines * ch : per * ch) + 2 * d->pad;
+    d->w = (horiz ? per * cw + gaps * DIVGAP : lines * cw) + 2 * d->pad;
+    d->h = (horiz ? lines * ch : per * ch + gaps * DIVGAP) + 2 * d->pad;
     if (d->radius * 2 > d->w) d->radius = d->w / 2;
     if (d->radius * 2 > d->h) d->radius = d->h / 2;
     if (d->w > sw) d->w = sw;
@@ -236,23 +272,80 @@ static BOOL layout(struct Dock *d)
     return TRUE;
 }
 
-/* Targets in list order, without 'skip' and leaving cell 'gap' free (-1: none). */
+/* Targets in list order, without 'skip' and leaving cell 'gap' free (-1: none).
+   The running others sit behind the first divider's space: the Workbench
+   icon, then (behind a second divider) the programs. While one is dragged
+   to be kept (dragkeep), the first divider is after its place. */
 void dock_targets(struct Dock *d, struct Item *skip, LONG gap)
 {
     struct Item *it;
-    WORD n = 0, k = 0;
+    WORD n = 0, k = 0, kept = 0, wb = 0, temps = 0, size = d->horiz ? d->cw : d->ch, in, i;
     FOR_ITEMS(d, it) {
-        WORD c, a, b;
         n++;
+        if (!it->temp) kept++;
+        else if (it->temp == RUN_WB) wb++;
+        else temps++;
+    }
+    in = skip && skip->temp && d->dragkeep ? 1 : 0;   /* (the one being kept: in front of the divider; */
+    if (skip && !skip->temp && gap < 0) in = -1;      /*  a kept one dragged off: the others close up) */
+    d->divb[0] = wb + temps ? kept + in : -1;
+    d->divb[1] = wb && temps - (in > 0) > 0 ? d->divb[0] + wb : -1;
+    d->gapc[0] = wb + temps ? kept : -1;         /* (at rest, for dock_along) */
+    d->gapc[1] = wb && temps ? kept + wb : -1;
+    FOR_ITEMS(d, it) {
+        WORD c, a, b, along;
         if (it == skip) continue;
         c = gap >= 0 && k >= gap ? k + 1 : k;
         k++;
         a = c % d->per; b = c / d->per;
-        it->tx = d->pad + (d->horiz ? a : b) * d->cw;
-        it->ty = d->pad + (d->horiz ? b : a) * d->ch;
+        along = d->pad + a * size + (d->divb[0] >= 0 && c >= d->divb[0] ? DIVGAP : 0) +
+                (d->divb[1] >= 0 && c >= d->divb[1] ? DIVGAP : 0);
+        it->tx = d->horiz ? along : d->pad + b * d->cw;
+        it->ty = d->horiz ? d->pad + b * d->ch : along;
         it->w = d->cw; it->h = d->ch;
     }
+    for (i = 0; i < 2; i++) d->divtx[i] = d->divb[i] >= 0 ? d->pad + d->divb[i] * size + i * DIVGAP + DIVGAP / 2 : -1;
     d->ncells = n;
+    d->nkept = kept;
+    d->ndiv = kept;
+    dock_runcells(d);
+}
+
+/* Which cells hold a running program (Del over one closes it: input.c). */
+void dock_runcells(struct Dock *d)
+{
+    struct Item *it;
+    LONG k = 0;
+    FOR_ITEMS(d, it) {
+        if (k >= (LONG)sizeof(d->runcell)) break;
+        d->runcell[k++] = it->running > 0 && it->temp != RUN_MORE && run_trackable(it);
+    }
+    while (k < (LONG)sizeof(d->runcell)) d->runcell[k++] = 0;
+}
+
+/* Is window position a (along the dock) in a divider's space? Only
+   arithmetic: the input handler asks too. */
+BOOL dock_in_gap(struct Dock *d, WORD a)
+{
+    WORD size = d->horiz ? d->cw : d->ch, i, b;
+    for (i = 0; i < 2 && d->gapc[i] >= 0; i++) {
+        b = d->pad + d->gapc[i] * size + i * DIVGAP;
+        if (a >= b && a < b + DIVGAP) return TRUE;
+    }
+    return FALSE;
+}
+
+/* Along the dock (window position a): where it would be without the
+   dividers' space; in such a space, the icon in front of it. */
+WORD dock_along(struct Dock *d, WORD a)
+{
+    WORD size = d->horiz ? d->cw : d->ch, i, b;
+    for (i = 0; i < 2 && d->gapc[i] >= 0; i++) {
+        b = d->pad + d->gapc[i] * size + i * DIVGAP;   /* (where divider i's space starts) */
+        if (a < b) break;
+        if (a < b + DIVGAP) return d->gapc[i] ? b - i * DIVGAP - 1 : b - i * DIVGAP;
+    }
+    return a - i * DIVGAP;
 }
 
 /* Cell positions in list order, no glide. */
@@ -263,6 +356,8 @@ void dock_place(struct Dock *d)
     FOR_ITEMS(d, it) {
         it->x = it->tx; it->y = it->ty;
     }
+    d->divx[0] = d->divtx[0];
+    d->divx[1] = d->divtx[1];
 }
 
 /* Put the icons that didn't fit back at the end of the list, so all are in
@@ -294,6 +389,8 @@ struct Item *dock_item(struct Dock *d, LONG cell)
 LONG dock_cell(struct Dock *d, WORD x, WORD y)
 {
     LONG c, r, i;
+    if (d->horiz) x = dock_along(d, x);
+    else y = dock_along(d, y);
     x -= d->pad; y -= d->pad;
     if (x < 0 || y < 0) return -1;
     c = x / d->cw; r = y / d->ch;
@@ -313,12 +410,28 @@ static void pens(struct Dock *d, BOOL get)
                                    (d->tint & 255) * 0x01010101UL, OBP_Precision, PRECISION_EXACT, TAG_END);
         d->borderpen = ObtainBestPen(cm, (bc >> 16 & 255) * 0x01010101UL, (bc >> 8 & 255) * 0x01010101UL,
                                      (bc & 255) * 0x01010101UL, OBP_Precision, PRECISION_EXACT, TAG_END);
+        {                                          /* the divider: light grey, dark on a light dock */
+            ULONG g = (d->tint >> 16 & 255) * 3 + (d->tint >> 8 & 255) * 6 + (d->tint & 255) > 1280 ? 0x50 : 0xB8;
+            d->divpen = ObtainBestPen(cm, g * 0x01010101UL, g * 0x01010101UL, g * 0x01010101UL, TAG_END);
+        }
+        {                                          /* the pulsing dot: white down to grey */
+            static const UBYTE lv[4] = { 0xFF, 0xD0, 0xA0, 0x70 };
+            LONG i;
+            for (i = 0; i < 4; i++)
+                d->pulsepen[i] = ObtainBestPen(cm, lv[i] * 0x01010101UL, lv[i] * 0x01010101UL, lv[i] * 0x01010101UL,
+                                               TAG_END);
+        }
     } else {
         if (d->textpen >= 0) ReleasePen(cm, d->textpen);
         if (d->shadowpen >= 0) ReleasePen(cm, d->shadowpen);
         if (d->fillpen >= 0) ReleasePen(cm, d->fillpen);
         if (d->borderpen >= 0) ReleasePen(cm, d->borderpen);
-        d->textpen = d->shadowpen = d->fillpen = d->borderpen = -1;
+        if (d->divpen >= 0) ReleasePen(cm, d->divpen);
+        {
+            LONG i;
+            for (i = 0; i < 4; i++) { if (d->pulsepen[i] >= 0) ReleasePen(cm, d->pulsepen[i]); d->pulsepen[i] = -1; }
+        }
+        d->textpen = d->shadowpen = d->fillpen = d->borderpen = d->divpen = -1;
     }
 }
 
@@ -327,7 +440,8 @@ BOOL dock_open(struct Dock *d)
     extern struct Device *TimerBase;
     struct timeval t0;
     if (TimerBase) GetSysTime(&t0);
-    d->textpen = d->shadowpen = d->fillpen = d->borderpen = -1;
+    d->textpen = d->shadowpen = d->fillpen = d->borderpen = d->divpen = -1;
+    d->pulsepen[0] = d->pulsepen[1] = d->pulsepen[2] = d->pulsepen[3] = -1;
     if (!(d->scr = LockPubScreen(d->o->pubscreen))) {
         sd_msg(d, "Cannot find screen %s", (LONG)(d->o->pubscreen ? d->o->pubscreen : (STRPTR)"Workbench"));
         return FALSE;
@@ -361,9 +475,9 @@ BOOL dock_open(struct Dock *d)
     dock_show(d);
     d->behind = dock_behind(d);                /* the snapshot was taken with these behind it */
     TRACE("drawn");
-    if (d->extra.mlh_Head->mln_Succ && !d->overtold) {
+    if (dock_extra(d) > d->pushed && !d->overtold) {   /* (not the one the "more" cell took the place of) */
         d->overtold = TRUE;
-        am_note_overflow(d, dock_extra(d));
+        am_note_overflow(d, dock_extra(d) - d->pushed);
     }
     d->hidden = FALSE;
     if (TimerBase) {
@@ -384,9 +498,11 @@ void dock_close(struct Dock *d)
     drag_cancel(d, FALSE);
     an_stop(d);
     tip_hide(d);
+    run_list_close(d);
     if (d->appwin) { dz_remove(d); RemoveAppWindow(d->appwin); d->appwin = NULL; }
-    if (d->win) { CloseWindow(d->win); d->win = NULL; }
+    if (d->win) { struct Window *w = d->win; d->win = NULL; CloseWindow(w); }   /* (the input handler looks: NULL first) */
     dock_unhide(d);                              /* every icon's image is freed below */
+    run_images_free(d);
     render_free(d);
     render_tables_free(d);
     if (d->scr) pens(d, FALSE);
@@ -420,7 +536,14 @@ void dock_show(struct Dock *d)
     }
     d->stripshown = FALSE;
     src_offset(d, &sx, &sy);
-    BltBitMapRastPort(d->img, sx, sy, d->win->RPort, 0, 0, d->win->Width, d->win->Height, 0xC0);
+    {                                            /* (just after a shrink the window may still be bigger) */
+        WORD w = d->win->Width, h = d->win->Height;
+        if (sx < 0) sx = 0;
+        if (sy < 0) sy = 0;
+        if (w > d->w - sx) w = d->w - sx;
+        if (h > d->h - sy) h = d->h - sy;
+        if (w > 0 && h > 0) BltBitMapRastPort(d->img, sx, sy, d->win->RPort, 0, 0, w, h, 0xC0);
+    }
     PROF_STOP(5, t0);
 }
 
@@ -538,6 +661,7 @@ static BOOL dock_relayout(struct Dock *d)
 {
     WORD ol = d->left, ot = d->top, ow = d->w, oh = d->h, x0, y0, x1, y1;
     struct BitMap *sbm, *oraw = d->raw, *nraw;
+    run_list_close(d);                           /* (its place changes with the icons) */
 
     if (!d->win || !oraw || d->hidden || d->vis != d->full || d->dragging || d->stripshown) return FALSE;
     sbm = d->scr->RastPort.BitMap;
@@ -567,8 +691,8 @@ static BOOL dock_relayout(struct Dock *d)
     d->raw = nraw;
     if (!render_background(d) || !render_image(d)) { dz_unlock(); return FALSE; }
     dz_unlock();
-    if (d->left == ol && d->top == ot && d->w == ow && d->h == oh) dock_show(d);   /* same box: no */
-    else {                                       /* IDCMP_CHANGEWINDOW may come */
+    if (d->left == ol && d->top == ot && d->w == ow && d->h == oh) dock_show(d);   /* same box: no IDCMP_CHANGEWINDOW comes */
+    else {
         d->relayout = TRUE;                      /* IDCMP_CHANGEWINDOW shows it all */
         ChangeWindowBox(d->win, d->left, d->top, d->w, d->h);
         in_poke();
@@ -576,6 +700,34 @@ static BOOL dock_relayout(struct Dock *d)
     d->gen++;                                    /* drops queued for the old layout are ignored */
     if (am_port()) d->appwin = AddAppWindow(0, d->gen, d->win, am_port(), TAG_END);
     dz_add(d);
+    return TRUE;
+}
+
+/* The icons changed while auto-hide keeps the dock away (a program started or ended):
+   laid out again out of sight, with a new snapshot of the screen under it,
+   so it comes out finished. The strip at the edge moves with it. */
+BOOL dock_relayout_hidden(struct Dock *d)
+{
+    struct Item *it;
+    if (!d->win || d->vis != 0 || d->dragging || d->lmb) return FALSE;
+    tip_hide(d);
+    an_stop(d);
+    run_list_close(d);
+    dz_remove(d);                                /* (none while hidden; to be sure) */
+    dz_lock();
+    layout(d);                                   /* loads only the new icons */
+    d->vis = 0;
+    d->hover = d->tipcell = -1;
+    d->pressed = NULL;
+    FOR_ITEMS(d, it) it->keep = FALSE;           /* (no glide: nobody sees it) */
+    if (d->strip) { WaitBlit(); FreeBitMap(d->strip); d->strip = NULL; }   /* (made again for the new size) */
+    if (!render_resnap(d)) {                     /* no memory: the old images don't fit any more */
+        dz_unlock();
+        dock_reopen(d);
+        return TRUE;
+    }
+    dz_unlock();
+    ah_hidden_moved(d);                          /* the strip window to its new place */
     return TRUE;
 }
 
@@ -603,6 +755,7 @@ void dock_reopen_glide(struct Dock *d)
         }
         it->keep = FALSE;
     }
+    dock_compose(d);                             /* (drawn where they start: not at both places) */
     an_start(d, GLIDE_MS);
 }
 
@@ -616,7 +769,13 @@ void dock_show_item(struct Dock *d, struct Item *it, BOOL selected)
     render_items(d, &rp, it, selected);
     dz_unlock();
     src_offset(d, &sx, &sy);
-    BltBitMapRastPort(d->img, it->x, it->y, d->win->RPort, it->x - sx, it->y - sy, it->w, it->h, 0xC0);
+    {
+        struct Box b = { 0, 0, 0, 0 };
+        item_box(d, it, &b);                     /* (kept inside the image, as drawn) */
+        box_clip(d, &b);
+        if (b.x1 > b.x0 && b.y1 > b.y0)
+            BltBitMapRastPort(d->img, b.x0, b.y0, d->win->RPort, b.x0 - sx, b.y0 - sy, b.x1 - b.x0, b.y1 - b.y0, 0xC0);
+    }
 }
 
 static struct Item *hit(struct Dock *d, WORD x, WORD y)
@@ -628,19 +787,13 @@ static struct Item *hit(struct Dock *d, WORD x, WORD y)
 }
 
 /* Reopen with new settings / layout (also takes a fresh background snapshot). */
-/* Reopen with new settings / layout (also takes a fresh background snapshot). */
 void dock_reopen(struct Dock *d)
 {
     dock_close(d);
     if (!dock_open(d)) sd_msg(d, "Cannot reopen the dock");
-    else ah_start(d);
+    else { ah_start(d); run_check(d); }
 }
 
-/* ARexx REFRESH: the same. */
-void dock_refresh(struct Dock *d)
-{
-    dock_reopen(d);
-}
 
 void dock_set_pos(struct Dock *d, char edge)
 {
@@ -660,45 +813,81 @@ static void unfocus(struct Dock *d)
     extern struct Window *volatile in_prevwin;
     struct Window *want = in_prevwin, *found = NULL, *wb = NULL, *w;
     struct Screen *s;
-    ULONG lock;
 
     if (!d->win || !(d->win->Flags & WFLG_WINDOWACTIVE)) return;
-    lock = LockIBase(0);
-    for (s = IntuitionBase->FirstScreen; s && !found; s = s->NextScreen)
+    Forbid();                                    /* (its program can't close it between the look and the call) */
+    for (s = IntuitionBase->FirstScreen; s; s = s->NextScreen)
         for (w = s->FirstWindow; w; w = w->NextWindow) {
-            if (w == want) { found = w; break; }
+            if (w == want) found = w;
             if (!wb && s == d->scr && (w->Flags & WFLG_WBENCHWINDOW) && (w->Flags & WFLG_BACKDROP)) wb = w;
         }
+    if (found && LayersBase->lib_Version >= 45 && found->WLayer && (found->WLayer->Flags & LAYERHIDDEN))
+        found = NULL;                            /* (minimised: never made active by the dock - that shows it) */
     if (!found) found = wb;
     if (found == d->win || found == d->tip) found = NULL;
-    UnlockIBase(lock);
     if (found) ActivateWindow(found);
+    Permit();
 }
 
-/* ONTOP: if a window covers part of the dock, bring the dock (and its label)
-   to the front. Never while the button is held, as that would cancel a
-   Workbench icon drag. */
+/* Is window w covered by a window in front of it (not ours, not a hidden
+   one)? Under the screen's layer lock. */
+static BOOL covered(struct Dock *d, struct Window *w, struct Window *pw)
+{
+    struct Layer *me = w->WLayer, *l;
+    struct Task *self = FindTask(NULL);
+    for (l = me->front; l; l = l->front) {
+        struct Window *x = (struct Window *)l->Window;
+        if ((d->tip && l == d->tip->WLayer) || (d->list && l == d->list->WLayer) || l == d->win->WLayer) continue;
+        if (pw && l == pw->WLayer) continue;     /* the settings window stays in front */
+        if (x && x->UserPort && x->UserPort->mp_SigTask &&   /* (ours: About, colour picker, the copy's */
+            (x->UserPort->mp_Flags & PF_ACTION) != PA_SOFTINT &&   /*  requesters; a soft interrupt port */
+            (x->UserPort->mp_SigTask == (APTR)self ||               /*  has no task) */
+             (((struct Task *)x->UserPort->mp_SigTask)->tc_Node.ln_Name &&
+              !strcmp(((struct Task *)x->UserPort->mp_SigTask)->tc_Node.ln_Name, "SimpleDock copy")))) continue;
+        if (LayersBase->lib_Version >= 45 && (l->Flags & LAYERHIDDEN)) continue;   /* (a minimised window) */
+        if (l->bounds.MinX <= me->bounds.MaxX && l->bounds.MaxX >= me->bounds.MinX &&
+            l->bounds.MinY <= me->bounds.MaxY && l->bounds.MaxY >= me->bounds.MinY) return TRUE;
+    }
+    return FALSE;
+}
+
+/* ONTOP: if a window covers part of the dock (or its held list), bring the
+   dock, its label and the list to the front. Never while the button is
+   held (that would cancel a Workbench icon drag), while the settings window
+   is open (its lists drop down over the dock), or for the hidden dock's
+   edge strip. At most 3 times without a key or button used in between:
+   another window that keeps itself in front (a second dock) would make
+   both go on forever. */
+static BOOL forced;                     /* dock_raise_now: also with the settings window open */
+
 BOOL dock_raise(struct Dock *d)
 {
-    struct Layer *me, *l;
-    BOOL covered = FALSE;
+    static UBYTE raised;
+    BOOL cov;
     struct Window *pw = am_prefs_win();
 
-    if (!d->o->ontop || !d->win || d->lmb || d->dragging) return FALSE;
-    me = d->win->WLayer;
+    if (d->userin) { d->userin = FALSE; raised = 0; }
+    if (!d->o->ontop || !d->win || d->lmb || d->dragging || (pw && !forced) || raised >= 3 ||
+        (d->vis == 0 && !d->want))
+        return FALSE;
     LockLayerInfo(&d->scr->LayerInfo);
-    for (l = me->front; l && !covered; l = l->front) {
-        if (d->tip && l == d->tip->WLayer) continue;
-        if (pw && l == pw->WLayer) continue;     /* the settings window stays in front */
-        covered = l->bounds.MinX <= me->bounds.MaxX && l->bounds.MaxX >= me->bounds.MinX &&
-                  l->bounds.MinY <= me->bounds.MaxY && l->bounds.MaxY >= me->bounds.MinY;
-    }
+    cov = covered(d, d->win, pw) || (d->list && covered(d, d->list, pw));
     UnlockLayerInfo(&d->scr->LayerInfo);
-    if (!covered) return FALSE;
+    if (!cov) return FALSE;
+    raised++;
     WindowToFront(d->win);
     if (d->tip) WindowToFront(d->tip);
-    if (pw) WindowToFront(pw);
+    if (d->list) WindowToFront(d->list);
+    if (pw) WindowToFront(pw);                   /* (the settings window stays in front) */
     return TRUE;
+}
+
+/* In front was just switched on in the settings window: now. */
+void dock_raise_now(struct Dock *d)
+{
+    forced = TRUE;
+    dock_raise(d);
+    forced = FALSE;
 }
 
 /* Which windows lie behind the dock, and where. The snapshot behind the dock
@@ -725,44 +914,87 @@ ULONG dock_behind(struct Dock *d)
    the next round. */
 void dock_settle(struct Dock *d)
 {
-    if (d->peekwait) { if (!d->lmb) ah_peek_end(d); return; }
+    if (d->peekwait) {                           /* (back after a snapshot: and in front if wanted) */
+        if (!d->lmb) { ah_peek_end(d); if (dock_raise(d)) in_settle_again(); }
+        return;
+    }
     if (dock_raise(d)) { in_settle_again(); return; }
     if (!d->win || d->lmb || d->dragging || an_running() || d->vis != d->full) return;
     if (dock_behind(d) != d->behind) ah_peek(d);
+}
+
+/* While the button is held on an icon the dock gets timer ticks (only then:
+   they would wake it up for nothing otherwise); held for HOLDTIME tenths of
+   a second (ticks come ten a second): the list of its windows. */
+static void hold_ticks(struct Dock *d, BOOL on)
+{
+    ULONG f = d->win->IDCMPFlags;
+    d->holdticks = 0;
+    if (on != !!(f & IDCMP_INTUITICKS)) ModifyIDCMP(d->win, on ? f | IDCMP_INTUITICKS : f & ~IDCMP_INTUITICKS);
 }
 
 BOOL dock_event(struct Dock *d, struct IntuiMessage *im)
 {
     struct Item *it;
     BOOL up = im->Class == IDCMP_MOUSEBUTTONS && im->Code == SELECTUP;
+    WORD sx = d->win->LeftEdge + im->MouseX, sy = d->win->TopEdge + im->MouseY;   /* on the screen */
     switch (im->Class) {
     case IDCMP_REFRESHWINDOW:
         BeginRefresh(d->win);
         dock_show(d);
         EndRefresh(d->win, TRUE);
         break;
-    case IDCMP_CHANGEWINDOW:                  /* auto-hide moved/resized the window */
-        /* Redraw the whole visible part after every size change. Otherwise a
-           newly uncovered strip waits for a refresh and shows the window's
-           empty background for a frame. (dock_show also draws the hidden
-           strip.) */
+    case IDCMP_CHANGEWINDOW:                  /* auto-hide or dock_relayout moved/resized the window: */
+        /* all of it again (a newly uncovered part would show the empty
+           window for a frame; dock_show also draws the hidden strip) */
         dock_show(d);
         if (d->relayout) { d->relayout = FALSE; d->behind = dock_behind(d); }
         break;
+    case IDCMP_INTUITICKS:
+        if (d->pressed && !d->dragging && !d->list && ++d->holdticks == d->o->holdtime) run_hold(d, d->pressed);
+        break;
     case IDCMP_MOUSEMOVE:
-        drag_event(d, im);
+        if (d->list && !d->liststicky && d->pressed && d->pressed->temp != RUN_MORE && d->pressed->temp != RUN_WB &&
+            !d->pressed->mini) {
+            WORD along = d->horiz ? im->MouseX - d->downx : im->MouseY - d->downy;
+            WORD across = d->horiz ? im->MouseY - d->downy : im->MouseX - d->downx;
+            if (along < 0) along = -along;
+            if (across < 0) across = -across;
+            if (along > across && along > (d->horiz ? d->cw : d->ch) / 2 &&   /* (towards the list: no) */
+                im->MouseX >= 0 && im->MouseY >= 0 && im->MouseX < d->w && im->MouseY < d->h) {
+                run_list_close(d);                /* held, then moved along the dock: a drag after all */
+                d->fromlist = TRUE;
+            }
+        }
+        if (d->list) run_list_move(d, sx, sy);    /* the held list: no drag */
+        else drag_event(d, im);
         break;
     case IDCMP_MOUSEBUTTONS:
+        if (up) hold_ticks(d, FALSE);
+        if (up && d->list) {                  /* the held list: the window picked comes to the front */
+            if ((it = d->pressed)) { d->pressed = NULL; dock_show_item(d, it, FALSE); }
+            unfocus(d);
+            up = FALSE;
+            run_list_pick(d, sx, sy);
+            break;
+        }
         if (drag_event(d, im)) break;         /* a drag ended (layers unlocked again) - also mid-glide */
         if (d->vis != d->full || an_running()) {      /* sliding or gliding: no clicks */
             if (up && d->pressed) { dock_show_item(d, d->pressed, FALSE); d->pressed = NULL; }
             break;
         }
+        if (im->Code == SELECTDOWN && d->list && d->liststicky) {   /* a list left open: this click only closes */
+            run_list_close(d);                   /* it (an icon under it is not clicked: after picking */
+            break;                               /* windows to minimise, it would show them all again) */
+        }
         if (im->Code == SELECTDOWN && (it = hit(d, im->MouseX, im->MouseY))) {
             d->pressed = it;
+            d->fromlist = FALSE;
             d->downx = im->MouseX; d->downy = im->MouseY;
             tip_hide(d);
             dock_show_item(d, it, TRUE);
+            if (it->temp == RUN_MORE) run_hold(d, it);   /* the "more" cell: its list at once */
+            else if (run_trackable(it)) hold_ticks(d, TRUE);
         } else if (im->Code == SELECTUP && d->pressed) {
             it = d->pressed;
             d->pressed = NULL;
@@ -771,12 +1003,22 @@ BOOL dock_event(struct Dock *d, struct IntuiMessage *im)
                 d->last = it;
                 unfocus(d);                   /* before the program opens its window */
                 up = FALSE;
-                launch_item(d, it);
+                /* running: to the front, unless a new copy is asked for (Shift; with
+                   CLICKNEW the other way round) */
+                if (it->temp == RUN_MORE) ;
+                else if (it->temp == RUN_WB) run_front(d, it);   /* (no new copy of Workbench) */
+                else if (run_is_drawer(it)) { if (!run_front(d, it)) launch_item(d, it); }   /* (open: to the front) */
+                else if (!!(im->Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT)) != d->o->clicknew ||
+                         !run_front(d, it))
+                    launch_item(d, it);
+                run_clicked(d);
             }
             if (d->o->noicon) tip_update(d);  /* the label under the pointer: highlighted again */
         }
         break;
     case IDCMP_INACTIVEWINDOW:
+        hold_ticks(d, FALSE);
+        if (!d->liststicky) run_list_close(d);   /* (one that stays open: closed by its own input) */
         drag_cancel(d, TRUE);
         if (d->pressed) { dock_show_item(d, d->pressed, FALSE); d->pressed = NULL; }
         break;

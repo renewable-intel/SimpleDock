@@ -3,22 +3,15 @@
    SPDX-License-Identifier: GPL-3.0-or-later
 
    During an icon drag Workbench locks every window, so the dock's own task
-   cannot draw. Workbench (V44+) does call an AppWindow drop zone hook, from
-   inside its drag, when the pointer enters or leaves a zone - and that hook
-   may draw with graphics.library. The dock is covered by "between" zones,
-   each from the middle of one icon to the middle of the next: wherever the
-   dragged icons are, the dock icons move apart there (they never sit under
-   the pointer) - squeezed a little, as the window cannot grow during the
-   drag. A dock that is full (as long as the screen allows) opens no gap: it
-   is shown greyed while the icons are over a gap; onto an icon still works. The hook plays the glide itself (GLIDE_MS, timed by the clock),
-   so Workbench's drag pauses that long. Leaving the dock closes the gap.
-   The hook draws into a bitmap of its own and copies it to the window; it
-   reads the icons and records where they were drawn (sx, sy, keep) for the
-   glide after the drop.
-   Like the macOS dock, the middle of an icon is "onto that icon": nothing
-   makes way, the icon is shown pressed, and the dropped icons are opened
-   with it (a text file onto an editor). Only between two icons - the outer
-   fifth of each, and the space between them - do the icons make way. */
+   cannot draw. Workbench (V44+) does call an AppWindow drop zone hook from
+   inside its drag, which may draw with graphics.library. Each icon has an
+   "onto" zone in its middle (shown pressed; a drop opens the files with it)
+   and "between" zones over its outer fifths, where the icons make way
+   (squeezed a little: the window cannot grow during the drag). A full dock
+   opens no gap and is shown greyed. New icons always go in front of the
+   running others. The hook plays the glide itself (GLIDE_MS, so Workbench's
+   drag pauses that long), draws into a bitmap of its own and records where
+   the icons were drawn (sx, sy, keep) for the glide after the drop. */
 #include <string.h>
 #include <utility/hooks.h>
 #include <intuition/intuition.h>
@@ -96,12 +89,9 @@ LONG dz_icon(ULONG id)
     return v >= 0 && v < 4000 && (v & 1) ? v / 2 : -1;           /* the icon this zone is on */
 }
 
-/* The icon shown pressed (a drop opens the dropped icons with it), -1: none. */
-LONG dz_target(void) { return shownhi; }
 
-/* After a drop that didn't change the dock (the files were opened with an
-   icon), the gap or pressed icon the hook drew is replaced by the dock image
-   again. */
+/* After a drop that changed nothing (opened with an icon, or refused), the
+   gap or pressed icon the hook drew is replaced by the dock image again. */
 void dz_reset(struct Dock *d)
 {
     struct Item *it;
@@ -117,19 +107,33 @@ void dz_reset(struct Dock *d)
 /* Where icon k is drawn with place 'gap' kept free (-1: none). */
 static void place(struct Dock *d, LONG k, LONG gap, WORD *x, WORD *y)
 {
-    LONG n = d->ncells, lines = (n + d->per - 1) / d->per, per = d->per, s = k;
+    LONG n = d->ncells, lines = (n + d->per - 1) / d->per, per = d->per, s = k, b;
     WORD along, across, size = d->horiz ? d->cw : d->ch;
-    WORD len = (d->horiz ? d->w : d->h) - 2 * d->pad;
+    WORD len = (d->horiz ? d->w : d->h) - 2 * d->pad - NGAPS(d) * DIVGAP;
 
     if (gap >= 0 && k >= gap) s = k + 1;
     if (gap >= 0 && n + 1 > lines * per) {        /* the window cannot grow now: one more place, squeezed */
         per++;
         size = len / per;
     }
-    along = d->pad + (s % per) * size - ((d->horiz ? d->cw : d->ch) - size) / 2;
+    b = gap >= 0 ? 1 : 0;                         /* the running others: behind the dividers' space */
+    along = d->pad + (s % per) * size - ((d->horiz ? d->cw : d->ch) - size) / 2 +
+            (d->gapc[0] >= 0 && s >= d->gapc[0] + b ? DIVGAP : 0) + (d->gapc[1] >= 0 && s >= d->gapc[1] + b ? DIVGAP : 0);
     across = d->pad + (s / per) * (d->horiz ? d->ch : d->cw);
     *x = d->horiz ? along : across;
     *y = d->horiz ? across : along;
+}
+
+/* Where divider i is drawn with place 'gap' kept free: the same cell size
+   as place() (squeezed when the window cannot grow); -1: none. */
+static WORD div_at(struct Dock *d, LONG gap, LONG i)
+{
+    LONG n = d->ncells, lines = (n + d->per - 1) / d->per, per = d->per;
+    WORD size = d->horiz ? d->cw : d->ch;
+    WORD len = (d->horiz ? d->w : d->h) - 2 * d->pad - NGAPS(d) * DIVGAP;
+    if (d->gapc[i] < 0) return -1;
+    if (gap >= 0 && n + 1 > lines * per) { per++; size = len / per; }
+    return d->pad + (d->gapc[i] + (gap >= 0 ? 1 : 0)) * size + i * DIVGAP + DIVGAP / 2;
 }
 
 /* One frame: icon k between pos[] (p = 0) and its place for 'gap' (p = 1024). */
@@ -158,6 +162,12 @@ static void frame(struct Dock *d, struct RastPort *wrp, LONG gap, LONG p, BOOL l
         }
         k++;
     }
+    if (SECTION(d)) {                             /* the divider: after a new icon's place */
+        struct Box all;
+        all.x0 = all.y0 = 0; all.x1 = d->w; all.y1 = d->h;
+        render_divider_at(d, &rp, &all, div_at(d, gap, 0));
+        render_divider_at(d, &rp, &all, div_at(d, gap, 1));
+    }
     WaitBlit();
     BltBitMapRastPort(hbm, 0, 0, wrp, 0, 0, d->w, d->h, 0xC0);
     PROF_STOP(4, t0);
@@ -177,9 +187,8 @@ static void ghost(struct Dock *d, struct RastPort *wrp)
     RectFill(&rp, d->pad, d->pad, d->w - d->pad - 1, d->h - d->pad - 1);
 }
 
-/* Glide the icons to their places with a free place at 'gap'; icon 'hi' is
-   shown pressed (-1: none). A full dock opens no gap and shows greyed instead;
-   dropping onto an icon still works. */
+/* Glide the icons to their places with a free place at 'gap'; icon 'hi'
+   shown pressed (-1: none). */
 static void glide(struct Dock *d, struct RastPort *wrp, LONG gap, LONG hi)
 {
     struct timeval t0, now;
@@ -244,13 +253,14 @@ static void add_zone(struct Dock *d, ULONG id, WORD a0, WORD a1, WORD b0, WORD b
         zone[nzones++] = z;
 }
 
-/* Zones for the dock as laid out now (fully shown): from the middle of one
-   icon to the middle of the next, covering the whole dock. */
+/* Zones for the dock as laid out now (fully shown): between (outer fifths
+   of each icon) and onto (the middle); none for the "more" cell. */
 void dz_add(struct Dock *d)
 {
     LONG n = d->ncells, k, lines;
     WORD size = d->horiz ? d->cw : d->ch, csize = d->horiz ? d->ch : d->cw;
     WORD alen = d->horiz ? d->w : d->h, blen = d->horiz ? d->h : d->w;
+    struct Item *it;
 
     if (!lock.ss_Link.ln_Type) InitSemaphore(&lock);
     if (!d->appwin || nzones) return;
@@ -262,14 +272,23 @@ void dz_add(struct Dock *d)
     hook.h_Data = d;
     lines = (n + d->per - 1) / d->per;
     if (n == 0) add_zone(d, GAP_ID, 0, alen, 0, blen);   /* empty dock: place 0 anywhere */
-    for (k = 0; k < n; k++) {                    /* between (place k) | onto icon k | between (k + 1) */
+    k = 0;
+    FOR_ITEMS(d, it) {                           /* between (place k) | onto icon k | between (k + 1) */
         LONG col = k % d->per, row = k / d->per;
-        WORD start = d->pad + col * size, band = size / 5;
+        WORD start = d->pad + col * size + (d->gapc[0] >= 0 && k >= d->gapc[0] ? DIVGAP : 0) +
+                     (d->gapc[1] >= 0 && k >= d->gapc[1] ? DIVGAP : 0), band = size / 5;
         WORD b0 = row == 0 ? 0 : d->pad + row * csize, b1 = row == lines - 1 ? blen : d->pad + (row + 1) * csize;
-        add_zone(d, GAP_ID + 2 * k, col == 0 ? 0 : start - band, start + band, b0, b1);
-        add_zone(d, GAP_ID + 2 * k + 1, start + band, start + size - band, b0, b1);
-        if (k == n - 1 || col == d->per - 1)    /* after the last of a row: between it and the next */
+        if (k <= d->nkept)                       /* (new icons go in front of the running others) */
+            add_zone(d, GAP_ID + 2 * k, col == 0 ? 0 : start - band - (k == d->ndiv && k && SECTION(d) ? DIVGAP : 0),
+                     start + band, b0, b1);
+        if (!it->temp) add_zone(d, GAP_ID + 2 * k + 1, start + band, start + size - band, b0, b1);
+        else if (it->temp == RUN_TEMP)           /* onto a running other: opened with it */
+            add_zone(d, GAP_ID + 2 * k + 1, k == d->nkept ? start + band : start, k == n - 1 ? alen : start + size, b0, b1);
+        else if (it->temp == RUN_WB)             /* onto the Workbench icon: a new icon after the kept ones */
+            add_zone(d, GAP_ID + 2 * k, start + band, k == n - 1 ? alen : start + size, b0, b1);
+        if (!it->temp && (k == n - 1 || col == d->per - 1))   /* after the last of a row: between it and the next */
             add_zone(d, GAP_ID + 2 * (k + 1), start + size - band, alen, b0, b1);
+        k++;
     }
     if (!nzones) { dz_remove(d); return; }
     ObtainSemaphore(&lock);

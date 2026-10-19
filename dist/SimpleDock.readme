@@ -2,17 +2,24 @@ Short:        Simple, macOS-inspired Workbench dock
 Author:       renewable-intel
 Uploader:     renew.intel.soft@gmail.com (renewable-intel)
 Type:         util/wb
-Version:      1.0
-Architecture: m68k-amigaos >= 3.2.0
-Requires:     AmigaOS 3.2, 68030+ with fast RAM
+Version:      1.1
+Architecture: m68k-amigaos >= 3.1.4
+Requires:     AmigaOS 3.1.4/3.5/3.9/3.2 (best on 3.2), 68030+ with fast RAM
 URL:          https://github.com/renewable-intel/SimpleDock
 
 SimpleDock is an app dock at the edge of your Workbench screen, in the
 style of the macOS dock.
 
   - click to start, drag to rearrange, drag off to remove
-  - drop Workbench icons between dock icons to add them, onto an icon
-    to open them with it
+  - shows running programs (a dot, and the number of copies); a click
+    brings all of a program's windows to the front, Shift+click starts
+    another copy
+  - long press: a list of a program's windows, to bring one to the
+    front or close it
+  - programs not on the dock show at its end behind a divider; drag
+    one in to keep it, or off the dock to hide it
+  - drop Workbench icons between dock icons to add them, onto a
+    program to open them with it, onto a drawer to copy them into it
   - labels below the icons, on hover (with a small pointer, like
     macOS), or labels only
   - six colours or your own (colour picker), solid or transparent
@@ -25,12 +32,18 @@ style of the macOS dock.
     save any setting from scripts
   - optional crash reports, to send with a bug report
 
-Minimum: AmigaOS 3.2, a 68030 with fast RAM.
+Minimum: AmigaOS 3.2, or 3.1.4, 3.5 or 3.9, and a 68030 with fast RAM.
 Recommended: a 68040/68060 accelerator or a PiStorm / Emu68 system, and
-a graphics card (Picasso96) with a 16- or 24-bit screen mode.
+a graphics card (Picasso96) with a 16- or 24-bit screen mode for the
+transparent dock. It also works on AGA (8-bit) screens, more slowly.
 
 Nothing to install: put the drawer anywhere and double-click SimpleDock.
 Full documentation in the ReadMe.
 
 Free software, GNU GPL version 3 or later. Source code:
-https://github.com/renewable-intel/SimpleDock (tag v1.0)
+https://github.com/renewable-intel/SimpleDock (tag v1.1)
+
+New in 1.1: running programs (dot, number, click to front, Shift+click
+for a new copy), programs not on the dock shown at its end, the
+long-press window list (with Close / Close All), drops onto drawers,
+the Shell icon works like a program icon, seven new Advanced settings.

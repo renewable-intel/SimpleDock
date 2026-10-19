@@ -4,7 +4,7 @@
 
    AmigaOS windows cannot leave the screen, so the window shrinks towards its
    edge and shows the matching part of the finished dock image (dock.c
-   dock_show); fully out, a 1-pixel strip stays. The slide eases in
+   dock_show); fully in, a 1-pixel strip stays. The slide eases in
    and out and is timed by the clock, not by frames: a slow machine shows
    fewer frames but the same speed. AUTOHIDE=n: n x 70 ms for a full slide,
    1 = instant. The timer runs only while sliding or waiting to hide. */
@@ -27,6 +27,9 @@ struct Device *TimerBase;
 
 static struct MsgPort *tport;
 static struct timerequest *tio;
+static struct MsgPort *pport;           /* short waits while the dock steps aside (ah_peek) */
+static struct timerequest *pio;
+static void short_wait(ULONG us);
 static BOOL pending;
 static enum { T_IDLE, T_DELAY, T_FRAME } tstate;
 static struct timeval t0;
@@ -63,12 +66,10 @@ static LONG elapsed_ms(void)
 }
 
 
-/* vis is how far the dock's far side is from the screen edge, the gap
-   included. Hidden (vis 0) the window is a 1-pixel strip at the edge rather
-   than HideWindow(), which needs intuition V46; Workbench also cancels an icon
-   drag when a window appears. (The strip could later take drops on a hidden
-   dock, see drag.c.) */
-/* The window's box when vis pixels of the dock show. */
+/* The window's box when vis pixels of the dock show (vis: how far its far
+   side is from the screen edge, the gap included). Hidden (vis 0) it is a
+   1-pixel strip at the edge rather than HideWindow(), which needs intuition
+   V46; Workbench also cancels an icon drag when a window appears. */
 static void box_at(struct Dock *d, LONG vis, WORD *l, WORD *t, WORD *w, WORD *h)
 {
     WORD v = vis < 1 ? 1 : vis, back = d->full - v;   /* how far it is pulled towards the edge */
@@ -91,6 +92,11 @@ void ah_strip_grab(struct Dock *d, BOOL hiding)
     box_at(d, 0, &l, &t, &w, &h);
     under = l >= d->left && t >= d->top && l + w <= d->left + d->w && t + h <= d->top + d->h;
     if (hiding && under) return;                /* under the dock now: keep the one taken with the snapshot */
+    if (d->strip && (GetBitMapAttr(d->strip, BMA_WIDTH) < w || GetBitMapAttr(d->strip, BMA_HEIGHT) < h)) {
+        WaitBlit();                              /* (the dock grew: a bigger one) */
+        FreeBitMap(d->strip);
+        d->strip = NULL;
+    }
     if (!d->strip && !(d->strip = AllocBitMap(w, h, GetBitMapAttr(d->scr->RastPort.BitMap, BMA_DEPTH),
                                               BMF_MINPLANES, d->scr->RastPort.BitMap))) return;
     if (under && d->raw) BltBitMap(d->raw, l - d->left, t - d->top, d->strip, 0, 0, w, h, 0xC0, 0xFF, NULL);
@@ -116,6 +122,16 @@ static void apply(struct Dock *d, LONG vis)
     in_poke();
 }
 
+/* The dock was laid out again while hidden: the strip window follows. */
+void ah_hidden_moved(struct Dock *d)
+{
+    WORD l, t, w, h;
+    if (!d->win || d->vis != 0) return;
+    box_at(d, 0, &l, &t, &w, &h);
+    ChangeWindowBox(d->win, l, t, w, h);
+    in_poke();
+}
+
 /* The hotkey. With auto-hide it brings the dock out until the pointer has been
    on it and left, or until the hotkey is pressed again; press it before
    dragging an icon to a hidden dock. Without auto-hide it brings the dock to
@@ -137,20 +153,39 @@ void ah_show(struct Dock *d, BOOL on)
     in_poke();                                  /* the input handler looks again */
 }
 
-/* The windows behind the dock changed: step aside to the edge strip, let
-   them redraw, take a new snapshot, come back (a short blink). */
 #ifdef SD_DEBUG
 LONG ah_peeks;                          /* debug ARexx PEEKS */
 #endif
+/* Does a window under the dock still have to redraw (damage not repaired)? */
+static BOOL behind_busy(struct Dock *d)
+{
+    struct Layer *l;
+    BOOL busy = FALSE;
+    WORD x0 = d->left, y0 = d->top, x1 = d->left + d->w - 1, y1 = d->top + d->h - 1;
+    LockLayerInfo(&d->scr->LayerInfo);
+    for (l = d->scr->LayerInfo.top_layer; l && !busy; l = l->back) {
+        if (l == d->win->WLayer || (d->tip && l == d->tip->WLayer)) continue;
+        busy = (l->Flags & LAYERREFRESH) && l->bounds.MinX <= x1 && l->bounds.MaxX >= x0 &&
+               l->bounds.MinY <= y1 && l->bounds.MaxY >= y0;
+    }
+    UnlockLayerInfo(&d->scr->LayerInfo);
+    return busy;
+}
+
+/* The windows behind the dock changed: step aside to the edge strip, wait
+   until they have redrawn (usually a few ms), take a new snapshot, come back
+   (a short blink: AmigaOS 3.x cannot show what is under a window). */
 void ah_peek(struct Dock *d)
 {
+    LONG t;
     if (!d->win || d->vis != d->full) return;
 #ifdef SD_DEBUG
     ah_peeks++;
 #endif
     tip_hide(d);
     apply(d, 0);
-    Delay(6);                                   /* Intuition moves it, the windows behind redraw */
+    for (t = 0; t < 60 && behind_busy(d); t++)  /* the windows behind redraw: back as soon as */
+        short_wait(2000);                       /* they are done (checked every 2 ms, at most 0.12 s) */
     if (d->lmb) {                               /* a click meanwhile, maybe a Workbench drag: a window */
         d->peekwait = TRUE;                     /* change now would end it - back after the release */
         return;
@@ -158,7 +193,8 @@ void ah_peek(struct Dock *d)
     ah_peek_end(d);
 }
 
-/* The rest of ah_peek: new snapshot, back out (also after a button release). */
+/* The rest of ah_peek: new snapshot, back out (also after a button release,
+   unless a slide began meanwhile: slide() drops the wait). */
 void ah_peek_end(struct Dock *d)
 {
     d->peekwait = FALSE;
@@ -173,6 +209,7 @@ static void slide(struct Dock *d, LONG target)
 {
     LONG n = d->o->autohide;
     tstop();
+    d->peekwait = FALSE;                        /* (a peek left waiting: the slide takes its own snapshot) */
     if (target == d->vis) return;               /* already there: no window change at all */
     if (d->vis == 0 && target > 0) render_resnap(d);   /* coming out: the screen under it as it is now */
     if (d->vis == d->full && target < d->full) ah_strip_grab(d, TRUE);   /* going in: the edge as it is now */
@@ -206,7 +243,20 @@ ULONG ah_open(struct Dock *d)
         return 0;
     }
     TimerBase = tio->tr_node.io_Device;
+    if ((pport = CreateMsgPort()) &&
+        (pio = (struct timerequest *)CreateIORequest(pport, sizeof(*pio)))) *pio = *tio;   /* same device, own port */
+    if (pio) pio->tr_node.io_Message.mn_ReplyPort = pport;
     return 1UL << tport->mp_SigBit;
+}
+
+/* Wait us microseconds (a tick if there is no timer of our own). */
+static void short_wait(ULONG us)
+{
+    if (!pio) { Delay(1); return; }
+    pio->tr_node.io_Command = TR_ADDREQUEST;
+    pio->tr_time.tv_secs = 0;
+    pio->tr_time.tv_micro = us;
+    DoIO((struct IORequest *)pio);
 }
 
 /* After dock_open or a settings change. The dock starts shown; the input
@@ -222,7 +272,7 @@ void ah_start(struct Dock *d)
     if (!on && d->vis != d->full) apply(d, d->full);
 }
 
-/* The input handler saw the pointer change between "show" and "hide". */
+/* Show or hide as d->want now says (input handler, hotkey, after a drag). */
 #ifdef SD_DEBUG
 LONG ah_calls;
 #endif
@@ -272,5 +322,7 @@ void ah_close(void)
         tio = NULL;
         TimerBase = NULL;
     }
+    if (pio) { DeleteIORequest((struct IORequest *)pio); pio = NULL; }   /* (tio's device, not opened again) */
+    if (pport) { DeleteMsgPort(pport); pport = NULL; }
     if (tport) { DeleteMsgPort(tport); tport = NULL; }
 }

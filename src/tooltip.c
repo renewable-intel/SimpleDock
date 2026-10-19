@@ -25,7 +25,7 @@
 void tip_hide(struct Dock *d)
 {
     struct Item *it;
-    if (d->tip) { CloseWindow(d->tip); d->tip = NULL; }
+    if (d->tip) { struct Window *w = d->tip; d->tip = NULL; CloseWindow(w); }   /* (the input handler looks: NULL first) */
     else if (d->o && d->o->noicon && d->tipcell >= 0 && d->win && d->img && !d->dragging &&
              (it = dock_item(d, d->tipcell)) && it != d->pressed)
         dock_show_item(d, it, FALSE);            /* labels only: the highlight off */
@@ -34,12 +34,21 @@ void tip_hide(struct Dock *d)
 
 static void tip_show(struct Dock *d, struct Item *it, LONG cell)
 {
+    static char text[96];
     CONST_STRPTR s = it->label ? it->label : FilePart(it->path);
-    LONG n = strlen(s), opacity = !d->o->transparent ? 100 : d->opacity + 25 > 90 ? 90 : d->opacity + 25;
+    LONG n, opacity = !d->o->transparent ? 100 : d->opacity + 25 > 90 ? 90 : d->opacity + 25;
     struct RastPort rp;
     struct BitMap *bm;
     WORD tw, th, ww, wh, x, y, cx, cy, tx = PADX, ty = PADY, rad, pos, sw = d->scr->Width, sh = d->scr->Height;
 
+    if (it->running >= 2 && d->o->running == 1 && !it->missing && strlen(s) < sizeof(text) - 16) {
+        LONG v[2];                               /* RUNNING=1 (a dot, no number on the icon):
+                                                    two copies or more as "Clock (2 running)" */
+        v[0] = (LONG)s; v[1] = it->running;      /* (drawers: "Workbench (3 windows)") */
+        SD_FMT(text, it->temp == RUN_WB || run_is_drawer(it) ? "%s (%ld windows)" : "%s (%ld running)", v);
+        s = text;
+    }
+    n = strlen(s);
     InitRastPort(&rp);
     SetFont(&rp, d->font);
     tw = TextLength(&rp, (STRPTR)s, n) + 2 * PADX + 1;
@@ -104,6 +113,7 @@ void tip_update(struct Dock *d)
     LONG cell = (d->o->hovertext || d->o->noicon) && !d->dragging && d->win && d->vis == d->full ? d->hover : -1;
     struct Item *it;
     if (cell == d->tipcell || d->lmb) return;   /* button held: a window change ends a Workbench drag */
+    if (d->list) cell = -1;                      /* (the held list is open) */
     tip_hide(d);
     if (cell < 0 || !(it = dock_item(d, cell))) return;
     if (!d->o->noicon) tip_show(d, it, cell);

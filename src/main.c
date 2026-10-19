@@ -1,4 +1,4 @@
-/* SimpleDock - a small application dock for AmigaOS 3.2
+/* SimpleDock - a small application dock for AmigaOS 3.x
    Copyright (C) 2026 renewable-intel
 
    This program is free software: you can redistribute it and/or modify it under
@@ -21,7 +21,7 @@
 
 extern struct WBStartup *WBenchMsg;
 
-static const char version[] = "$VER: " SD_NAME " " SD_VERSION " (" SD_DATE ")";
+static const char version[] = "$VER: " SD_NAME " " SD_VERSION SD_BUILD " (" SD_DATE ")";
 
 /* vbcc startup: switch to a stack of at least this size (a Shell gives 4 KB). */
 unsigned long __stack = 32768;
@@ -30,7 +30,7 @@ struct IntuitionBase *IntuitionBase;
 struct GfxBase *GfxBase;
 struct Library *LayersBase, *IconBase, *WorkbenchBase, *UtilityBase;
 struct RxsLib *RexxSysBase;
-struct Library *DiskfontBase, *P96Base, *AslBase, *CxBase, *GadToolsBase, *ChooserBase;
+struct Library *DiskfontBase, *P96Base, *AslBase, *CxBase, *GadToolsBase, *ChooserBase, *StringBase;
 
 static struct Dock dock;
 
@@ -109,9 +109,11 @@ static CONST_STRPTR open_libs(void)
     DiskfontBase  = OpenLibrary("diskfont.library", 39);
     P96Base       = OpenLibrary("Picasso96API.library", 2);
     AslBase       = OpenLibrary("asl.library", 38);
-    CxBase        = OpenLibrary("commodities.library", 37);   /* the hotkey's description (ParseIX) */
+    CxBase        = OpenLibrary("commodities.library", 38);   /* the hotkey's description (ParseIX) */
     GadToolsBase  = OpenLibrary("gadtools.library", 39);      /* the settings window */
     ChooserBase   = OpenLibrary("gadgets/chooser.gadget", 44);   /* its lists (else cycle gadgets) */
+    StringBase    = OpenLibrary("gadgets/string.gadget", 47);    /* its text fields (double-click marks all; */
+                                                                 /* OS 3.2's: older ones draw no text) */
     return !IntuitionBase ? "intuition.library 39" : !GfxBase ? "graphics.library 39" :
            !LayersBase ? "layers.library 39" : !IconBase ? "icon.library 44" :
            !WorkbenchBase ? "workbench.library 44" : !UtilityBase ? "utility.library 39" : NULL;
@@ -120,6 +122,7 @@ static CONST_STRPTR open_libs(void)
 void sd_close_libs(void)
 {
     CloseLibrary(ChooserBase);
+    CloseLibrary(StringBase);
     CloseLibrary(GadToolsBase);
     CloseLibrary(CxBase);
     CloseLibrary(AslBase);
@@ -143,11 +146,12 @@ int main(void)
     int rc = RETURN_FAIL;
     BOOL run = TRUE;
     CONST_STRPTR missing;
-    ULONG ptrsig = 0, timersig = 0, menusig = 0, animsig = 0;
+    ULONG ptrsig = 0, timersig = 0, menusig = 0, animsig = 0, runsig = 0;
 
     strcpy(d->portname, SD_PORTNAME);
     NewList((struct List *)&d->items);
     NewList((struct List *)&d->extra);
+    NewList((struct List *)&d->runs);
     TRACE("start");
     if ((missing = open_libs())) {
         if (!WBenchMsg) Printf(SD_NAME ": cannot open %s\n", (LONG)missing);
@@ -174,10 +178,12 @@ int main(void)
     TRACE("open");
     timersig = ah_open(d);                     /* timers first: the dock's drawing is timed (debug) */
     animsig = an_open();
+    runsig = run_open();
     if (!dock_open(d)) goto out;
     ptrsig = in_open(d);
     am_build(d);
     ah_start(d);
+    run_check(d);                              /* running programs: dots on the dock */
     config_created(d);                         /* a missing config file is written now */
     TRACE("loop");
     rc = RETURN_OK;
@@ -185,7 +191,7 @@ int main(void)
     while (run) {
         ULONG wsig = d->win ? 1UL << d->win->UserPort->mp_SigBit : 0;
         ULONG psig = am_prefs_sig();             /* the settings window, while open */
-        ULONG sigs = Wait(wsig | 1UL << rexx->mp_SigBit | ptrsig | timersig | menusig | animsig | psig |
+        ULONG sigs = Wait(wsig | 1UL << rexx->mp_SigBit | ptrsig | timersig | menusig | animsig | runsig | psig |
                           SIGBREAKF_CTRL_C);
         if (sigs & SIGBREAKF_CTRL_C) { TRACE("quit: ctrl-c"); run = FALSE; }
         if (d->win && (sigs & wsig)) {
@@ -200,21 +206,28 @@ int main(void)
         if (sigs & ptrsig) {
             if (d->raisecheck) { d->raisecheck = FALSE; dock_settle(d); }
             if (d->hotkey) { d->hotkey = FALSE; ah_hotkey(d); }
+            if (d->listev) run_list_input(d);
             ah_pointer(d);
             tip_update(d);
+            run_check(d);
+            if (d->winchange) { d->winchange = FALSE; run_wake(d); run_soon(d); }
+            if (d->delquit) { LONG c = d->delquit - 1; d->delquit = 0; run_quit(d, c); }
         }
-        if (sigs & timersig) ah_timer(d);
+        if (sigs & timersig) { ah_timer(d); run_check(d); }   /* (a slide shows or hides the dock) */
         if (sigs & animsig) an_timer(d);
+        if (sigs & runsig) run_timer(d);
         if ((sigs & menusig) && !am_handle(d)) run = FALSE;
         if (psig && (sigs & psig)) am_prefs_handle(d);
     }
     am_prefs_store(d);                         /* an open settings window keeps its changes */
 out:
+    drop_copy_wait();                          /* a copy into a dock drawer finishes first */
     crash_set(FALSE);
     dock_close(d);                             /* drop target and window before the port */
     am_close();
     an_close();
     ah_close();
+    run_close();
     in_close();
     config_free(d);
     rexx_close(rexx);

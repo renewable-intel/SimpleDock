@@ -6,7 +6,7 @@
    lines first, using the command-line keywords ("POS=B", "ONTOP", and
    "(NOTEXT)" for off), then the icons, one path per line, each optionally
    followed by LABEL and IMAGE lines. Lines starting with ';' are comments.
-   The settings window's Save writes this file, Load... reads another one
+   Closing the settings window writes this file, Load... reads another one
    into the dock and Save as... writes a copy elsewhere. A file without
    settings lines uses the icon's tooltypes. CONFIG can also be a drawer of
    icons; its settings are then kept in the icon. */
@@ -29,8 +29,13 @@ struct Item *config_add(struct Dock *d, CONST_STRPTR path, struct Item *before)
     struct Item *it = AllocVec(sizeof(*it), MEMF_CLEAR);
     if (!it) return NULL;
     if (!(it->path = sd_strdup(path))) { FreeVec(it); return NULL; }
-    if (before) Insert((struct List *)&d->items, (struct Node *)it, (struct Node *)before->node.mln_Pred);
-    else AddTail((struct List *)&d->items, (struct Node *)it);
+    if (!before || before->temp) {               /* at the end: after the last kept icon (never among */
+        struct Item *x, *last = NULL;            /* the running others, which may be in the list now, */
+        FOR_ITEMS(d, x) if (!x->temp) last = x;  /* with the icons that did not fit after them) */
+        Insert((struct List *)&d->items, (struct Node *)it, last ? (struct Node *)last : NULL);
+        return it;
+    }
+    Insert((struct List *)&d->items, (struct Node *)it, (struct Node *)before->node.mln_Pred);
     return it;
 }
 
@@ -41,7 +46,9 @@ static struct Item *add_item(struct Dock *d, CONST_STRPTR path)
 
 void config_remove(struct Dock *d, struct Item *it)
 {
+    if (it->temp == RUN_MORE) return;            /* (not an icon of its own) */
     Remove((struct Node *)it);
+    run_forget(it);                              /* (its programs run on) */
     if (d->last == it) d->last = NULL;
     if (d->pressed == it) d->pressed = NULL;
     scale_free(it);
@@ -111,7 +118,7 @@ static void config_default(struct Dock *d)
     d->overtold = TRUE;                          /* those that do not fit are left out (config_created) */
 }
 
-static char setbuf[4096];               /* the settings lines of the file loaded last */
+static char setbuf[4096];               /* the settings lines in use (the file's, then ARexx SET's) */
 static STRPTR setv[49];
 
 /* Read the icons and settings from 'path', or from the dock's own file if path
@@ -198,8 +205,8 @@ BOOL config_load(struct Dock *d, CONST_STRPTR path)
     }
     Close(fh);
     setv[nset] = NULL;
-    if (nset && !opts_check(setv)) {             /* lines that are not valid are dropped (said once by */
-        LONG k = 0;                              /* opts_apply below); else every change would fail */
+    if (nset && !opts_check(setv)) {             /* lines that are not valid are dropped (said once, */
+        LONG k = 0;                              /* below); else every change would fail */
         for (i = 0; i < nset; i++) {
             STRPTR one[2];
             one[0] = setv[i]; one[1] = NULL;
@@ -220,8 +227,8 @@ void config_created(struct Dock *d)
 {
     if (!d->cfgcreate) return;
     d->cfgcreate = FALSE;
-    while (d->extra.mlh_Head->mln_Succ)         /* standard icons that do not fit this screen */
-        config_remove(d, (struct Item *)d->extra.mlh_Head);
+    while (dock_extra(d) > d->pushed)           /* standard icons that do not fit this screen */
+        config_remove(d, (struct Item *)d->extra.mlh_TailPred);
     if (config_save(d, NULL)) sd_verbose(d, "Created %s", (LONG)d->o->config);
     else sd_verbose(d, "No config file, and %s cannot be created", (LONG)d->o->config);
 }
@@ -261,6 +268,7 @@ BOOL config_save(struct Dock *d, CONST_STRPTR path)
     for (pass = 0; pass < 2; pass++)             /* the icons shown, then those that do not fit */
         for (it = (struct Item *)(pass ? &d->extra : &d->items)->mlh_Head; it->node.mln_Succ;
              it = (struct Item *)it->node.mln_Succ) {
+            if (it->temp) continue;              /* running, not kept */
             if (FPrintf(fh, "%s\n", (LONG)it->path) < 0) ok = FALSE;
             if (it->image && FPrintf(fh, "IMAGE %s\n", (LONG)it->image) < 0) ok = FALSE;
             if (it->label && FPrintf(fh, "LABEL %s\n", (LONG)it->label) < 0) ok = FALSE;
@@ -423,6 +431,7 @@ BOOL config_choose(struct Dock *d, BOOL save)
 }
 void config_free(struct Dock *d)
 {
+    run_free_all(d);
     dock_unhide(d);
     while (d->items.mlh_Head->mln_Succ) config_remove(d, (struct Item *)d->items.mlh_Head);
 }

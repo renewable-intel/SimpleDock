@@ -4,10 +4,11 @@
 
    input.device calls inhandler.s for every batch of input events (at least
    ten times a second, also when nothing moves). in_watch() notes the left
-   button and the window it activates; while auto-hide, hover labels or "in
-   front" are on, in_check() compares the pointer with the dock. The dock
+   button and the active window; while auto-hide, hover labels, labels only
+   or "in front" are on, in_check() compares the pointer with the dock. The dock
    task is signalled only when something it waits for changes - no polling,
    no timer while idle. */
+#include <string.h>
 #include <exec/interrupts.h>
 #include <devices/input.h>
 #include <devices/inputevent.h>
@@ -15,6 +16,9 @@
 #include <libraries/commodities.h>
 #include <proto/exec.h>
 #include <proto/commodities.h>
+#include <proto/intuition.h>
+#include <proto/dos.h>
+#include <proto/utility.h>
 #include "sd.h"
 
 extern struct IntuitionBase *IntuitionBase;
@@ -24,11 +28,48 @@ static IX in_ix;                        /* the hotkey (commodities description, 
 static volatile BOOL in_ixok;
 static UWORD in_hotcode = 0xFFFF;       /* its key while down: the key-up is swallowed too */
 
-/* The hotkey from its description ("ctrl alt d"); matched in in_watch. */
+/* A hotkey of modifiers only ("ctrl alt shift"): they are held together and
+   let go with no other key or button in between (so Ctrl+Alt+Shift+key in a
+   program never brings the dock out). Groups: 1 Shift, 2 Alt, 4 Ctrl,
+   8 left Amiga, 16 right Amiga. */
+static UWORD in_tapneed;                /* the groups wanted (0: a normal hotkey) */
+static BOOL in_taparmed;                /* all of them held, nothing else yet */
+
+static UWORD tap_groups(UWORD q)
+{
+    return (q & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT) ? 1 : 0) | (q & (IEQUALIFIER_LALT | IEQUALIFIER_RALT) ? 2 : 0) |
+           (q & IEQUALIFIER_CONTROL ? 4 : 0) | (q & IEQUALIFIER_LCOMMAND ? 8 : 0) | (q & IEQUALIFIER_RCOMMAND ? 16 : 0);
+}
+
+/* The groups of a description made of modifier names only (0: not one). */
+static UWORD tap_parse(CONST_STRPTR desc)
+{
+    static const struct { const char *name; UBYTE g; } q[] = {
+        { "shift", 1 }, { "lshift", 1 }, { "rshift", 1 }, { "alt", 2 }, { "lalt", 2 }, { "ralt", 2 },
+        { "ctrl", 4 }, { "control", 4 }, { "lamiga", 8 }, { "lcommand", 8 }, { "ramiga", 16 }, { "rcommand", 16 } };
+    UWORD g = 0;
+    LONG i, n;
+    while (desc && *desc) {
+        while (*desc == ' ') desc++;
+        if (!*desc) break;
+        for (n = 0; desc[n] && desc[n] != ' '; n++) ;
+        for (i = 0; i < (LONG)(sizeof(q) / sizeof(q[0])); i++)
+            if ((LONG)strlen(q[i].name) == n && !Strnicmp((STRPTR)desc, (STRPTR)q[i].name, n)) break;
+        if (i == (LONG)(sizeof(q) / sizeof(q[0]))) return 0;   /* a key: a normal hotkey */
+        g |= q[i].g;
+        desc += n;
+    }
+    return g;
+}
+
+/* The hotkey from its description ("ctrl alt d", or "ctrl alt shift");
+   matched in in_watch. */
 BOOL in_set_hotkey(CONST_STRPTR desc)
 {
     extern struct Library *CxBase;
     in_ixok = FALSE;
+    in_taparmed = FALSE;
+    if ((in_tapneed = tap_parse(desc))) return TRUE;
     if (!CxBase || !desc || !*desc) return FALSE;
     in_ix.ix_Version = IX_VERSION;
     if (ParseIX((STRPTR)desc, &in_ix)) return FALSE;
@@ -40,6 +81,7 @@ BOOL in_hotkey_valid(CONST_STRPTR desc)
 {
     extern struct Library *CxBase;
     IX ix;
+    if (tap_parse(desc)) return TRUE;
     if (!CxBase || !desc || !*desc) return FALSE;
     ix.ix_Version = IX_VERSION;
     return ParseIX((STRPTR)desc, &ix) == 0;
@@ -61,17 +103,16 @@ LONG in_calls, in_sigs, in_lastx, in_lasty;
 
 #define MARGIN 6                        /* stay shown this close to the dock */
 
-/* Called for every batch of input events, before Intuition sees them. Notes
-   the left button and which window was active when it went down: a click
-   activates the dock (with its empty menu bar), and dock.c gives the focus
-   back on release. */
+/* The active window when the button went down: a click activates the dock
+   (with its empty menu bar), and dock.c gives the focus back on release. */
 struct Window *volatile in_prevwin;
 static WORD in_raise;                   /* batches left until the "in front" check */
 static BOOL in_near;                    /* pointer over the dock (last batch) */
+static struct Layer *in_top_seen;       /* the screen's front layer at the last batch */
 
-/* After a button release a window may have moved, opened, closed or come
-   forward. About 0.2 s later the dock task re-checks "in front" (ONTOP) and
-   what lies behind the dock. */
+/* Ask the dock task to check "in front" (ONTOP) and what lies behind the
+   dock (dock_settle): about 0.2 s after a button release, or at once when
+   the pointer comes onto the dock. */
 static void raise_check(void)
 {
     in_dock->raisecheck = TRUE;
@@ -82,16 +123,117 @@ static void raise_check(void)
    Intuition does that a moment later). */
 void in_settle_again(void) { in_raise = 3; }
 
+/* The held list stays open after the button went up (running.c): clicks on
+   it, Del and Esc are taken here (Intuition never sees them, so the list
+   window is not activated); pointer moves and clicks elsewhere are reported
+   and passed on. Only Signal() here. */
+static BOOL in_eatup;                   /* the button-up of a click taken here */
+static struct Window *in_active_seen;   /* the active window at the last batch */
+static BOOL in_delup;                   /* the key-up of a Del taken here */
+
+/* The dock cell under the pointer (-1: none). */
+static WORD pointer_cell(struct Dock *d)
+{
+    struct Screen *s = d->scr;
+    WORD x, y, c, r;
+    if (!s || !d->win || s != IntuitionBase->FirstScreen || d->vis != d->full || d->dragging) return -1;
+    x = s->MouseX - d->left; y = s->MouseY - d->top;
+    if (x < d->pad || y < d->pad || x >= d->w - d->pad || y >= d->h - d->pad) return -1;
+    if (dock_in_gap(d, d->horiz ? x : y)) return -1;   /* (a divider: no icon) */
+    if (d->horiz) x = dock_along(d, x);
+    else y = dock_along(d, y);
+    c = (x - d->pad) / d->cw; r = (y - d->pad) / d->ch;
+    if (d->horiz ? c >= d->per : r >= d->per) return -1;
+    c = d->horiz ? r * d->per + c : c * d->per + r;
+    return c < d->ncells ? c : -1;
+}
+static BOOL in_awaydown;                /* a click elsewhere: close on its button-up (Workbench may be dragging) */
+static void list_watch(struct InputEvent *ev)
+{
+    struct Dock *d = in_dock;
+    UBYTE e = 0;
+    if (!d->scr) { in_eatup = in_awaydown = FALSE; return; }
+    for (; ev; ev = ev->ie_NextEvent) {
+        if (ev->ie_Class == IECLASS_RAWKEY) {
+            UWORD k = ev->ie_Code & ~IECODE_UP_PREFIX;
+            if (k == 0x46 || k == 0x45) {        /* Del, Esc: taken (held down: once, not repeated - */
+                if (!(ev->ie_Code & IECODE_UP_PREFIX) && !(ev->ie_Qualifier & IEQUALIFIER_REPEAT))   /* the next */
+                    e |= k == 0x46 ? LE_DEL : LE_ESC;   /* row moves under the pointer after each close) */
+                ev->ie_Class = IECLASS_NULL;
+            }
+        } else if (ev->ie_Class == IECLASS_RAWMOUSE || ev->ie_Class == IECLASS_NEWPOINTERPOS) {
+            if (ev->ie_Class == IECLASS_NEWPOINTERPOS || ev->ie_X || ev->ie_Y) e |= LE_MOVE;
+            if (ev->ie_Class != IECLASS_RAWMOUSE) continue;
+            if (ev->ie_Code == IECODE_LBUTTON) {
+                WORD x = d->scr->MouseX, y = d->scr->MouseY;
+                if (x >= d->lbx && x < d->lbx + d->lbw && y >= d->lby && y < d->lby + d->lbh) {
+                    e |= LE_PICK;                /* on the list: taken */
+                    ev->ie_Code = IECODE_NOBUTTON;
+                    in_eatup = TRUE;
+                } else if (!(d->win && x >= d->left && x < d->left + d->w && y >= d->top && y < d->top + d->h))
+                    in_awaydown = TRUE;          /* passed on (on the dock: the dock closes the list itself) */
+            } else if (ev->ie_Code == (IECODE_LBUTTON | IECODE_UP_PREFIX)) {
+                if (in_eatup) {
+                    ev->ie_Code = IECODE_NOBUTTON;
+                    in_eatup = FALSE;
+                }
+                if (in_awaydown) { e |= LE_AWAY; in_awaydown = FALSE; }
+            }
+        }
+    }
+    if (e) { d->listev |= e; Signal(in_task, in_sigmask); }
+}
+
 void in_watch(struct InputEvent *ev)
 {
+    if (in_dock && in_task && (in_dock->list && in_dock->liststicky || in_eatup || in_awaydown)) list_watch(ev);
     for (; ev; ev = ev->ie_NextEvent) {
+        if (in_tapneed && in_dock && in_task) {  /* a hotkey of modifiers: held, then let go */
+            if (ev->ie_Class == IECLASS_RAWKEY) {
+                UWORD k = ev->ie_Code & ~IECODE_UP_PREFIX;
+                static const UWORD kq[8] = { IEQUALIFIER_LSHIFT, IEQUALIFIER_RSHIFT, 0, IEQUALIFIER_CONTROL,
+                                             IEQUALIFIER_LALT, IEQUALIFIER_RALT, IEQUALIFIER_LCOMMAND,
+                                             IEQUALIFIER_RCOMMAND };
+                if (k < 0x60 || k > 0x67) { if (!(ev->ie_Code & IECODE_UP_PREFIX)) in_taparmed = FALSE; }
+                else if (!(ev->ie_Code & IECODE_UP_PREFIX)) {
+                    if (tap_groups(ev->ie_Qualifier | kq[k - 0x60]) == in_tapneed) in_taparmed = TRUE;
+                } else if (in_taparmed && k != 0x62) {   /* (Caps Lock does not count) */
+                    in_taparmed = FALSE;
+                    in_dock->hotkey = TRUE;
+                    Signal(in_task, in_sigmask);
+                }
+            } else if (ev->ie_Class == IECLASS_RAWMOUSE && (ev->ie_Code & ~IECODE_UP_PREFIX) != IECODE_NOBUTTON)
+                in_taparmed = FALSE;
+        }
+        if (ev->ie_Class == IECLASS_RAWKEY && !(ev->ie_Code & IECODE_UP_PREFIX) && in_dock)
+            in_dock->userin = TRUE;              /* (someone is at the machine: dock_raise) */
+        if (ev->ie_Class == IECLASS_RAWKEY && in_dock && in_task) {   /* Del over a running icon: it closes */
+            if (ev->ie_Code == (0x46 | IECODE_UP_PREFIX) && in_delup) {
+                in_delup = FALSE;
+                ev->ie_Class = IECLASS_NULL;
+                continue;
+            }
+            if (ev->ie_Code == 0x46 && !in_lmb && !in_dock->list &&
+                !(ev->ie_Qualifier & (IEQUALIFIER_REPEAT | IEQUALIFIER_CONTROL | IEQUALIFIER_LALT | IEQUALIFIER_RALT |
+                                      IEQUALIFIER_LCOMMAND | IEQUALIFIER_RCOMMAND))) {
+                WORD c = pointer_cell(in_dock);
+                if (c >= 0 && c < (WORD)sizeof(in_dock->runcell) && in_dock->runcell[c]) {
+                    in_dock->delquit = c + 1;    /* the dock task does it */
+                    Signal(in_task, in_sigmask);
+                    in_delup = TRUE;
+                    ev->ie_Class = IECLASS_NULL; /* (else the key goes to the active window as usual) */
+                    continue;
+                }
+            }
+        }
         if (ev->ie_Class == IECLASS_RAWKEY && in_ixok && in_dock && in_task) {
             if (ev->ie_Code == (in_hotcode | IECODE_UP_PREFIX)) {   /* its key-up */
                 in_hotcode = 0xFFFF;
                 ev->ie_Class = IECLASS_NULL;
                 continue;
             }
-            if (!(ev->ie_Code & IECODE_UP_PREFIX) && MatchIX(ev, &in_ix)) {
+            if (!(ev->ie_Code & IECODE_UP_PREFIX) && MatchIX(ev, &in_ix)) {   /* (MatchIX only compares: */
+                                                                                /*  safe here, as commodities' own handler) */
                 if (!(ev->ie_Qualifier & IEQUALIFIER_REPEAT)) {      /* held down: once */
                     in_dock->hotkey = TRUE;      /* the dock task does the rest */
                     Signal(in_task, in_sigmask);
@@ -105,16 +247,32 @@ void in_watch(struct InputEvent *ev)
             if (ev->ie_Code == IECODE_LBUTTON) {
                 struct Window *aw = IntuitionBase->ActiveWindow;
                 in_lmb = TRUE;
-                if (aw && in_dock && aw != in_dock->win && aw != in_dock->tip) in_prevwin = aw;
+                if (aw && in_dock && aw != in_dock->win && aw != in_dock->tip && aw != in_dock->list) in_prevwin = aw;
             } else if (ev->ie_Code == (IECODE_LBUTTON | IECODE_UP_PREFIX) ||
                        ev->ie_Code == (IECODE_RBUTTON | IECODE_UP_PREFIX)) {
                 if (ev->ie_Code == (IECODE_LBUTTON | IECODE_UP_PREFIX)) in_lmb = FALSE;
-                if (in_dock) in_raise = 3;                /* "in front" and "behind changed" checks */
+                if (in_dock) { in_raise = 3; in_dock->userin = TRUE; }   /* "in front" and "behind changed" checks */
             }
         }
     }
     if (in_dock) in_dock->lmb = in_lmb;         /* always current, also with no pointer watch */
-    if (in_raise > 0 && --in_raise == 0 && !in_lmb && in_dock && in_dock->win) raise_check();
+    if (in_dock && in_task && in_dock->win && IntuitionBase->ActiveWindow != in_active_seen) {
+        struct Window *aw = in_active_seen = IntuitionBase->ActiveWindow;   /* a program may have opened or */
+        if (aw != in_dock->win && aw != in_dock->tip && aw != in_dock->list) {   /* closed a window (only compared) */
+            in_dock->winchange = TRUE;
+            Signal(in_task, in_sigmask);
+        }
+    }
+    if (in_dock && in_dock->o->ontop && in_dock->win && in_dock->scr->LayerInfo.top_layer != in_top_seen) {
+        struct Layer *top = in_top_seen = in_dock->scr->LayerInfo.top_layer;   /* a window came to the front */
+        struct Window *tip = in_dock->tip, *lst = in_dock->list;   /* (read once: the dock task may clear them) */
+        if (top != in_dock->win->WLayer && !(tip && top == tip->WLayer) && !(lst && top == lst->WLayer) &&
+            in_raise <= 0) in_raise = 2;         /* (once it's settled) */
+    }
+    if (in_raise > 0 && --in_raise == 0 && in_dock && in_dock->win) {
+        if (in_lmb) in_raise = 1;                /* (the button is down: once it is up) */
+        else raise_check();
+    }
 }
 
 /* Runs in the input.device task: short, no waiting, no calls but Signal(). */
@@ -134,7 +292,10 @@ void in_check(struct InputEvent *ev)
         x = s->MouseX - d->left; y = s->MouseY - d->top;
         if ((d->o->hovertext || d->o->noicon) && !d->dragging && d->vis == d->full && x >= d->pad && y >= d->pad &&
             x < d->w - d->pad && y < d->h - d->pad) {        /* icon under the pointer */
-            WORD c = (x - d->pad) / d->cw, r = (y - d->pad) / d->ch;
+            WORD c, r;
+            if (d->horiz) x = dock_along(d, x);  /* (without the divider's space) */
+            else y = dock_along(d, y);
+            c = (x - d->pad) / d->cw; r = (y - d->pad) / d->ch;
             if (d->horiz ? c < d->per : r < d->per) {
                 hover = d->horiz ? r * d->per + c : c * d->per + r;
                 if (hover >= d->ncells) hover = -1;
@@ -142,8 +303,11 @@ void in_check(struct InputEvent *ev)
         }
         x = s->MouseX; y = s->MouseY; sw = s->Width; sh = s->Height;
         if (d->vis > 0) {               /* shown or sliding: dock box, gap to the edge */
-            WORD x0 = d->left - MARGIN, x1 = d->left + d->w + MARGIN;
-            WORD y0 = d->top - MARGIN, y1 = d->top + d->h + MARGIN;
+            /* along the dock an icon's width beyond its ends (easy to overshoot
+               the first or last icon), across it MARGIN */
+            WORD mx = d->horiz ? d->cw : MARGIN, my = d->horiz ? MARGIN : d->ch;
+            WORD x0 = d->left - mx, x1 = d->left + d->w + mx;
+            WORD y0 = d->top - my, y1 = d->top + d->h + my;
             switch (d->edge) {
             case 'B': y1 = sh; break;
             case 'T': y0 = 0; break;
@@ -169,7 +333,7 @@ void in_check(struct InputEvent *ev)
         else if (d->pinentered) d->pinned = FALSE;
         if (d->pinned) want = TRUE;
     }
-    if (d->showing) want = TRUE;
+    if (d->showing || d->list) want = TRUE;      /* (the settings window, the held list) */
     if (!d->o->autohide) want = TRUE;
     /* The button state is always tracked (auto-hide and labels need it), but a
        click only wakes the dock if it ends a wait: a slide, hide or label
@@ -193,10 +357,8 @@ void in_check(struct InputEvent *ev)
 
 void in_active(BOOL on) { in_on = on; }
 
-/* Intuition applies window changes (ChangeWindowBox, Hide/ShowWindow) on its
-   next input event, which is only ten times a second when nothing moves. An
-   empty event makes it act at once, so every slide frame shows. Used only
-   while sliding. */
+/* Intuition applies ChangeWindowBox on its next input event (ten times a
+   second when nothing moves); an empty event makes it act at once. */
 void in_poke(void)
 {
     static struct InputEvent ie;
@@ -207,6 +369,32 @@ void in_poke(void)
     in_io->io_Data = &ie;
     in_io->io_Length = sizeof(ie);
     DoIO((struct IORequest *)in_io);
+}
+
+/* Ctrl+\ typed into window w: end-of-file, which ends an idle Shell in a
+   console window (CON:, KingCON ...) as its close gadget does - console
+   windows don't take a close request through their port. The caller has
+   made it active (key 0x0D is \ on the usual keymaps). FALSE: it did not
+   become active. */
+BOOL in_send_eof(struct Window *w)
+{
+    static struct InputEvent ie;
+    LONG t;
+    if (!in_io) return FALSE;
+    for (t = 0; t < 10 && IntuitionBase->ActiveWindow != w; t++) Delay(1);
+    ie.ie_NextEvent = NULL;
+    ie.ie_Class = IECLASS_RAWKEY;
+    ie.ie_SubClass = 0;
+    ie.ie_Qualifier = IEQUALIFIER_CONTROL;
+    in_io->io_Command = IND_WRITEEVENT;
+    in_io->io_Data = &ie;
+    in_io->io_Length = sizeof(ie);
+    ie.ie_Code = 0x0D;
+    if (IntuitionBase->ActiveWindow != w) return FALSE;   /* (checked again: it goes to the active window) */
+    DoIO((struct IORequest *)in_io);
+    ie.ie_Code = 0x0D | IECODE_UP_PREFIX;
+    DoIO((struct IORequest *)in_io);
+    return TRUE;
 }
 
 /* Returns the signal mask the input handler uses to wake the dock (0: none). */

@@ -31,12 +31,21 @@ static void frame(struct Dock *d, LONG p)          /* p: 0..1024 */
 {
     struct Item *it;
     struct Box b = { 0, 0, 0, 0 };
+    WORD at, i;
     FOR_ITEMS(d, it) {
         WORD x = it->ox + (it->tx - it->ox) * p / 1024, y = it->oy + (it->ty - it->oy) * p / 1024;
         if (x == it->x && y == it->y) continue;
         if (!(d->dragging && it == d->drag)) item_box(d, it, &b);   /* the dragged icon: drag.c */
         it->x = x; it->y = y;
         if (!(d->dragging && it == d->drag)) item_box(d, it, &b);
+    }
+    for (i = 0; i < 2; i++) {                    /* the dividers glide too */
+        at = d->divox[i] >= 0 && d->divtx[i] >= 0 ? d->divox[i] + (d->divtx[i] - d->divox[i]) * p / 1024 : d->divtx[i];
+        if (at != d->divx[i]) {
+            divider_box(d, d->divx[i], &b);
+            d->divx[i] = at;
+            divider_box(d, at, &b);
+        }
     }
     if (d->dragging) drag_redraw(d, &b);
     else if (b.x1 > b.x0) dock_compose_box(d, &b);
@@ -72,6 +81,8 @@ void an_stop(struct Dock *d)
     FOR_ITEMS(d, it) {
         it->x = it->tx; it->y = it->ty;
     }
+    d->divx[0] = d->divtx[0];
+    d->divx[1] = d->divtx[1];
 }
 
 /* Glide from where the icons are drawn now (x, y) to their targets (tx, ty). */
@@ -84,6 +95,9 @@ void an_start(struct Dock *d, LONG ms)
         it->ox = it->x; it->oy = it->y;
         if (it->x != it->tx || it->y != it->ty) moves = TRUE;
     }
+    d->divox[0] = d->divx[0];
+    d->divox[1] = d->divx[1];
+    if (d->divx[0] != d->divtx[0] || d->divx[1] != d->divtx[1]) moves = TRUE;
     if (!aio || ms <= 0 || !moves || !TimerBase) { frame(d, 1024); running = FALSE; return; }
     dur = ms;
     GetSysTime(&t0);
