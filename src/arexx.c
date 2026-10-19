@@ -168,7 +168,9 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
         static char res[2048];
         LONG rc = RC_OK, a[5];
         CONST_STRPTR out = NULL;
-        if (RexxSysBase && !IsRexxMsg(rm)) {     /* (any program can send to the port: not ours to read) */
+        if (rm->rm_Node.mn_Length < sizeof(struct RexxMsg) && !(RexxSysBase && IsRexxMsg(rm))) {
+            /* (any program can send to the port: a message shorter than a RexxMsg is not ours to read;
+                CreateRexxMsg gives the full length but no name, so IsRexxMsg alone refuses those) */
             ReplyMsg((struct Message *)rm);
             continue;
         }
