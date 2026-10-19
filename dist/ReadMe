@@ -550,7 +550,7 @@ The dock
     needs all windows closed, the dock's too: Intuition then asks to
     close a window it calls "<No title>" (the dock has no title bar).
     Quit SimpleDock first (or send it ARexx HIDE; Show / Hide Dock only
-    slides it away) and start it again afterwards (or ARexx SHOW).
+    slides it away) and start it again afterwards (or press the hotkey).
 
 Older systems (before 3.2)
 

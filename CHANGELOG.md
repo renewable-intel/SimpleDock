@@ -73,6 +73,32 @@
 - A long press that opened the window list can still turn into a drag.
 - Settings: a double-click marks all of a text field.
 - The dock is 3 pixels taller (room for the running dot).
+- Fixes from a code audit:
+  - A program started from the dock and still running when the dock quit
+    kept its code in memory after it ended (about 14 KB for Clock).
+  - A program that does not answer close requests (Clock on 3.1) could
+    no longer be closed from the dock once a new copy got the same
+    address.
+  - The settings window wrote to address 0 when it opened on 3.2.
+  - A setting given twice in the settings file made the dock ignore all
+    of them; now the later line counts.
+  - Too little memory while reading the settings file no longer drops
+    the settings (and the next save no longer writes them away).
+  - Low memory could make a drop onto a docked drawer copy from the boot
+    disk instead; such an item is now refused (beep).
+  - Del over an icon closes only the program that was under the pointer
+    when the key was pressed.
+  - Nothing changes windows while you drag a dock icon (a Close All
+    waits); quitting ends a drag first.
+  - The hotkey and Show / Hide Dock bring the dock back after it was
+    closed (ARexx HIDE, or a reopen that failed).
+  - The settings window and the colour picker keep their screen while
+    they are open.
+  - ARexx: messages that are not ARexx messages are answered unread; SET
+    drops a newline inside a value; Undo changes works with a disabled
+    setting whose value has a space.
+  - On a 68000 or 68010 the dock says it needs a 68020 instead of
+    crashing.
 
 ## 1.0 (15.10.2026)
 
