@@ -23,6 +23,7 @@ static struct Gadget *plist, *slider[3], *hexg;
 static struct ColorMap *pcm;
 static LONG level[3], pen = -1;
 static WORD bx, by, bw, bh;             /* the preview box */
+static struct Screen *pscr;             /* the picker's own lock on its screen */
 static char hex[8];
 
 void pick_close(void)
@@ -32,6 +33,7 @@ void pick_close(void)
     if (pkw) { CloseWindow(pkw); pkw = NULL; }
     if (plist) { FreeGadgets(plist); plist = NULL; }
     if (pvi) { FreeVisualInfo(pvi); pvi = NULL; }
+    if (pscr) { UnlockPubScreen(NULL, pscr); pscr = NULL; }   /* (after FreeVisualInfo) */
 }
 
 ULONG pick_sig(void) { return pkw ? 1UL << pkw->UserPort->mp_SigBit : 0; }
@@ -64,7 +66,12 @@ BOOL pick_open(struct Dock *d, ULONG rgb)
     LONG i, fh, lw = 0, top, iw, ih, sw, step, btw;
 
     if (pkw) { WindowToFront(pkw); ActivateWindow(pkw); return TRUE; }
-    if (!s || !(pvi = GetVisualInfo(s, TAG_END))) return FALSE;
+    if (s && (pscr = LockPubScreen(d->o->pubscreen)) != s) {   /* (its own lock on the dock's screen) */
+        if (pscr) UnlockPubScreen(NULL, pscr);
+        pscr = NULL;
+        return FALSE;
+    }
+    if (!s || !(pvi = GetVisualInfo(s, TAG_END))) { pick_close(); return FALSE; }
     pcm = s->ViewPort.ColorMap;
     level[0] = rgb >> 16 & 255; level[1] = rgb >> 8 & 255; level[2] = rgb & 255;
     fh = s->Font->ta_YSize;

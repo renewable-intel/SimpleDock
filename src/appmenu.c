@@ -358,6 +358,7 @@ static void adopt_custom(struct Dock *d)
 }
 static struct Window *pw;
 static APTR vi;
+static struct Screen *pscr;             /* the settings window's own lock on its screen */
 static struct Gadget *glist, *keyg, *cyc[NGROUP], *ag[sizeof(adv) / sizeof(adv[0])];
 
 /* The lists are ReAction choosers (chooser.gadget, OS 3.2: they drop down)
@@ -792,6 +793,7 @@ static void prefs_close_win(void)
             while ((n = RemHead(&chlab[k]))) FreeChooserNode(n);
     if (glist) { FreeGadgets(glist); glist = NULL; }
     if (vi) { FreeVisualInfo(vi); vi = NULL; }
+    if (pscr) { UnlockPubScreen(NULL, pscr); pscr = NULL; }   /* (after FreeVisualInfo) */
     keyg = recallg = hremg = NULL;
     nheads = 0;
     hlabx = -1;
@@ -848,7 +850,7 @@ static void divider(void)
 /* The window for 'wide', with the values in use. FALSE: could not open. */
 static BOOL build(struct Dock *d)
 {
-    struct Screen *s = d->scr;
+    struct Screen *s = d->scr ? LockPubScreen(d->o->pubscreen) : NULL;   /* (its own lock: the dock may */
     struct RastPort *rp = &s->RastPort;
     struct NewGadget ng;
     struct Gadget *g;
@@ -859,6 +861,8 @@ static BOOL build(struct Dock *d)
     static UBYTE scol[MAXSLOT], srow[MAXSLOT], acol[MAXSLOT], arow[MAXSLOT];
     static const char *const blab[] = { "Advanced >>", "<< Simple", "Undo changes", "Load...", "Save as...", NULL };
 
+    if (s && s != d->scr) { UnlockPubScreen(NULL, s); s = NULL; }   /* move to another screen meanwhile) */
+    pscr = s;
     if (!s || !(vi = GetVisualInfo(s, TAG_END))) return FALSE;
     fh = s->Font->ta_YSize;
     choosers = ChooserBase != NULL && (namefont = OpenFont(s->Font)) != NULL;
