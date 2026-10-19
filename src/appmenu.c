@@ -583,7 +583,7 @@ static struct Gadget *list_new(struct Gadget *g, struct NewGadget *ng, LONG slot
                                    GA_Left, ng->ng_LeftEdge, GA_Top, ng->ng_TopEdge,
                                    GA_Width, ng->ng_Width, GA_Height, ng->ng_Height,
                                    GA_TextAttr, ng->ng_TextAttr, GA_RelVerify, TRUE,
-                                   GA_Previous, nch ? chobj[nch - 1] : NULL,
+                                   nch ? GA_Previous : TAG_IGNORE, nch ? chobj[nch - 1] : NULL,   /* (NULL: 3.2 writes to 0) */
                                    CHOOSER_PopUp, TRUE, CHOOSER_Labels, &chlab[slot],
                                    CHOOSER_Selected, cur, TAG_END);
     if (!(*out = c)) return NULL;
@@ -606,7 +606,7 @@ static struct Gadget *str_new(struct Gadget *g, struct NewGadget *ng, struct Gad
                                    GA_Left, ng->ng_LeftEdge, GA_Top, ng->ng_TopEdge,
                                    GA_Width, ng->ng_Width, GA_Height, ng->ng_Height,
                                    GA_TextAttr, ng->ng_TextAttr, GA_RelVerify, TRUE, GA_Immediate, TRUE,
-                                   GA_TabCycle, TRUE, GA_Previous, nch ? chobj[nch - 1] : NULL,
+                                   GA_TabCycle, TRUE, nch ? GA_Previous : TAG_IGNORE, nch ? chobj[nch - 1] : NULL,
                                    STRINGA_MaxChars, SD_LINEMAX - 16, STRINGA_TextVal, "", TAG_END);
     if (!(*out = c)) return NULL;
     chname[nch].right = ng->ng_LeftEdge - 8;
