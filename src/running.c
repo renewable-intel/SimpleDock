@@ -133,16 +133,31 @@ static BOOL alive(struct Task *t);
    nobody reads; whoever closes that window answers it): kept in orphan[],
    so quitting can tell it not to come back (a late answer is still freed
    by ended()). With orphan[] full, the slot stays taken. */
+static void close_orphan(LONG k)
+{
+    LONG j;
+    for (j = 0; j < MAXCLOSE && orphan[j]; j++) ;
+    if (j < MAXCLOSE) { orphan[j] = closing[k]; closing[k] = NULL; }
+}
+
 static void close_prune(void)
 {
-    LONG k, j;
+    LONG k;
     Forbid();
     snap_tasks();
-    for (k = 0; k < MAXCLOSE; k++)
-        if (closing[k] && !alive(closetask[k])) {
-            for (j = 0; j < MAXCLOSE && orphan[j]; j++) ;
-            if (j < MAXCLOSE) { orphan[j] = closing[k]; closing[k] = NULL; }
-        }
+    for (k = 0; k < MAXCLOSE; k++) if (closing[k] && !alive(closetask[k])) close_orphan(k);
+    Permit();
+}
+
+/* Task t has ended (its start-up message came back), or a new process
+   has just been made at its address: its close requests are no longer
+   waited for. (Else a new program at the same address could never be
+   closed from the dock: 3.1's Clock quits without answering.) */
+static void close_forget(struct Task *t)
+{
+    LONG k;
+    Forbid();
+    for (k = 0; k < MAXCLOSE; k++) if (closing[k] && closetask[k] == t) close_orphan(k);
     Permit();
 }
 
@@ -153,6 +168,14 @@ static BOOL pending_to(struct Task *t)
 {
     LONG k;
     for (k = 0; k < MAXCLOSE; k++) if (closing[k] && closetask[k] == t) return TRUE;
+    return FALSE;
+}
+
+/* Is any close request not answered yet? */
+static BOOL pending_any(void)
+{
+    LONG k;
+    for (k = 0; k < MAXCLOSE; k++) if (closing[k]) return TRUE;
     return FALSE;
 }
 
@@ -1473,6 +1496,7 @@ BOOL run_launch(struct Dock *d, struct Item *it, struct AppMessage *am)
         free_launch(l);
         return FALSE;
     }
+    close_forget(&p->pr_Task);                   /* (a request to the one before at this address: stale) */
     l->wbs.sm_Message.mn_Node.ln_Type = NT_MESSAGE;
     l->wbs.sm_Message.mn_ReplyPort = rport;
     l->wbs.sm_Message.mn_Length = sizeof(struct WBStartup);
@@ -1509,6 +1533,7 @@ static void ended(struct Dock *d)
             continue;
         }
         for (k = 0; k < MAXLAUNCH; k++) if (lt[k] == (struct Launch *)m) lt[k] = NULL;
+        close_forget(((struct Launch *)m)->task);
         if (((struct Launch *)m)->wbs.sm_Segment) UnLoadSeg(((struct Launch *)m)->wbs.sm_Segment);
         free_launch((struct Launch *)m);
         any = TRUE;
@@ -1527,6 +1552,7 @@ static void ended(struct Dock *d)
         }
     Permit();
     for (k = 0; k < ng; k++) {
+        close_forget(gone[k]->task);
         UnLoadSeg(gone[k]->seg);
         free_launch(gone[k]);
         any = TRUE;
@@ -1570,6 +1596,7 @@ void run_clicked(struct Dock *d)
 void run_timer(struct Dock *d)
 {
     ended(d);
+    if (pending_any()) close_prune();            /* (requests to programs that ended since) */
     close_next();
     if (!treq || !tbusy || !CheckIO((struct IORequest *)treq)) return;
     WaitIO((struct IORequest *)treq);
