@@ -761,6 +761,8 @@ static BOOL put_lines(struct Dock *d, CONST_STRPTR lines)
         if (one[0] != '(' && (eq = strchr(one, '='))) {   /* KEY="value" */
             memcpy(words + n, one, eq - one + 1); n += eq - one + 1;
             words[n++] = '"'; strcpy(words + n, eq + 1); n += strlen(eq + 1); words[n++] = '"';
+        } else if (one[0] == '(' && strchr(one, ' ')) {   /* "(KEY=a b)": quoted, one word */
+            words[n++] = '"'; strcpy(words + n, one); n += len; words[n++] = '"';
         } else { strcpy(words + n, one); n += len; }
         words[n] = 0;
     }
