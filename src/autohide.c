@@ -138,7 +138,11 @@ void ah_hidden_moved(struct Dock *d)
    the front. */
 void ah_hotkey(struct Dock *d)
 {
-    if (!d->win || d->dragging || d->lmb) return;   /* a window change now: hang (own drag) or end a WB drag */
+    if (d->dragging || d->lmb) return;           /* a window change now: hang (own drag) or end a WB drag */
+    if (!d->win) {                               /* closed (ARexx HIDE, or a reopen that failed): open it */
+        if (d->hidden && dock_open(d)) ah_start(d);
+        return;
+    }
     if (d->o->autohide <= 0 || !tio) { WindowToFront(d->win); return; }
     if (d->pinned) { d->pinned = FALSE; d->want = FALSE; }
     else { d->pinned = TRUE; d->pinentered = FALSE; d->want = TRUE; }
