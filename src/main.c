@@ -148,6 +148,10 @@ int main(void)
     CONST_STRPTR missing;
     ULONG ptrsig = 0, timersig = 0, menusig = 0, animsig = 0, runsig = 0;
 
+    if (!(SysBase->AttnFlags & AFF_68020)) {     /* (built for the 68020: a 68000/010 would crash) */
+        if (!WBenchMsg) PutStr(SD_NAME " needs a 68020 or better.\n");
+        return RETURN_FAIL;
+    }
     strcpy(d->portname, SD_PORTNAME);
     NewList((struct List *)&d->items);
     NewList((struct List *)&d->extra);
