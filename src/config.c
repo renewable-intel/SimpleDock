@@ -356,12 +356,12 @@ BOOL config_set(struct Dock *d, CONST_STRPTR args)
         nt[cnt++] = p;
         while (*args && *args != ' ') {
             if (p - tok >= (LONG)sizeof(tok) - 2) return FALSE;
-            if (*args == '\n' || *args == '\r') return FALSE;   /* (a save would make two lines of it) */
-            if (*args == '"') {
+            if (*args == '\n' || *args == '\r') { args++; continue; }   /* (dropped, as the parser does: */
+            if (*args == '"') {                                       /*  a save would make two lines) */
                 args++;
                 while (*args && *args != '"' && p - tok < (LONG)sizeof(tok) - 2) {
-                    if (*args == '\n' || *args == '\r') return FALSE;
-                    *p++ = *args++;
+                    if (*args == '\n' || *args == '\r') args++;
+                    else *p++ = *args++;
                 }
                 if (*args == '"') args++;
             } else *p++ = *args++;
