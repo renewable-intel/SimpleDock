@@ -1333,6 +1333,7 @@ static BOOL ours(struct Launch *l)
     struct Process *p = (struct Process *)l->task;
     LONG *segs, i;
     if (!alive(l->task) || p->pr_Task.tc_Node.ln_Type != NT_PROCESS || !(segs = BADDR(p->pr_SegList))) return FALSE;
+    if (segs[3] == l->seg) return TRUE;          /* (NP_Seglist code is in slot 3; slot 0 says 2 on 3.1 and 3.2) */
     for (i = 1; i <= segs[0] && i < 8; i++) if (segs[i] == l->seg) return TRUE;
     return FALSE;
 }
