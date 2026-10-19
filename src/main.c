@@ -211,7 +211,11 @@ int main(void)
             tip_update(d);
             run_check(d);
             if (d->winchange) { d->winchange = FALSE; run_wake(d); run_soon(d); }
-            if (d->delquit) { LONG c = d->delquit - 1; d->delquit = 0; run_quit(d, c); }
+            if (d->delquit) {                    /* (only if the icons have not moved since the key) */
+                LONG c = d->delquit - 1;
+                d->delquit = 0;
+                if (d->win && d->scr && dock_cell(d, d->scr->MouseX - d->left, d->scr->MouseY - d->top) == c) run_quit(d, c);
+            }
         }
         if (sigs & timersig) { ah_timer(d); run_check(d); }   /* (a slide shows or hides the dock) */
         if (sigs & animsig) an_timer(d);
