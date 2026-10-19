@@ -99,6 +99,9 @@
     setting whose value has a space.
   - On a 68000 or 68010 the dock says it needs a 68020 instead of
     crashing.
+  - Closing a window from the dock waits until the window is really in
+    front; a program that closed at once (3.1's Clock) left Intuition
+    reading the freed window.
 
 ## 1.0 (15.10.2026)
 
