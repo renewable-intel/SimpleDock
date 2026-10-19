@@ -164,10 +164,15 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
     BOOL run = TRUE;
 
     while ((rm = (struct RexxMsg *)GetMsg(port))) {
-        CONST_STRPTR cmd = (CONST_STRPTR)rm->rm_Args[0];
+        CONST_STRPTR cmd;
         static char res[2048];
         LONG rc = RC_OK, a[5];
         CONST_STRPTR out = NULL;
+        if (RexxSysBase && !IsRexxMsg(rm)) {     /* (any program can send to the port: not ours to read) */
+            ReplyMsg((struct Message *)rm);
+            continue;
+        }
+        cmd = (CONST_STRPTR)rm->rm_Args[0];
         struct RDArgs *ra = NULL;
         char *big = NULL;
 
