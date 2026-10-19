@@ -191,6 +191,15 @@ BOOL config_load(struct Dock *d, CONST_STRPTR path)
         while (n && (line[n - 1] == '\n' || line[n - 1] == '\r' || line[n - 1] == ' ')) line[--n] = 0;
         if (!n || line[0] == ';') continue;
         if (opts_is_setting(line)) {
+            if (line[0] != '(') {                /* the same keyword on an earlier line: this one counts */
+                LONG key = opts_key(line);       /* (ReadArgs refuses a keyword twice: all would be lost) */
+                for (i = 0; i < nset && (setv[i][0] == '(' || opts_key(setv[i]) != key); i++) ;
+                if (i < nset) {
+                    sd_verbose(d, "%s: %s given again, the later line counts", (LONG)file, (LONG)setv[i]);
+                    for (; i < nset - 1; i++) setv[i] = setv[i + 1];
+                    nset--;
+                }
+            }
             if (nset < 48 && used + n + 1 <= (LONG)sizeof(setbuf)) {
                 setv[nset++] = strcpy(setbuf + used, line);
                 used += n + 1;
