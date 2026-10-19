@@ -1097,6 +1097,17 @@ static struct Screen *win_screen(struct Window *w, struct Task *t)
     return NULL;
 }
 
+/* Is the window there, active and in front on its screen? */
+static BOOL front_now(struct Window *w, struct Task *t)
+{
+    struct Screen *s;
+    BOOL now;
+    Forbid();
+    now = (s = win_screen(w, t)) && IntuitionBase->ActiveWindow == w && w->WLayer == s->LayerInfo.top_layer;
+    Permit();
+    return now;
+}
+
 /* The window to the front (and its screen, and active) - if it still exists.
    Under Forbid its program can't close it between the check and the calls. */
 static void to_front(struct Window *w, struct Task *t)
@@ -1785,8 +1796,12 @@ static BOOL close_win(struct Window *w, struct Task *t)
         UnlockIBase(lock);
         if (!can) return FALSE;
         if (!wbw) {
+            LONG j;
             if (is_mini(w)) reveal(w, t);
-            to_front(w, t);
+            if (!front_now(w, t)) {              /* Intuition does these at its next input event: */
+                to_front(w, t);                  /* wait for that, else a program that closes at once */
+                for (j = 0; j < 10 && !front_now(w, t); j++) Delay(1);   /* leaves Intuition working */
+            }                                    /* on a freed window (MuForce, 3.1's Clock) */
         }
     }
     if (!(im = AllocVec(sizeof(struct ExtIntuiMessage), MEMF_PUBLIC | MEMF_CLEAR))) return FALSE;
