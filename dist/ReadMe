@@ -546,6 +546,11 @@ The dock
     nothing while the settings window is open.
   - On a full dock with programs running, the last place lists them
     all, the Workbench icon included.
+  - A new screen mode for Workbench (for example from Prefs/ScreenMode)
+    needs all windows closed, the dock's too: Intuition then asks to
+    close a window it calls "<No title>" (the dock has no title bar).
+    Quit SimpleDock first (or send it ARexx HIDE; Show / Hide Dock only
+    slides it away) and start it again afterwards (or ARexx SHOW).
 
 Older systems (before 3.2)
 
