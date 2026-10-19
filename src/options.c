@@ -98,6 +98,7 @@ static struct RDArgs *parse_list(STRPTR *tt, LONG *args)
     nomem = FALSE;
     if (!ReadArgs((STRPTR)TEMPLATE, args, rd)) {
         nomem = IoErr() == ERROR_NO_FREE_STORE;
+        FreeArgs(rd);                            /* (dos.doc: still due after a failed ReadArgs) */
         FreeDosObject(DOS_RDARGS, rd);
         rd = NULL;
     }
@@ -183,7 +184,7 @@ static struct RDArgs *read_tooltypes(LONG *args, char *portname, LONG portlen, S
     if (!rd && (rd = AllocDosObject(DOS_RDARGS, NULL))) {       /* no icon (or a bad one): defaults */
         rd->RDA_Source.CS_Buffer = (UBYTE *)"\n";
         rd->RDA_Source.CS_Length = 1;
-        if (!ReadArgs((STRPTR)TEMPLATE, args, rd)) { FreeDosObject(DOS_RDARGS, rd); rd = NULL; }
+        if (!ReadArgs((STRPTR)TEMPLATE, args, rd)) { FreeArgs(rd); FreeDosObject(DOS_RDARGS, rd); rd = NULL; }
     }
     if (!NameFromLock(wa->wa_Lock, iconname, sizeof(iconname)) || !AddPart(iconname, wa->wa_Name, sizeof(iconname)))
         iconname[0] = 0;

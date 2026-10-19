@@ -72,7 +72,7 @@ static struct RDArgs *rargs(CONST_STRPTR s, CONST_STRPTR tmpl, LONG *a, LONG n)
     rd->RDA_Source.CS_Buffer = (UBYTE *)line;
     rd->RDA_Source.CS_Length = len;
     rd->RDA_Flags = RDAF_NOPROMPT;
-    if (!ReadArgs((STRPTR)tmpl, a, rd)) { FreeDosObject(DOS_RDARGS, rd); return NULL; }
+    if (!ReadArgs((STRPTR)tmpl, a, rd)) { FreeArgs(rd); FreeDosObject(DOS_RDARGS, rd); return NULL; }
     return rd;
 }
 
