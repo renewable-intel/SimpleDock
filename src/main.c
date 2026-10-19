@@ -219,6 +219,7 @@ int main(void)
         if ((sigs & menusig) && !am_handle(d)) run = FALSE;
         if (psig && (sigs & psig)) am_prefs_handle(d);
     }
+    drag_cancel(d, FALSE);                     /* (quit during our drag: its layer locks go first) */
     am_prefs_store(d);                         /* an open settings window keeps its changes */
 out:
     drop_copy_wait();                          /* a copy into a dock drawer finishes first */

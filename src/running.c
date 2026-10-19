@@ -1597,7 +1597,7 @@ void run_timer(struct Dock *d)
 {
     ended(d);
     if (pending_any()) close_prune();            /* (requests to programs that ended since) */
-    close_next();
+    if (!d->dragging && !d->lmb) close_next();   /* (not while our drag holds the layers: later) */
     if (!treq || !tbusy || !CheckIO((struct IORequest *)treq)) return;
     WaitIO((struct IORequest *)treq);
     tbusy = FALSE;
