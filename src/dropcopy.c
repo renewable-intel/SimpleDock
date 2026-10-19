@@ -210,6 +210,7 @@ static LONG copier(void)
 static BOOL inside(BPTR target, BPTR obj)
 {
     BPTR p = DupLock(target), up;
+    if (!p) return TRUE;                         /* (can't tell: refused) */
     while (p) {
         if (SameLock(p, obj) == LOCK_SAME) { UnLock(p); return TRUE; }
         up = ParentDir(p);
@@ -240,7 +241,7 @@ BOOL drop_copy(struct Dock *d, struct Item *it, struct AppMessage *am)
         if (!obj) continue;
         if (inside(target, obj)) { UnLock(obj); continue; }        /* itself, or one of its own drawers */
         UnLock(obj);
-        j->dir[j->n] = DupLock(a->wa_Lock);
+        if (!(j->dir[j->n] = DupLock(a->wa_Lock))) continue;     /* (0 would be the boot disk's root) */
         strcpy(j->name[j->n], a->wa_Name);
         j->move[j->n] = d->o->dropmove && SameDevice(a->wa_Lock, target);   /* like Workbench */
         j->n++;
