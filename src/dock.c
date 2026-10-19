@@ -318,9 +318,10 @@ void dock_runcells(struct Dock *d)
     LONG k = 0;
     FOR_ITEMS(d, it) {
         if (k >= (LONG)sizeof(d->runcell)) break;
+        d->cellitem[k] = it;
         d->runcell[k++] = it->running > 0 && it->temp != RUN_MORE && run_trackable(it);
     }
-    while (k < (LONG)sizeof(d->runcell)) d->runcell[k++] = 0;
+    while (k < (LONG)sizeof(d->runcell)) { d->cellitem[k] = NULL; d->runcell[k++] = 0; }
 }
 
 /* Is window position a (along the dock) in a divider's space? Only

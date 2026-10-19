@@ -153,6 +153,8 @@ struct Dock {
     volatile BOOL     winchange;      /* input handler: another window became active */
     volatile BOOL     userin;         /* input handler: a key or button was used (dock_raise) */
     UBYTE             runcell[64];    /* the cells of running programs (read by the input handler) */
+    struct Item      *cellitem[64];   /* the icon in each cell (read by the input handler) */
+    struct Item * volatile delitem;   /* input handler: the icon under the pointer at that Del */
     volatile WORD     delquit;        /* input handler: Del over running cell delquit - 1 (0: none) */
     /* hover label (tooltip.c) */
     struct Window    *tip;

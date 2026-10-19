@@ -215,10 +215,10 @@ int main(void)
             tip_update(d);
             run_check(d);
             if (d->winchange) { d->winchange = FALSE; run_wake(d); run_soon(d); }
-            if (d->delquit) {                    /* (only if the icons have not moved since the key) */
-                LONG c = d->delquit - 1;
-                d->delquit = 0;
-                if (d->win && d->scr && dock_cell(d, d->scr->MouseX - d->left, d->scr->MouseY - d->top) == c) run_quit(d, c);
+            if (d->delquit) {                    /* (only if that cell still holds the icon it held at */
+                LONG c = d->delquit - 1;         /*  the key: an ARexx MOVE or a scan in this pass may */
+                d->delquit = 0;                  /*  have changed the icons) */
+                if (d->win && dock_item(d, c) == d->delitem) run_quit(d, c);
             }
         }
         if (sigs & timersig) { ah_timer(d); run_check(d); }   /* (a slide shows or hides the dock) */

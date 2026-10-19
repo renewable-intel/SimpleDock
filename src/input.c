@@ -218,6 +218,7 @@ void in_watch(struct InputEvent *ev)
                                       IEQUALIFIER_LCOMMAND | IEQUALIFIER_RCOMMAND))) {
                 WORD c = pointer_cell(in_dock);
                 if (c >= 0 && c < (WORD)sizeof(in_dock->runcell) && in_dock->runcell[c]) {
+                    in_dock->delitem = in_dock->cellitem[c];   /* (which icon: checked again there) */
                     in_dock->delquit = c + 1;    /* the dock task does it */
                     Signal(in_task, in_sigmask);
                     in_delup = TRUE;
