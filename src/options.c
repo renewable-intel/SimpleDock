@@ -72,6 +72,7 @@ static LONG cliargs[A_COUNT];           /* Shell start: the command line (wins o
 static BOOL fromshell;
 static STRPTR projcfg_kept;             /* Workbench start with a project icon: its path */
 static LONG ah_disabled;                /* "(AUTOHIDE=n)": speed kept while auto-hide is off */
+static BOOL nomem;                      /* the last parse failed for want of memory, not a bad line */
 
 /* Parse settings lines ("KEY=VALUE", "KEY", or "(KEY)" for off), from
    tooltypes or the settings part of the config file, with the command-line
@@ -89,11 +90,14 @@ static struct RDArgs *parse_list(STRPTR *tt, LONG *args)
     }
     line[len++] = '\n';
     line[len] = 0;
+    nomem = TRUE;
     if (!(rd = AllocDosObject(DOS_RDARGS, NULL))) return NULL;
     rd->RDA_Source.CS_Buffer = (UBYTE *)line;
     rd->RDA_Source.CS_Length = len;
     rd->RDA_Flags = RDAF_NOPROMPT;
+    nomem = FALSE;
     if (!ReadArgs((STRPTR)TEMPLATE, args, rd)) {
+        nomem = IoErr() == ERROR_NO_FREE_STORE;
         FreeDosObject(DOS_RDARGS, rd);
         rd = NULL;
     }
@@ -137,6 +141,9 @@ BOOL opts_is_setting(CONST_STRPTR line)
 {
     return opts_key(line) >= 0;
 }
+
+/* Did the last check or parse fail for want of memory (not a bad line)? */
+BOOL opts_nomem(void) { return nomem; }
 
 /* Would these settings lines be accepted (values of the right kind)? Nothing
    is changed. */
@@ -271,7 +278,8 @@ BOOL opts_apply(struct Dock *d, STRPTR *lines, CONST_STRPTR from)
     if (lines && *lines) {
         if (!(rf = parse_list(lines, a))) {
             if (rt) { FreeArgs(rt); FreeDosObject(DOS_RDARGS, rt); }
-            sd_msg(d, "A setting in %s is not valid.\nThe settings stay as they are.", (LONG)from);
+            sd_msg(d, nomem ? "Not enough memory for the settings of %s.\nThey stay as they are."
+                            : "A setting in %s is not valid.\nThe settings stay as they are.", (LONG)from);
             return FALSE;
         }
         for (l = lines; *l; l++)                 /* "(KEY...)": off */

@@ -216,6 +216,12 @@ BOOL config_load(struct Dock *d, CONST_STRPTR path)
     setv[nset] = NULL;
     if (nset && !opts_check(setv)) {             /* lines that are not valid are dropped (said once, */
         LONG k = 0;                              /* below); else every change would fail */
+        if (opts_nomem()) {                      /* (out of memory, not a bad line: nothing dropped, */
+            sd_msg(d, "Not enough memory to read the settings of %s.", (LONG)file);   /* and the file */
+            opts_apply(d, NULL, file);           /* is not saved over) */
+            if (!path) d->cfgfailed = TRUE;
+            return TRUE;
+        }
         for (i = 0; i < nset; i++) {
             STRPTR one[2];
             one[0] = setv[i]; one[1] = NULL;

@@ -196,6 +196,7 @@ BOOL opts_save(struct Dock *d);                             /* drawer docks: int
 BOOL opts_apply(struct Dock *d, STRPTR *lines, CONST_STRPTR from);
 LONG opts_lines(struct Dock *d, STRPTR *lines);
 BOOL opts_is_setting(CONST_STRPTR line);
+BOOL opts_nomem(void);                                     /* last parse failed for want of memory */
 LONG opts_key(CONST_STRPTR line);                           /* keyword's template index, -1: none */
 BOOL opts_switch(LONG k);                                   /* template keyword k is a switch (/S) */
 BOOL opts_check(STRPTR *lines);                             /* settings lines valid? (changes nothing) */
