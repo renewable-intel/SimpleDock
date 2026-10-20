@@ -127,6 +127,9 @@
   with nothing showing, it brings them back. Ctrl+Alt+H switches auto-hide
   on or off. All three can be changed or switched off in Advanced, Keys
   (MINKEY, MINALLKEY, AHKEY).
+- On 3.1-based systems (CaffeineOS, 3.9), the windows under a window
+  that was minimised are redrawn at once (they showed a blank box until
+  one was moved).
 
 ## 1.0 (15.10.2026)
 
