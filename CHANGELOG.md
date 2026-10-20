@@ -107,6 +107,9 @@
   - Programs started from the dock get the same start as from Workbench
     (no input/output handles): a program that closes its own (iGame) made
     the system close them twice, and the dock crashed when it ended.
+- Project icons (documents, DOSDriver icons such as a Mount icon) open as
+  with a double-click: the dock starts their default tool with the
+  project. Workbench's own call refused some of them.
 
 ## 1.0 (15.10.2026)
 
