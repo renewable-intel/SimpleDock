@@ -1459,7 +1459,7 @@ BOOL run_launch(struct Dock *d, struct Item *it, struct AppMessage *am)
 {
     struct Launch *l;
     struct Process *p;
-    BPTR file, dir, seg, home, cur;
+    BPTR file, dir, seg, home;
     LONG i, n = 1, size, slot, stack, pri = 0;
     char *nm;
     STRPTR tt;
@@ -1498,12 +1498,13 @@ BOOL run_launch(struct Dock *d, struct Item *it, struct AppMessage *am)
         if (pri > 127) pri = 127;
     }
     home = DupLock(dir);                         /* PROGDIR: */
-    cur = DupLock(dir);
     p = CreateNewProcTags(NP_Seglist, seg, NP_FreeSeglist, FALSE, NP_StackSize, stack, NP_Name, l->names,
-                          NP_Priority, pri, NP_CurrentDir, cur, NP_HomeDir, home, NP_WindowPtr, NULL,
-                          NP_ConsoleTask, NULL, TAG_END);
+                          NP_Priority, pri, NP_HomeDir, home, NP_WindowPtr, NULL, NP_ConsoleTask, NULL,
+                          NP_CurrentDir, 0, NP_Input, 0, NP_Output, 0,   /* as Workbench: no current dir, */
+                          NP_CloseInput, FALSE, NP_CloseOutput, FALSE,   /* no input/output handles (a */
+                          TAG_END);                                      /* program closing its own made dos close them twice) */
     if (!p) {
-        UnLock(home); UnLock(cur);
+        UnLock(home);
         UnLoadSeg(seg);
         free_launch(l);
         return FALSE;
