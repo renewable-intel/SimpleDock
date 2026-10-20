@@ -102,6 +102,8 @@
   - Closing a window from the dock waits until the window is really in
     front; a program that closed at once (3.1's Clock) left Intuition
     reading the freed window.
+  - Closing a minimised window on 3.1-based systems waits a moment after
+    showing it again (a program could crash, and the dock with it).
 
 ## 1.0 (15.10.2026)
 
