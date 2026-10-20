@@ -130,6 +130,10 @@
 - On 3.1-based systems (CaffeineOS, 3.9), the windows under a window
   that was minimised are redrawn at once (they showed a blank box until
   one was moved).
+- Advanced, Shell icons: Ask first shows an "Execute a file" requester
+  with the command before an icon set to start from a Shell starts, as a
+  double-click does (Workbench skips it when the dock asks it); icons with
+  DONOTPROMPT start at once (SHELLASK).
 
 ## 1.0 (15.10.2026)
 

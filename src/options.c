@@ -23,13 +23,13 @@ static const char TEMPLATE[] =
     "NOICON/S,NOBORDER/S,ICONDIST/K/N,SCALEICONW/K/N,SCALEICONH/K/N,LIMIT/K/N,AUTOHIDE/K/N,"
     "ONTOP/S,TRANSPARENT/S,TINT/K,OPACITY/K/N,RADIUS/K/N,DELAY/K/N,QUIET/S,VERBOSE/S,HOTKEY/K,CUSTOMTINT/K,CRASHLOG/S,"
     "RUNNING/K/N,CLICKNEW/S,WBSTART/S,DROPMOVE/S,HOLDTIME/K/N,RUNHIDE/S,IGNORE/K,WBHIDE/S,"
-    "MINKEY/K,MINALLKEY/K,AHKEY/K";
+    "MINKEY/K,MINALLKEY/K,AHKEY/K,SHELLASK/S";
 
 enum { A_CONFIG, A_POS, A_DISTANCE, A_OFFSET, A_FONT, A_PUBSCREEN, A_NOTEXT, A_HOVERTEXT,
        A_NOICON, A_NOBORDER, A_ICONDIST, A_SCALEW, A_SCALEH, A_LIMIT, A_AUTOHIDE,
        A_ONTOP, A_TRANSPARENT, A_TINT, A_OPACITY, A_RADIUS, A_DELAY, A_QUIET, A_VERBOSE, A_HOTKEY, A_CUSTOM,
        A_CRASHLOG, A_RUNNING, A_CLICKNEW, A_WBSTART, A_DROPMOVE, A_HOLDTIME, A_RUNHIDE, A_IGNORE, A_WBHIDE,
-       A_MINKEY, A_MINALLKEY, A_AHKEY, A_COUNT };
+       A_MINKEY, A_MINALLKEY, A_AHKEY, A_SHELLASK, A_COUNT };
 
 #define TTLINE 2048
 
@@ -351,6 +351,7 @@ static void fill(struct Opts *o, LONG *a, STRPTR projcfg)
     o->runhide    = a[A_RUNHIDE] != 0;           /* programs not on the dock are not shown */
     o->ignore     = (STRPTR)a[A_IGNORE];         /* ... nor these ("Name,Name") */
     o->wbhide     = a[A_WBHIDE] != 0;            /* no Workbench icon for the drawer windows */
+    o->shellask   = a[A_SHELLASK] != 0;          /* Shell icons: "Execute a file" first (ask.c) */
     if (o->distance < 0) o->distance = 0;
     if (o->distance > 64) o->distance = 64;
     if (o->icondist < 0) o->icondist = 0;

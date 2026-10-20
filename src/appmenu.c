@@ -281,6 +281,7 @@ static const char *const runname[] = { "Off", "Dot", "Dot and number", NULL };
 static const LONG runval[] = { 0, 1, 2 };
 static const char *const clickname[] = { "Bring to front", "New copy", NULL };
 static const char *const startname[] = { "SimpleDock", "Workbench", NULL };
+static const char *const askname[] = { "Start at once", "Ask first", NULL };
 static const char *const dropname[] = { "Copy", "Like Workbench", NULL };
 static const char *const holdname[] = { "Normal (0.3 s)", "Long (0.4 s)", "Longer (0.5 s)", NULL };
 static const LONG holdval[] = { 3, 4, 5 };
@@ -305,6 +306,7 @@ static const struct { const char *label, *key; UBYTE kind; const char *const *na
     { "Running programs", "RUNNING", K_LIST, runname, runval, 2, "Programs" },
     { "Click when running", "CLICKNEW", K_LIST, clickname, NULL, 0 },
     { "Start programs with", "WBSTART", K_LIST, startname, NULL, 0 },
+    { "Shell icons", "SHELLASK", K_LIST, askname, NULL, 0 },
     { "Drop on a drawer", "DROPMOVE", K_LIST, dropname, NULL, 0 },
     { "Long press", "HOLDTIME", K_LIST, holdname, holdval, 0 },
     { "Programs not on the dock", "RUNHIDE", K_LIST, othername, NULL, 0 },
@@ -328,7 +330,7 @@ static const char *const allkeys[] = { "POS", "DISTANCE", "OFFSET", "FONT", "PUB
     "NOICON", "NOBORDER", "ICONDIST", "SCALEICONW", "SCALEICONH", "LIMIT", "AUTOHIDE", "ONTOP", "TRANSPARENT",
     "TINT", "OPACITY", "RADIUS", "DELAY", "QUIET", "VERBOSE", "HOTKEY", "CUSTOMTINT", "CRASHLOG",
     "RUNNING", "CLICKNEW", "WBSTART", "DROPMOVE", "HOLDTIME", "RUNHIDE", "IGNORE", "WBHIDE", "MINKEY", "MINALLKEY",
-    "AHKEY", NULL };
+    "AHKEY", "SHELLASK", NULL };
 
 static STRPTR glabels[NGROUP][11];      /* cycle labels (+ "Other" for a value set elsewhere) */
 

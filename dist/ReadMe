@@ -319,6 +319,10 @@ Programs
                    Icons set to start from a Shell (CLI tooltype), ARexx
                    icons (REXX) and programs without an icon of their own
                    are always started by Workbench, as a double-click.
+  Shell icons      Start at once, or Ask first: those icons show an
+                   "Execute a file" requester with their command, as a
+                   double-click does (not for icons with DONOTPROMPT)
+                   (SHELLASK)
   Drop on a drawer Copy, or Like Workbench: moved when on the same disk,
                    copied from another disk (DROPMOVE)
   Long press       Normal, Long or Longer: 0.3 / 0.4 / 0.5 s
@@ -427,6 +431,7 @@ command line:
   MINKEY=<keys>       minimise the active window (default ctrl alt m)
   MINALLKEY=<keys>    minimise all (default ctrl alt shift m)
   AHKEY=<keys>        auto-hide on/off (default ctrl alt h)
+  SHELLASK            Shell icons ask first ("Execute a file")
                       (none: the key is off)
 
 Settings are applied in this order: icon tooltypes, settings file, then

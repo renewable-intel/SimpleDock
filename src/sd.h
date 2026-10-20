@@ -39,7 +39,7 @@ struct Opts {
     LONG   autohide, ahspeed, radius, opacity;
     BOOL   notext, hovertext, noicon, noborder, ontop, transparent, quiet, verbose, crashlog;
     LONG   running, holdtime;         /* RUNNING 0-2, HOLDTIME tenths of a second */
-    BOOL   clicknew, wbstart, dropmove, runhide, wbhide;
+    BOOL   clicknew, wbstart, dropmove, runhide, wbhide, shellask;
     BOOL   defconfig;                 /* CONFIG not given: SD_CONFIG */
 };
 
@@ -247,6 +247,7 @@ ULONG in_set_keys(CONST_STRPTR *desc);                      /* the NKEYS keys; b
 BOOL in_key_off(CONST_STRPTR desc);                         /* "none" (or empty): a key switched off */
 BOOL in_key_valid(CONST_STRPTR desc);                       /* a valid MINKEY/MINALLKEY/AHKEY (or "none") */
 void ah_key(struct Dock *d);                                /* the auto-hide key: auto-hide on / off */
+BOOL ask_command(struct Dock *d, char *buf, LONG size);     /* ask.c: "Execute a file"; TRUE: Execute */
 void run_key_min(struct Dock *d);                           /* the minimise key: the active window */
 void run_key_minall(struct Dock *d);                        /* minimise all: its program, drawers, or every window */
 void dock_show(struct Dock *d);                             /* blit img into the window */

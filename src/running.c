@@ -1539,15 +1539,28 @@ static LONG shell_kind(struct Item *it)
     LONG k = 0;
     if (it->nofile || (it->dobj->do_Type != WBTOOL && it->dobj->do_Type != WBPROJECT)) return 0;
     if (!(o = GetDiskObject(it->path))) return it->dobj->do_Type == WBTOOL && !is_shell(it);
-    if (o->do_ToolTypes)
+    if (o->do_ToolTypes) {
         k = FindToolType(o->do_ToolTypes, "REXX") ? 2 : FindToolType(o->do_ToolTypes, "CLI") ? 1 : 0;
+        if (k && FindToolType(o->do_ToolTypes, "DONOTPROMPT")) k |= 4;   /* (4: never asked first) */
+    }
     FreeDiskObject(o);
     return k;
 }
 
-/* Started from a Shell, when Workbench refuses it: as Workbench does without
-   asking (DONOTPROMPT), in an output window opened on the first output. */
-static BOOL shell_run(struct Dock *d, struct Item *it, LONG kind)
+/* Name s onto the command line, in quotes if it has a space (as Workbench). */
+static void add_name(char *cmd, CONST_STRPTR s)
+{
+    BOOL q = strchr(s, ' ') != NULL;
+    if (q) strcat(cmd, "\"");
+    strcat(cmd, s);
+    if (q) strcat(cmd, "\"");
+}
+
+/* Started from a Shell by the dock: when Workbench refuses it (as Workbench
+   does without asking, DONOTPROMPT), or with SHELLASK after the "Execute a
+   file" requester (ask; Cancel: TRUE, nothing started). In an output window
+   opened on the first output. */
+static BOOL shell_run(struct Dock *d, struct Item *it, LONG kind, BOOL ask)
 {
     static char cmd[2 * SD_LINEMAX + 40], con[SD_LINEMAX + 80], tool[SD_LINEMAX + 8];
     CONST_STRPTR deft = it->dobj->do_DefaultTool;
@@ -1562,11 +1575,11 @@ static BOOL shell_run(struct Dock *d, struct Item *it, LONG kind)
         if (l) UnLock(l);
     } else if (it->dobj->do_Type == WBPROJECT && deft && *deft) {   /* a project: its tool, then it */
         if (!find_tool(deft, dir, tool, sizeof(tool))) { UnLock(dir); return FALSE; }
-        a[0] = (LONG)tool;
-        SD_FMT(cmd, "\"%s\" ", a);
+        add_name(cmd, tool);
+        strcat(cmd, " ");
     }
-    a[0] = (LONG)it->path;
-    SD_FMT(cmd + strlen(cmd), "\"%s\"", a);
+    add_name(cmd, it->path);
+    if (ask && !ask_command(d, cmd, sizeof(cmd))) { UnLock(dir); return TRUE; }   /* (Cancel) */
     a[1] = s ? s->BarHeight + 1 : 11;
     a[2] = s && s->Width < 640 ? s->Width : 640;
     a[3] = s && s->Height - a[1] < 200 ? s->Height - a[1] : 200;
@@ -1599,8 +1612,10 @@ BOOL run_launch(struct Dock *d, struct Item *it, struct AppMessage *am)
     STRPTR tt;
     CONST_STRPTR prog = it->path;
     if (!rport || !it->dobj || d->o->wbstart) return FALSE;   /* (WBSTART: Workbench starts it) */
-    if ((i = shell_kind(it)))                    /* from a Shell: as Workbench does it (its requester */
-        return (!RL_NOOWO && OpenWorkbenchObject(it->path, TAG_END)) || shell_run(d, it, i);   /* unless DONOTPROMPT) */
+    if ((i = shell_kind(it))) {                  /* from a Shell: Workbench starts it (without asking: */
+        if (d->o->shellask && !(i & 4)) return shell_run(d, it, i & 3, TRUE);   /*  SHELLASK asks first, */
+        return (!RL_NOOWO && OpenWorkbenchObject(it->path, TAG_END)) || shell_run(d, it, i & 3, FALSE);   /* as */
+    }                                            /*  a double-click, unless DONOTPROMPT) */
     proj = !run_is_tool(it);                     /* a project: its default tool, the project its argument */
     if (proj) {                                  /* (as a double-click: Workbench's OpenWorkbenchObject */
         if (it->temp || it->dobj->do_Type != WBPROJECT || !it->dobj->do_DefaultTool ||   /*  refuses some, */
