@@ -64,6 +64,8 @@ static BOOL scale_true(struct Dock *d, struct Item *it, WORD w, WORD h, WORD sw,
     LONG x, y, tx, ty, full = 255;
     BOOL ok = bk && wh && a && out;
 
+    if (!ok) scale_why |= (bk ? 0 : 8) | (wh ? 0 : 16) | (a && out ? 0 : 32);
+
     if (ok) {
         b = a + w * h * 3;
         InitRastPort(&rp);
@@ -171,6 +173,11 @@ static BOOL clut_own(struct Dock *d, struct Item *it, WORD w, WORD h, LONG depth
     return mask != NULL;
 }
 
+/* Why icons were not shrunk since dock_open cleared it (VERBOSE tells): 1 no
+   black and white pens, 2 no Picasso96, 8/16 no bitmap over black/white, 32
+   no memory. */
+LONG scale_why;
+
 /* The icon's images, made once (iw, ih: its size, then the size shown). */
 void scale_icon(struct Dock *d, struct Item *it)
 {
@@ -193,7 +200,8 @@ void scale_icon(struct Dock *d, struct Item *it)
         else ok = P96Base && (sw != w || sh != h || d->o->transparent) &&   /* solid, own size: cbm only */
                   scale_true(d, it, w, h, sw, sh, depth);
         if (ok) { it->iw = sw; it->ih = sh; }
-    }
+        else if (sw != w || sh != h) scale_why |= depth > 8 && !P96Base ? 2 : depth <= 8 ? 32 : 0;
+    } else if (sw != w || sh != h) scale_why |= 1;
     if (!d->o->transparent && d->fillpen >= 0) {         /* solid: blended onto the dock colour */
         struct RastPort rp;
         if ((it->cbm = AllocBitMap(it->iw, it->ih, depth, BMF_MINPLANES, d->scr->RastPort.BitMap))) {

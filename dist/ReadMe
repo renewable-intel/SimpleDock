@@ -303,7 +303,10 @@ Programs
   running          Shift+click then brings it to the front) (CLICKNEW)
   Start programs   SimpleDock (it then knows at once when a program
   with             ends), or Workbench (as in 1.0, for a program that
-                   does not like being started by the dock) (WBSTART)
+                   does not like being started by the dock) (WBSTART).
+                   Icons set to start from a Shell (CLI tooltype), ARexx
+                   icons (REXX) and programs without an icon of their own
+                   are always started by Workbench, as a double-click.
   Drop on a drawer Copy, or Like Workbench: moved when on the same disk,
                    copied from another disk (DROPMOVE)
   Long press       Normal, Long or Longer: 0.3 / 0.4 / 0.5 s

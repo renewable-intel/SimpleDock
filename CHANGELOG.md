@@ -110,6 +110,16 @@
 - Project icons (documents, DOSDriver icons such as a Mount icon) open as
   with a double-click: the dock starts their default tool with the
   project. Workbench's own call refused some of them.
+- A default tool given without a path is looked for as Workbench does:
+  in the project's drawer, then in Workbench's path (then in C:).
+- Icons set to start from a Shell (CLI tooltype, "Start from: Shell"),
+  ARexx icons (REXX tooltype) and programs with no icon of their own are
+  handed to Workbench, which starts them its own way (its "Execute"
+  requester unless the icon has DONOTPROMPT). If Workbench refuses one,
+  the dock runs it from a Shell itself, in an output window that opens on
+  the first output.
+- With Messages set to Verbose, the dock says why icons could not be
+  shrunk to the icon size, if that happens.
 
 ## 1.0 (15.10.2026)
 

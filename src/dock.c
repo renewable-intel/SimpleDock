@@ -453,7 +453,10 @@ BOOL dock_open(struct Dock *d)
     d->opacity = d->o->transparent ? d->o->opacity : 100;
     pens(d, TRUE);                             /* before the icons: scale.c uses them */
     TRACE("layout");
+    scale_why = 0;
     layout(d);
+    if (scale_why) sd_verbose(d, "Some icons are shown at their own size (reason %ld: 1 pens, 2 Picasso96, "
+                                 "8/16 bitmap, 32 memory)", scale_why);
     d->vis = d->full;
     d->hover = d->tipcell = -1;
     TRACE("background");

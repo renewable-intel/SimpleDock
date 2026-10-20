@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.1"
-#define SD_BUILD   " T54"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T55"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "20.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -272,6 +272,7 @@ void ah_close(void);
 /* scale.c */
 void scale_icon(struct Dock *d, struct Item *it);
 void scale_free(struct Item *it);
+extern LONG scale_why;                                      /* scale.c: why icons were not shrunk */
 void icon_image(struct Dock *d, struct RastPort *rp, struct Item *it, WORD x, WORD y, BOOL selected);
 void icon_dock(struct Dock *d, struct RastPort *rp, struct Item *it, WORD x, WORD y, BOOL selected);
 BOOL in_solid(struct Dock *d, WORD x, WORD y, WORD w, WORD h);   /* inside the solid colour */
