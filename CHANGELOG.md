@@ -134,6 +134,10 @@
   with the command before an icon set to start from a Shell starts, as a
   double-click does (Workbench skips it when the dock asks it); icons with
   DONOTPROMPT start at once (SHELLASK).
+- Smaller and lighter: the program is about 18 KB smaller on disk (small
+  data model), and it uses about 40 KB less memory while idle: the
+  settings window's buffers, the crash report's spare stack and ARexx
+  SET's buffers are only taken while needed.
 
 ## 1.0 (15.10.2026)
 
