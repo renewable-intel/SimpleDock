@@ -32,7 +32,8 @@ extern struct WBStartup *WBenchMsg;
 ULONG crash_regs[15], crash_usp, crash_no, crash_pc, crash_count, crash_sp;
 UWORD crash_sr, crash_fmt;
 struct RexxMsg *crash_rexx;             /* the ARexx message being handled (replied on a crash) */
-static ULONG spare[2048];               /* 8 KB stack for the recovery */
+#define SPARE 2048                      /* 8 KB stack for the recovery, only while armed */
+static ULONG *spare;
 static APTR oldtrap;
 static BOOL armed;
 static struct Dock *cd;
@@ -52,13 +53,16 @@ void crash_set(BOOL on)
 {
     struct Task *me = FindTask(NULL);
     if (on && !armed) {
+        if (!spare && !(spare = AllocVec(SPARE * sizeof(ULONG), MEMF_ANY))) return;   /* (no memory: no reports) */
         oldtrap = me->tc_TrapCode;
-        crash_sp = (ULONG)&spare[2048 - 4] & ~3UL;
+        crash_sp = (ULONG)&spare[SPARE - 4] & ~3UL;
         me->tc_TrapCode = (APTR)crash_trap;
         armed = TRUE;
     } else if (!on && armed) {
         me->tc_TrapCode = oldtrap;
         armed = FALSE;
+        FreeVec(spare);
+        spare = NULL;
     }
 }
 

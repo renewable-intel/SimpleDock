@@ -14,7 +14,7 @@ mkdir -p build/obj
 OBJ=()
 for f in src/*.c; do
   n=$(basename "${f%.c}")
-  "$CC" -quiet -c99 -cpu=68020 -dontwarn=153 $OPT -I"$VBCC_TARGET/include" -I"$NDK_INCLUDE" "$f" -o="build/obj/$n.s"
+  "$CC" -quiet -c99 -cpu=68020 -sd -dontwarn=153 $OPT -I"$VBCC_TARGET/include" -I"$NDK_INCLUDE" "$f" -o="build/obj/$n.s"
   "$AS" -quiet -Fhunk -m68020 -nowarn=62 "build/obj/$n.s" -o "build/obj/$n.o"
   OBJ+=("build/obj/$n.o")
 done
@@ -23,6 +23,8 @@ for f in src/*.s; do
   "$AS" -quiet -Fhunk -m68020 "$f" -o "build/obj/$n.o"
   OBJ+=("build/obj/$n.o")
 done
-"$LD" -bamigahunk -x -Bstatic -Cvbcc -nostdlib -mrel -s "$VBCC_TARGET/lib/startup.o" "${OBJ[@]}" \
-      -L"$VBCC_TARGET/lib" -lvc -lamiga -Mbuild/SimpleDock.map -o build/SimpleDock
+# small data (-sd): globals relative to A4 (_LinkerDB, set by startup.o; the input handler, the crash
+# trap and the hooks other tasks call set it themselves); data and BSS merged, under 64 KB
+"$LD" -bamigahunk -x -Bstatic -Cvbcc -nostdlib -mrel -sd -s "$VBCC_TARGET/lib/startup.o" "${OBJ[@]}" \
+      -L"$VBCC_TARGET/lib" -lvcs -lamigas -Mbuild/SimpleDock.map -o build/SimpleDock
 ls -l build/SimpleDock

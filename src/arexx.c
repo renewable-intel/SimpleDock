@@ -2,6 +2,8 @@
    Copyright (C) 2026 renewable-intel
    SPDX-License-Identifier: GPL-3.0-or-later */
 #include <string.h>
+#include <workbench/workbench.h>
+#include <workbench/startup.h>
 #include <exec/ports.h>
 #include <rexx/storage.h>
 #include <rexx/errors.h>
@@ -417,6 +419,21 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
 #endif
         else if (word(&cmd, "SETTINGS")) am_settings(d, word(&cmd, "ADVANCED"));   /* the settings window */
 #ifdef SD_DEBUG
+        else if (word(&cmd, "DROPCOPY")) {       /* DROPCOPY CELL DIR NAME: a drop onto a dock drawer, as from */
+            struct AppMessage am;                /*  Workbench (tests the copy process) */
+            struct WBArg wa;
+            struct Item *di;
+            if (!(ra = rargs(cmd, "CELL/A/N,DIR/A,NAME/A", a, 3)) || !(di = dock_item(d, *(LONG *)a[0])) ||
+                !(wa.wa_Lock = Lock((STRPTR)a[1], SHARED_LOCK))) rc = RC_ERROR;
+            else {
+                memset(&am, 0, sizeof(am));
+                wa.wa_Name = (BYTE *)a[2];
+                am.am_NumArgs = 1;
+                am.am_ArgList = &wa;
+                if (!drop_copy(d, di, &am)) rc = RC_WARN;
+                UnLock(wa.wa_Lock);
+            }
+        }
         else if (word(&cmd, "WINS")) {           /* every window: name:hidden, '*' active (run_debug_wins) */
             extern void run_debug_wins(struct Dock *, char *, LONG);
             run_debug_wins(d, res, sizeof(res));

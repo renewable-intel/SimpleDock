@@ -24,7 +24,7 @@ enum { A_TEXT, A_EXEC, A_CANCEL };
 /* Edit hook of the text line: Esc ends it as Cancel (code 27); keys typed
    in it never reach the window. Runs in input.device's task: no library
    calls. */
-static ULONG esc_hook(__reg("a0") struct Hook *h, __reg("a2") struct SGWork *sgw, __reg("a1") ULONG *msg)
+static __saveds ULONG esc_hook(__reg("a0") struct Hook *h, __reg("a2") struct SGWork *sgw, __reg("a1") ULONG *msg)
 {
     if (*msg == SGH_KEY && sgw->IEvent && sgw->IEvent->ie_Code == 0x45) {   /* Esc */
         sgw->Actions = (sgw->Actions | SGA_END) & ~SGA_USE;

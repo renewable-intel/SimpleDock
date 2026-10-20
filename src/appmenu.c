@@ -390,7 +390,8 @@ static BOOL simple_shown;               /* ... and the simple one (not on a low 
 static WORD wleft = -1, wtop;           /* where the window was (it is rebuilt to fold out) */
 static WORD divx = -1, divy, divh;      /* the divider between the two sides */
 static WORD linex = -1, liney, linew;   /* the line above the buttons */
-static char snapbuf[4096];              /* the settings lines when the window opened (Undo changes) */
+#define SNAPLEN 4096                    /* the settings lines (buffers below, allocated while needed) */
+static char *snapbuf;                   /* the settings lines when the window opened (Undo changes) */
 static BOOL snapopen;                   /* ... and the dock was open then */
 static BOOL loaded;                     /* Load... read another file: kept when the window closes */
 static BOOL keepsnap;                   /* Load... was cancelled: the window opens again, snapbuf stays */
@@ -499,7 +500,7 @@ static void hidden_show(struct Dock *d, struct Gadget *lv)
 
 /* Edit hook of the hotkey gadget: letters typed come out as capitals. Runs
    in input.device's task: no library calls. */
-static ULONG key_hook(__reg("a0") struct Hook *h, __reg("a2") struct SGWork *sgw, __reg("a1") ULONG *msg)
+static __saveds ULONG key_hook(__reg("a0") struct Hook *h, __reg("a2") struct SGWork *sgw, __reg("a1") ULONG *msg)
 {
     if (*msg != SGH_KEY) return 0;
     if ((sgw->EditOp == EO_INSERTCHAR || sgw->EditOp == EO_REPLACECHAR) && sgw->BufferPos > 0) {
@@ -755,11 +756,13 @@ static BOOL has_key(CONST_STRPTR lines, CONST_STRPTR key)
 
 static BOOL put_lines(struct Dock *d, CONST_STRPTR lines)
 {
-    static char words[4096], now[4096];
+    char *words = AllocVec(2 * SNAPLEN, MEMF_ANY), *now = words + SNAPLEN;
     LONG n = 0, k;
     CONST_STRPTR l = lines;
+    BOOL ok;
+    if (!words) return FALSE;
     words[0] = 0;
-    config_get(d, NULL, now, sizeof(now));       /* (the settings in use, as lines) */
+    config_get(d, NULL, now, SNAPLEN);           /* (the settings in use, as lines) */
     while (*l) {
         CONST_STRPTR e = l, eq;
         char one[512];                           /* (a settings file line can be this long) */
@@ -768,7 +771,7 @@ static BOOL put_lines(struct Dock *d, CONST_STRPTR lines)
         len = e - l < (LONG)sizeof(one) - 1 ? e - l : (LONG)sizeof(one) - 1;
         memcpy(one, l, len); one[len] = 0;
         l = *e ? e + 1 : e;
-        if (opts_key(one) <= 0 || n + len + 6 >= (LONG)sizeof(words)) continue;   /* (CONFIG stays) */
+        if (opts_key(one) <= 0 || n + len + 6 >= SNAPLEN) continue;   /* (CONFIG stays) */
         if (n) words[n++] = ' ';
         if (one[0] != '(' && (eq = strchr(one, '='))) {   /* KEY="value" */
             memcpy(words + n, one, eq - one + 1); n += eq - one + 1;
@@ -780,12 +783,14 @@ static BOOL put_lines(struct Dock *d, CONST_STRPTR lines)
     }
     for (k = 0; allkeys[k]; k++) {               /* set since then (only those): off now - one set */
         LONG kl = strlen(allkeys[k]);            /* only in the icon's tooltypes is in neither, and stays */
-        if (!has_key(lines, allkeys[k]) && has_key(now, allkeys[k]) && n + kl + 4 < (LONG)sizeof(words)) {
+        if (!has_key(lines, allkeys[k]) && has_key(now, allkeys[k]) && n + kl + 4 < SNAPLEN) {
             if (n) words[n++] = ' ';
             words[n++] = '('; strcpy(words + n, allkeys[k]); n += kl; words[n++] = ')'; words[n] = 0;
         }
     }
-    return config_set(d, words);
+    ok = config_set(d, words);
+    FreeVec(words);
+    return ok;
 }
 
 static void prefs_close_win(void)
@@ -1094,8 +1099,9 @@ static void prefs_open(struct Dock *d, BOOL more)
     if (!GadToolsBase) { sd_msg(d, "Cannot open the settings window"); return; }
     wide = more;
     adopt_custom(d);                             /* a TINT from the file: the custom colour */
-    if (!keepsnap) {
-        config_get(d, NULL, snapbuf, sizeof(snapbuf));   /* for Undo changes */
+    if (!keepsnap || !snapbuf) {
+        if (!snapbuf && !(snapbuf = AllocVec(SNAPLEN, MEMF_ANY))) { sd_msg(d, "Cannot open the settings window"); return; }
+        config_get(d, NULL, snapbuf, SNAPLEN);   /* for Undo changes (freed when the window closes) */
         snapopen = !d->hidden;
     }
     keepsnap = FALSE;
@@ -1207,11 +1213,15 @@ static void hidden_remove(struct Dock *d)
    one that would push icons off the dock, is refused with a beep. */
 static void apply_line(struct Dock *d, CONST_STRPTR line)
 {
-    static char before[4096];
+    char *before = AllocVec(SNAPLEN, MEMF_ANY);
     LONG over = dock_extra(d);
     BOOL told = d->overtold, wasopen = !d->hidden;
-    config_get(d, NULL, before, sizeof(before));
-    if (!config_set(d, line)) { DisplayBeep(d->scr); sync(d); return; }
+    if (!before || (config_get(d, NULL, before, SNAPLEN), !config_set(d, line))) {
+        FreeVec(before);
+        DisplayBeep(d->scr);
+        sync(d);
+        return;
+    }
     d->overtold = TRUE;                          /* no "do not fit" message for a try */
     if (wasopen) dock_reopen(d);
     /* Not taken if the dock could not open again (a screen that isn't
@@ -1221,6 +1231,7 @@ static void apply_line(struct Dock *d, CONST_STRPTR line)
         if (wasopen) dock_reopen(d);
         DisplayBeep(d->scr);
     }
+    FreeVec(before);
     d->overtold = told;
     sync(d);
     if (pw) WindowToFront(pw);                   /* a new dock window opens in front */
@@ -1293,17 +1304,18 @@ static BOOL same(CONST_STRPTR a, CONST_STRPTR b)
 /* Undo changes is only there to press when something changed. */
 static void recall_state(struct Dock *d)
 {
-    static char now[4096];
-    if (!recallg) return;
-    config_get(d, NULL, now, sizeof(now));
+    char *now;
+    if (!recallg || !snapbuf || !(now = AllocVec(SNAPLEN, MEMF_ANY))) return;
+    config_get(d, NULL, now, SNAPLEN);
     GT_SetGadgetAttrs(recallg, pw, NULL, GA_Disabled, same(now, snapbuf), TAG_END);
+    FreeVec(now);
 }
 
 /* Back to the settings of the moment the window opened (or of Load...). */
 static void recall(struct Dock *d)
 {
     pick_close();
-    if (!put_lines(d, snapbuf)) DisplayBeep(d->scr);   /* (not taken: too many settings lines) */
+    if (!snapbuf || !put_lines(d, snapbuf)) DisplayBeep(d->scr);   /* (not taken: too many settings lines) */
     if (snapopen || !d->hidden) dock_reopen(d);   /* (also the hotkey: ah_start) */
     sync(d);
     if (pw) WindowToFront(pw);                   /* a new dock window opens in front */
@@ -1313,13 +1325,16 @@ static void recall(struct Dock *d)
    (if there are any). */
 static void prefs_store(struct Dock *d)
 {
-    static char now[4096];
+    char *now;
     if (!pw) return;
     if (keyg) key_apply(d);                      /* typed, but Return not pressed */
     adv_pending(d);
-    config_get(d, NULL, now, sizeof(now));
+    if ((now = AllocVec(SNAPLEN, MEMF_ANY))) config_get(d, NULL, now, SNAPLEN);
     prefs_close();
-    if (loaded || !same(now, snapbuf)) config_store(d);
+    if (loaded || !now || !snapbuf || !same(now, snapbuf)) config_store(d);   /* (no memory to compare: stored) */
+    FreeVec(now);
+    FreeVec(snapbuf);                            /* (closed for good: the next open takes a new snapshot) */
+    snapbuf = NULL;
     loaded = FALSE;
 }
 
@@ -1504,6 +1519,8 @@ void am_close(void)
 {
     struct Message *m;
     prefs_close();
+    FreeVec(snapbuf);
+    snapbuf = NULL;
     about_close();
     note_close();
     remove_all();

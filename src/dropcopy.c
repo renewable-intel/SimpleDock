@@ -184,7 +184,7 @@ static void free_job(struct Job *j)
 }
 
 /* The copying process. */
-static LONG copier(void)
+static __saveds LONG copier(void)
 {
     struct Process *me = (struct Process *)FindTask(NULL);
     struct Job *j;

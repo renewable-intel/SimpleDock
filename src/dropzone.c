@@ -218,7 +218,7 @@ static void glide(struct Dock *d, struct RastPort *wrp, LONG gap, LONG hi)
 }
 
 /* Called by Workbench, inside its drag: graphics.library drawing only. */
-static ULONG zone_hook(__reg("a0") struct Hook *h, __reg("a2") APTR reserved,
+static __saveds ULONG zone_hook(__reg("a0") struct Hook *h, __reg("a2") APTR reserved,
                        __reg("a1") struct AppWindowDropZoneMsg *m)
 {
     struct Dock *d = (struct Dock *)h->h_Data;

@@ -6,15 +6,19 @@
 ; in D0. _in_watch notes the left button and the active window (and takes
 ; the hotkey and the held list's keys); while the pointer matters (_in_on:
 ; auto-hide, hover labels, labels only, ONTOP) _in_check also looks at it,
-; once per batch of events.
+; once per batch of events. The C code is small-data (globals relative to
+; A4): A4 is set to the dock's data here (input.device's own kept).
 
         section code,code
         xdef    _in_handler
         xref    _in_on
         xref    _in_check
         xref    _in_watch
+        xref    _LinkerDB
 
 _in_handler:
+        move.l  a4,-(sp)
+        lea     _LinkerDB,a4
         move.l  a0,-(sp)                ; kept: the result (input.device's list)
         move.l  a0,-(sp)                ; argument (C may change its own copy)
         jsr     _in_watch
@@ -24,4 +28,5 @@ _in_handler:
         jsr     _in_check
 .out:   addq.l  #4,sp
         move.l  (sp)+,d0
+        move.l  (sp)+,a4
         rts

@@ -342,9 +342,21 @@ static LONG merged(struct Dock *d, STRPTR *v)
    of the settings in use (quote values with spaces). They are kept for the
    next save. The caller reopens the dock. Returns FALSE, changing nothing, if
    a keyword or value is not valid. */
+static BOOL set_lines(struct Dock *d, CONST_STRPTR args, char *tok, char *nbuf);
+
 BOOL config_set(struct Dock *d, CONST_STRPTR args)
 {
-    static char tok[4096], nbuf[sizeof(setbuf)];
+    char *mem = AllocVec(4096 + sizeof(setbuf), MEMF_ANY);   /* (only while setting: not kept) */
+    BOOL ok;
+    if (!mem) return FALSE;
+    ok = set_lines(d, args, mem, mem + 4096);
+    FreeVec(mem);
+    return ok;
+}
+
+/* config_set's work, with its buffers: tok 4096 bytes, nbuf as setbuf. */
+static BOOL set_lines(struct Dock *d, CONST_STRPTR args, char *tok, char *nbuf)
+{
     STRPTR v[20 + 48 + 1], nv[20 + 48 + 48 + 1], nt[48];   /* window lines (opts_lines: 19), file lines, words */
     LONG n, k = 0, m = 0, used = 0, i, j, cnt = 0;
     char *p = tok;
@@ -355,11 +367,11 @@ BOOL config_set(struct Dock *d, CONST_STRPTR args)
         if (cnt == 48) return FALSE;
         nt[cnt++] = p;
         while (*args && *args != ' ') {
-            if (p - tok >= (LONG)sizeof(tok) - 2) return FALSE;
+            if (p - tok >= 4096 - 2) return FALSE;
             if (*args == '\n') { args++; continue; }   /* (dropped, as the parser does: a save */
             if (*args == '"') {                        /*  would make two lines of it) */
                 args++;
-                while (*args && *args != '"' && p - tok < (LONG)sizeof(tok) - 2) {
+                while (*args && *args != '"' && p - tok < 4096 - 2) {
                     if (*args == '\n') args++;
                     else *p++ = *args++;
                 }
@@ -381,7 +393,7 @@ BOOL config_set(struct Dock *d, CONST_STRPTR args)
     if (!opts_check(nv)) return FALSE;
     for (i = 0; i < k; i++) {                    /* (nv points into setbuf too: a copy first) */
         LONG l = strlen(nv[i]) + 1;
-        if (m == 48 || used + l > (LONG)sizeof(nbuf)) return FALSE;
+        if (m == 48 || used + l > (LONG)sizeof(setbuf)) return FALSE;
         memcpy(nbuf + used, nv[i], l);
         used += l; m++;
     }

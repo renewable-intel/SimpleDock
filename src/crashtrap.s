@@ -22,6 +22,7 @@
         xref    _crash_fmt
         xref    _crash_count
         xref    _crash_sp
+        xref    _LinkerDB
 
 _crash_trap:
         movem.l d0-d7/a0-a6,_crash_regs ; the registers at the crash
@@ -48,6 +49,7 @@ _crash_trap:
         bra.s   .go
 .again: pea     _crash_halt
 .go:    clr.w   -(sp)                   ; SR: user mode, interrupts on
+        lea     _LinkerDB,a4            ; the C code's data (small data: A4 may be anything here)
         rte
 
 ; frame size in bytes by format code (68020 to 68060)
