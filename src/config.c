@@ -345,7 +345,7 @@ static LONG merged(struct Dock *d, STRPTR *v)
 BOOL config_set(struct Dock *d, CONST_STRPTR args)
 {
     static char tok[4096], nbuf[sizeof(setbuf)];
-    STRPTR v[16 + 48 + 1], nv[16 + 48 + 48 + 1], nt[48];   /* window lines, file lines, words */
+    STRPTR v[20 + 48 + 1], nv[20 + 48 + 48 + 1], nt[48];   /* window lines (opts_lines: 19), file lines, words */
     LONG n, k = 0, m = 0, used = 0, i, j, cnt = 0;
     char *p = tok;
 

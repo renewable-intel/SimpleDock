@@ -193,6 +193,9 @@ static void key_case(char *dst, CONST_STRPTR src, LONG size, BOOL upper)
     dst[i] = 0;
 }
 
+/* The key in use for Advanced row i (K_KEY), "none" if off. */
+static CONST_STRPTR key_now(struct Dock *d, LONG i);
+
 /* --- About --- */
 
 static struct Window *aboutw;           /* the About requester while open (not modal) */
@@ -273,7 +276,7 @@ static const char *const shead[] = { "Place", "Icons", "Look" };
 static const BYTE sorder[] = { -1, 0, 4, 5, 6, G_KEY, -2, 2, 3, 1, -3, 7, 8, 9, 10 };
 #define NSORDER ((LONG)sizeof(sorder))
 
-enum { K_ALIGN, K_INT, K_STR, K_SWITCH, K_ICON, K_MSG, K_LIST, K_HIDE };
+enum { K_ALIGN, K_INT, K_STR, K_SWITCH, K_ICON, K_MSG, K_LIST, K_HIDE, K_KEY };
 static const char *const runname[] = { "Off", "Dot", "Dot and number", NULL };
 static const LONG runval[] = { 0, 1, 2 };
 static const char *const clickname[] = { "Bring to front", "New copy", NULL };
@@ -284,8 +287,9 @@ static const LONG holdval[] = { 3, 4, 5 };
 static const char *const othername[] = { "Show", "Hide", NULL };
 /* K_LIST: a list of choices for a keyword, with values (KEY=n; the one at
    'def' when it is not set), or without (a switch: first choice = off).
-   K_HIDE: the IGNORE names as a list, with Remove. A row with 'head' starts
-   a group. (The keywords are in the ReadMe.) */
+   K_HIDE: the IGNORE names as a list, with Remove. K_KEY: a key (commodities
+   description, shown in capitals; empty or NONE: off). A row with 'head'
+   starts a group. (The keywords are in the ReadMe.) */
 static const struct { const char *label, *key; UBYTE kind; const char *const *names; const LONG *vals; LONG def;
                       const char *head; } adv[] = {
     { "Alignment", "POS", K_ALIGN, NULL, NULL, 0, "Fine-tune" },
@@ -306,6 +310,9 @@ static const struct { const char *label, *key; UBYTE kind; const char *const *na
     { "Programs not on the dock", "RUNHIDE", K_LIST, othername, NULL, 0 },
     { "Workbench icon", "WBHIDE", K_LIST, othername, NULL, 0 },
     { "Hidden programs", "IGNORE", K_HIDE },
+    { "Minimise window", "MINKEY", K_KEY, NULL, NULL, 0, "Keys" },
+    { "Minimise all", "MINALLKEY", K_KEY },
+    { "Auto-hide on/off", "AHKEY", K_KEY },
     { "Font", "FONT", K_STR, NULL, NULL, 0, "System" },
     { "Screen", "PUBSCREEN", K_STR },
     { "Start delay, 1/50 s", "DELAY", K_INT },
@@ -320,7 +327,8 @@ static const char *const msgname[] = { "Normal", "Quiet", "Verbose", NULL };
 static const char *const allkeys[] = { "POS", "DISTANCE", "OFFSET", "FONT", "PUBSCREEN", "NOTEXT", "HOVERTEXT",
     "NOICON", "NOBORDER", "ICONDIST", "SCALEICONW", "SCALEICONH", "LIMIT", "AUTOHIDE", "ONTOP", "TRANSPARENT",
     "TINT", "OPACITY", "RADIUS", "DELAY", "QUIET", "VERBOSE", "HOTKEY", "CUSTOMTINT", "CRASHLOG",
-    "RUNNING", "CLICKNEW", "WBSTART", "DROPMOVE", "HOLDTIME", "RUNHIDE", "IGNORE", "WBHIDE", NULL };
+    "RUNNING", "CLICKNEW", "WBSTART", "DROPMOVE", "HOLDTIME", "RUNHIDE", "IGNORE", "WBHIDE", "MINKEY", "MINALLKEY",
+    "AHKEY", NULL };
 
 static STRPTR glabels[NGROUP][11];      /* cycle labels (+ "Other" for a value set elsewhere) */
 
@@ -716,6 +724,7 @@ static void sync(struct Dock *d)
         case K_ICON:
         case K_INT:    StrToLong(v, &n); GT_SetGadgetAttrs(ag[i], pw, NULL, GTIN_Number, n, TAG_END); break;
         case K_STR:    str_set(ag[i], v); break;
+        case K_KEY:    { char kb[64]; key_case(kb, key_now(d, i), sizeof(kb), TRUE); str_set(ag[i], kb); } break;
         case K_LIST:   list_set(ag[i], NGROUP + i, NULL, list_choice(i, v)); break;
         case K_HIDE:   hidden_show(d, ag[i]); break;
         default:       GT_SetGadgetAttrs(ag[i], pw, NULL, GTCB_Checked, v[0] == '1', TAG_END); break;
@@ -1021,7 +1030,8 @@ static BOOL build(struct Dock *d)
         case K_LIST:   g = list_new(g, &ng, NGROUP + i, adv[i].names, adv[i].def, &ag[i]); break;
         case K_ICON:
         case K_INT:    g = ag[i] = CreateGadget(INTEGER_KIND, g, &ng, GTIN_MaxChars, 6, TAG_END); break;
-        case K_STR:    g = str_new(g, &ng, &ag[i]); break;
+        case K_STR:
+        case K_KEY:    g = str_new(g, &ng, &ag[i]); break;
         default:       g = ag[i] = CreateGadget(CHECKBOX_KIND, g, &ng, GTCB_Scaled, TRUE, TAG_END); break;
         }
     }
@@ -1146,6 +1156,13 @@ static void adv_apply(struct Dock *d, LONG i, UWORD code)
         else if (code) strcpy(line, adv[i].key);
         else { strcpy(line, "("); strcat(line, adv[i].key); strcat(line, ")"); }
         break;
+    case K_KEY:                                  /* (a key not valid: beep, the one in use shown again) */
+        key_case(v, str_get(ag[i]), 64, FALSE);
+        if (!Stricmp(v, key_now(d, i)) || (in_key_off(v) && in_key_off(key_now(d, i)))) { sync(d); return; }
+        if (!in_key_valid(v)) { DisplayBeep(d->scr); sync(d); return; }
+        a[0] = (LONG)adv[i].key; a[1] = (LONG)(in_key_off(v) ? "none" : v);
+        SD_FMT(line, "%s=\"%s\"", a);
+        break;
     case K_STR:
         if (!str_get(ag[i])[0]) { strcpy(line, "("); strcat(line, adv[i].key); strcat(line, ")"); }
         else { strcpy(line, adv[i].key); strcat(line, "=\""); strncat(line, (char *)str_get(ag[i]), SD_LINEMAX - 1); strcat(line, "\""); }
@@ -1207,6 +1224,13 @@ static void apply_line(struct Dock *d, CONST_STRPTR line)
     if (pw) WindowToFront(pw);                   /* a new dock window opens in front */
 }
 
+static CONST_STRPTR key_now(struct Dock *d, LONG i)
+{
+    CONST_STRPTR k = !strcmp(adv[i].key, "MINKEY") ? d->o->minkey : !strcmp(adv[i].key, "MINALLKEY") ? d->o->minallkey
+                     : d->o->ahkey;
+    return in_key_off(k) ? (CONST_STRPTR)"none" : k;
+}
+
 /* Take numbers and text typed on the Advanced side without Return, before
    closing, folding, Load... and Save as... */
 static void adv_pending(struct Dock *d)
@@ -1215,6 +1239,11 @@ static void adv_pending(struct Dock *d)
     LONG i, n, m;
     for (i = 0; pw && i < NADV; i++) {
         struct StringInfo *si;
+        if (ag[i] && adv[i].kind == K_KEY) {
+            key_case(v, str_get(ag[i]), 64, FALSE);
+            if (Stricmp(v, key_now(d, i)) && !(in_key_off(v) && in_key_off(key_now(d, i)))) adv_apply(d, i, 0);
+            continue;
+        }
         if (!ag[i] || (adv[i].kind != K_INT && adv[i].kind != K_ICON && adv[i].kind != K_STR)) continue;
         config_get(d, adv[i].key, v, sizeof(v));
         if (adv[i].kind == K_STR) { if (strcmp((char *)str_get(ag[i]), v)) adv_apply(d, i, 0); continue; }

@@ -77,6 +77,44 @@ BOOL in_set_hotkey(CONST_STRPTR desc)
     return TRUE;
 }
 
+/* The other keys (minimise, minimise all, auto-hide on/off): ordinary
+   commodities descriptions, "none" (or empty) for off. */
+static IX in_kix[NKEYS];
+static volatile BOOL in_kok[NKEYS];
+static UWORD in_kcode = 0xFFFF;         /* the key of one while down: its key-up is swallowed too */
+
+BOOL in_key_off(CONST_STRPTR desc)
+{
+    return !desc || !*desc || !Stricmp((STRPTR)desc, "none");
+}
+
+/* Can desc be one of them ("none" can; modifiers alone only the hotkey)? */
+BOOL in_key_valid(CONST_STRPTR desc)
+{
+    extern struct Library *CxBase;
+    IX ix;
+    if (in_key_off(desc)) return TRUE;
+    if (!CxBase || tap_parse(desc)) return FALSE;
+    ix.ix_Version = IX_VERSION;
+    return ParseIX((STRPTR)desc, &ix) == 0;
+}
+
+/* Returns the bits of those that are not valid descriptions (they are off). */
+ULONG in_set_keys(CONST_STRPTR *desc)
+{
+    extern struct Library *CxBase;
+    ULONG bad = 0;
+    LONG k;
+    for (k = 0; k < NKEYS; k++) {
+        in_kok[k] = FALSE;
+        if (in_key_off(desc[k])) continue;
+        in_kix[k].ix_Version = IX_VERSION;
+        if (!CxBase || tap_parse(desc[k]) || ParseIX((STRPTR)desc[k], &in_kix[k])) bad |= 1UL << k;   /* (modifiers */
+        else in_kok[k] = TRUE;                   /*  only: only the hotkey can be a tap) */
+    }
+    return bad;
+}
+
 BOOL in_hotkey_valid(CONST_STRPTR desc)
 {
     extern struct Library *CxBase;
@@ -240,6 +278,25 @@ void in_watch(struct InputEvent *ev)
                     Signal(in_task, in_sigmask);
                 }
                 in_hotcode = ev->ie_Code;
+                ev->ie_Class = IECLASS_NULL;     /* nobody else gets the key */
+                continue;
+            }
+        }
+        if (ev->ie_Class == IECLASS_RAWKEY && in_dock && in_task) {   /* the other keys */
+            LONG k;
+            if (ev->ie_Code == (in_kcode | IECODE_UP_PREFIX)) {
+                in_kcode = 0xFFFF;
+                ev->ie_Class = IECLASS_NULL;
+                continue;
+            }
+            for (k = 0; k < NKEYS; k++)
+                if (in_kok[k] && !(ev->ie_Code & IECODE_UP_PREFIX) && MatchIX(ev, &in_kix[k])) break;
+            if (k < NKEYS) {
+                if (!(ev->ie_Qualifier & IEQUALIFIER_REPEAT)) {   /* held down: once */
+                    in_dock->keyact |= 1 << k;   /* the dock task does it (main.c) */
+                    Signal(in_task, in_sigmask);
+                }
+                in_kcode = ev->ie_Code;
                 ev->ie_Class = IECLASS_NULL;     /* nobody else gets the key */
                 continue;
             }

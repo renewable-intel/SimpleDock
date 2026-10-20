@@ -22,12 +22,14 @@ static const char TEMPLATE[] =
     "CONFIG,POS=POSITION,DISTANCE/K/N,OFFSET/K/N,FONT/K,PUBSCREEN/K,NOTEXT/S,HOVERTEXT/S,"
     "NOICON/S,NOBORDER/S,ICONDIST/K/N,SCALEICONW/K/N,SCALEICONH/K/N,LIMIT/K/N,AUTOHIDE/K/N,"
     "ONTOP/S,TRANSPARENT/S,TINT/K,OPACITY/K/N,RADIUS/K/N,DELAY/K/N,QUIET/S,VERBOSE/S,HOTKEY/K,CUSTOMTINT/K,CRASHLOG/S,"
-    "RUNNING/K/N,CLICKNEW/S,WBSTART/S,DROPMOVE/S,HOLDTIME/K/N,RUNHIDE/S,IGNORE/K,WBHIDE/S";
+    "RUNNING/K/N,CLICKNEW/S,WBSTART/S,DROPMOVE/S,HOLDTIME/K/N,RUNHIDE/S,IGNORE/K,WBHIDE/S,"
+    "MINKEY/K,MINALLKEY/K,AHKEY/K";
 
 enum { A_CONFIG, A_POS, A_DISTANCE, A_OFFSET, A_FONT, A_PUBSCREEN, A_NOTEXT, A_HOVERTEXT,
        A_NOICON, A_NOBORDER, A_ICONDIST, A_SCALEW, A_SCALEH, A_LIMIT, A_AUTOHIDE,
        A_ONTOP, A_TRANSPARENT, A_TINT, A_OPACITY, A_RADIUS, A_DELAY, A_QUIET, A_VERBOSE, A_HOTKEY, A_CUSTOM,
-       A_CRASHLOG, A_RUNNING, A_CLICKNEW, A_WBSTART, A_DROPMOVE, A_HOLDTIME, A_RUNHIDE, A_IGNORE, A_WBHIDE, A_COUNT };
+       A_CRASHLOG, A_RUNNING, A_CLICKNEW, A_WBSTART, A_DROPMOVE, A_HOLDTIME, A_RUNHIDE, A_IGNORE, A_WBHIDE,
+       A_MINKEY, A_MINALLKEY, A_AHKEY, A_COUNT };
 
 #define TTLINE 2048
 
@@ -317,6 +319,9 @@ static void fill(struct Opts *o, LONG *a, STRPTR projcfg)
     o->tint       = (STRPTR)a[A_TINT];
     o->customtint = (STRPTR)a[A_CUSTOM];         /* the one custom colour of the settings window */
     o->hotkey     = a[A_HOTKEY] ? (STRPTR)a[A_HOTKEY] : (STRPTR)"ctrl alt shift";   /* reveal the dock (tapped) */
+    o->minkey     = a[A_MINKEY] ? (STRPTR)a[A_MINKEY] : (STRPTR)"ctrl alt m";           /* minimise the active window */
+    o->minallkey  = a[A_MINALLKEY] ? (STRPTR)a[A_MINALLKEY] : (STRPTR)"ctrl alt shift m";   /* ... all */
+    o->ahkey      = a[A_AHKEY] ? (STRPTR)a[A_AHKEY] : (STRPTR)"ctrl alt h";            /* auto-hide on / off */
     o->distance   = num((LONG *)a[A_DISTANCE], 4);       /* gap to the screen edge */
     o->offset     = num((LONG *)a[A_OFFSET], 0);
     o->icondist   = num((LONG *)a[A_ICONDIST], 2);
@@ -371,7 +376,7 @@ static BOOL is_key_any(CONST_STRPTR tt, CONST_STRPTR key)
 
 static const char *const SAVED[] = { "POS", "POSITION", "AUTOHIDE", "NOTEXT", "HOVERTEXT", "NOICON", "ICONDIST",
     "SCALEICONW", "SCALEICONH", "DISTANCE", "TRANSPARENT", "TINT", "OPACITY", "RADIUS", "ONTOP", "HOTKEY",
-    "CUSTOMTINT", NULL };
+    "CUSTOMTINT", "MINKEY", "MINALLKEY", "AHKEY", NULL };
 
 /* A settings line that saving writes itself (the rest are kept as they are). */
 BOOL opts_saved(CONST_STRPTR line)
@@ -387,10 +392,10 @@ BOOL opts_saved(CONST_STRPTR line)
 }
 
 /* The settings as lines (static buffers, valid until the next call);
-   returns how many (at most 16; callers allow 20). */
+   returns how many (at most 19; callers allow 20). */
 LONG opts_lines(struct Dock *d, STRPTR *nt)
 {
-    static char buf[12][72];
+    static char buf[15][72];
     struct Opts *o = d->o;
     LONG k = 0, b = 0, v[1];
 
@@ -420,6 +425,14 @@ LONG opts_lines(struct Dock *d, STRPTR *nt)
     }
     if (o->customtint && strlen(o->customtint) < sizeof(buf[0]) - 12) {
         strcpy(buf[b], "CUSTOMTINT="); strcat(buf[b], o->customtint); nt[k++] = buf[b++];
+    }
+    {                                            /* the other keys */
+        static const char *const kn[3] = { "MINKEY=", "MINALLKEY=", "AHKEY=" };
+        STRPTR kv[3];
+        LONG i;
+        kv[0] = o->minkey; kv[1] = o->minallkey; kv[2] = o->ahkey;
+        for (i = 0; i < 3; i++)
+            if (kv[i] && strlen(kv[i]) < sizeof(buf[0]) - 12) { strcpy(buf[b], kn[i]); strcat(buf[b], kv[i]); nt[k++] = buf[b++]; }
     }
     return k;
 }

@@ -2138,8 +2138,9 @@ static void hide_win(struct Window *w, struct Task *t)
         if ((x->Flags & WFLG_WBENCHWINDOW) && (x->Flags & WFLG_BACKDROP)) { to = x; break; }
     for (x = w->WScreen->FirstWindow; x && !to; x = x->NextWindow)
         if (x != w && x->WLayer && !(LayersBase->lib_Version >= 45 && (x->WLayer->Flags & LAYERHIDDEN)) &&
-            x->UserPort && x->UserPort->mp_SigTask != (APTR)FindTask(NULL)) to = x;   /* (not ours: our list */
-                                                 /* and label have no port, the dock window is ours) */
+            !is_mini(x) && x->UserPort && x->UserPort->mp_SigTask != (APTR)FindTask(NULL))   /* (not ours: our */
+            to = x;                              /* list and label have no port, the dock window is ours; not one */
+                                                 /* minimised just now - HideWindow may not have taken yet) */
     if (to) ActivateWindow(to);
 }
 
@@ -2315,6 +2316,87 @@ void run_show_all(void)
         nmini--;
     }
 }
+
+/* ------------------------------------------------------- the minimise keys */
+
+/* The active window's place in own[] (after collect), -1: none of a program
+   or drawer (Workbench's backdrop, the dock's own, or none active). */
+static LONG active_own(struct Dock *d, LONG n)
+{
+    struct Window *aw = IntuitionBase->ActiveWindow;   /* (only compared) */
+    LONG i;
+    if (!aw || aw == d->win || aw == d->tip || aw == d->list) return -1;
+    for (i = 0; i < n && own[i].win != aw; i++) ;
+    return i < n && !own[i].hid ? i : -1;
+}
+
+/* The minimise key: the active window, as Minimise in the long-press list. */
+void run_key_min(struct Dock *d)
+{
+    LONG n, a;
+    if (!can_hide()) { DisplayBeep(d->scr); return; }
+    n = collect(FALSE);
+    if ((a = active_own(d, n)) < 0) return;
+    if (!hide_it(own[a].win, own[a].task, FALSE)) DisplayBeep(d->scr);   /* (MAXMINI minimised already) */
+    lastsig = 0;
+    run_clicked(d);                              /* its mark soon */
+}
+
+/* The minimise-all key, by what is active: a drawer window - all drawer
+   windows; a program's window - all windows of that program (every copy;
+   for a Shell, all Shells); nothing (or Workbench's backdrop) - every window
+   on the front screen. When nothing is showing there any more, the same key
+   shows every window the dock has minimised there again, the frontmost last
+   (on top). Title-bar strips (widgets) are left alone unless active. */
+void run_key_minall(struct Dock *d)
+{
+    struct Screen *front = IntuitionBase->FirstScreen;
+    LONG n, a, i, done = 0;
+    BOOL ok = TRUE;
+    if (!can_hide()) { DisplayBeep(d->scr); return; }
+    n = collect(FALSE);
+    a = active_own(d, n);
+    for (i = 0; i <= n && ok; i++) {             /* (the active window last: hiding it makes another */
+        struct Own *o = &own[i < n ? i : a];     /*  active, never one of these) */
+        BOOL with;
+        if (i == n ? a < 0 : i == a) continue;
+        if (o->hid || (o->widget && (a < 0 || o != &own[a]))) continue;
+        if (a < 0) with = o->scr == front;
+        else if (own[a].wb || o->wb) with = own[a].wb && o->wb;
+        else if (own[a].con || o->con) with = own[a].con && o->con;
+        else with = o->task == own[a].task || (o->name[0] && same_name(o->name, own[a].name));
+        if (with) { ok = hide_it(o->win, o->task, FALSE); done++; }
+    }
+    if (a < 0 && !done)                          /* nothing showing: all back */
+        for (i = n - 1; i >= 0; i--)
+            if (own[i].hid && is_mini(own[i].win) && (!own[i].scr || own[i].scr == front)) {
+                reveal(own[i].win, own[i].task);
+                done++;
+            }
+    if (!ok || !done) DisplayBeep(d->scr);       /* (no room left, or nothing to do) */
+    lastsig = 0;
+    run_clicked(d);                              /* the marks soon */
+}
+
+#ifdef SD_DEBUG
+/* ARexx WINS (tests): every window as name:hidden (drawers: their title, a
+   Shell: "Shell"), the active one with a '*'. */
+void run_debug_wins(struct Dock *d, char *out, LONG size)
+{
+    LONG n = collect(TRUE), a = active_own(d, n), i, l = 0;
+    out[0] = 0;
+    for (i = 0; i < n; i++) {
+        CONST_STRPTR nm = own[i].wb ? own[i].title : own[i].con ? "Shell" : own[i].name;
+        LONG k = strlen(nm);
+        if (l + k + 6 >= size) break;
+        if (l) out[l++] = ',';
+        if (i == a) out[l++] = '*';
+        strcpy(out + l, nm); l += k;
+        out[l++] = ':'; out[l++] = own[i].hid ? '1' : '0';
+        out[l] = 0;
+    }
+}
+#endif
 
 /* ----------------------------------------------- the list's other actions */
 

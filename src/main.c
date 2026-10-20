@@ -210,6 +210,16 @@ int main(void)
         if (sigs & ptrsig) {
             if (d->raisecheck) { d->raisecheck = FALSE; dock_settle(d); }
             if (d->hotkey) { d->hotkey = FALSE; ah_hotkey(d); }
+            if (d->keyact) {                     /* the other keys (input.c) */
+                UBYTE k;
+                Forbid();                        /* (the input handler sets bits meanwhile) */
+                k = d->keyact;
+                d->keyact = 0;
+                Permit();
+                if (k & KEY_MIN) run_key_min(d);
+                if (k & KEY_MINALL) run_key_minall(d);
+                if (k & KEY_AH) ah_key(d);
+            }
             if (d->listev) run_list_input(d);
             ah_pointer(d);
             tip_update(d);

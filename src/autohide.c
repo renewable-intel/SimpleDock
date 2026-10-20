@@ -149,6 +149,22 @@ void ah_hotkey(struct Dock *d)
     ah_pointer(d);
 }
 
+/* The auto-hide key: auto-hide on (at the speed it had) or off, as if set in
+   the settings window - kept in the settings file. */
+void ah_key(struct Dock *d)
+{
+    char line[32];
+    LONG v[1];
+    if (d->dragging || d->lmb) return;           /* (as the hotkey) */
+    v[0] = d->o->autohide > 0 ? d->o->autohide : d->o->ahspeed > 0 ? d->o->ahspeed : 3;
+    SD_FMT(line, d->o->autohide > 0 ? "(AUTOHIDE=%ld)" : "AUTOHIDE=%ld", v);
+    if (!config_set(d, line)) { DisplayBeep(d->scr); return; }
+    if (!d->hidden) dock_reopen(d);              /* (shown: with auto-hide on it slides away as usual) */
+    else ah_start(d);
+    config_store(d);
+    am_prefs_sync(d);                            /* an open settings window shows it */
+}
+
 /* While the settings window is open the dock stays out, so changes can be
    seen; afterwards it hides again as the pointer says. */
 void ah_show(struct Dock *d, BOOL on)
@@ -273,6 +289,16 @@ void ah_start(struct Dock *d)
     in_active(on || d->o->hovertext || d->o->noicon || d->o->ontop);   /* the pointer watch serves them all */
     crash_set(d->o->crashlog);                   /* crash reports on or off */
     if (!in_set_hotkey(d->o->hotkey)) sd_verbose(d, "HOTKEY=%s is not a valid key description", (LONG)d->o->hotkey);
+    {                                            /* the other keys */
+        static const char *const kn[NKEYS] = { "MINKEY", "MINALLKEY", "AHKEY" };
+        CONST_STRPTR kv[NKEYS];
+        ULONG bad;
+        LONG k;
+        kv[0] = d->o->minkey; kv[1] = d->o->minallkey; kv[2] = d->o->ahkey;
+        bad = in_set_keys(kv);
+        for (k = 0; k < NKEYS; k++)
+            if (bad & 1UL << k) sd_verbose(d, "%s=%s is not a valid key description", (LONG)kn[k], (LONG)kv[k]);
+    }
     if (!on && d->vis != d->full) apply(d, d->full);
 }
 
