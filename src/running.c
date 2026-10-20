@@ -127,6 +127,7 @@ static struct timeval lastreply;                 /* when a close request was las
 
 static void snap_tasks(void);
 static BOOL alive(struct Task *t);
+static BOOL win_hide_ok(void);
 
 /* Close requests to programs that have ended meanwhile without answering:
    their slots are free again. The message is still out (in a window port
@@ -1797,7 +1798,10 @@ static BOOL close_win(struct Window *w, struct Task *t)
         if (!can) return FALSE;
         if (!wbw) {
             LONG j;
-            if (is_mini(w)) reveal(w, t);
+            if (is_mini(w)) {
+                reveal(w, t);
+                if (!win_hide_ok()) Delay(25);   /* (shown by its layer, behind Intuition's back: */
+            }                                    /*  Intuition must catch up before it closes) */
             if (!front_now(w, t)) {              /* Intuition does these at its next input event: */
                 to_front(w, t);                  /* wait for that, else a program that closes at once */
                 for (j = 0; j < 10 && !front_now(w, t); j++) Delay(1);   /* leaves Intuition working */
