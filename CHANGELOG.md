@@ -104,6 +104,9 @@
     reading the freed window.
   - Closing a minimised window on 3.1-based systems waits a moment after
     showing it again (a program could crash, and the dock with it).
+  - Programs started from the dock get the same start as from Workbench
+    (no input/output handles): a program that closes its own (iGame) made
+    the system close them twice, and the dock crashed when it ended.
 
 ## 1.0 (15.10.2026)
 
