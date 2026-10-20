@@ -1467,15 +1467,49 @@ static BPTR path_dir(CONST_STRPTR path)
     return Lock(buf, SHARED_LOCK);
 }
 
-/* A project's default tool as Workbench finds it: a full path as it is,
-   else in the project's drawer, then in C:. Its full name into 'out'. */
+/* Copies of the locks of Workbench's Shell path (the Workbench process's,
+   else the dock's own when started from a Shell), at most 'max'. */
+#define MAXPATH 24
+static LONG wb_path(BPTR *lk, LONG max)
+{
+    struct Process *p;
+    struct CommandLineInterface *cli = NULL;
+    BPTR *node;
+    LONG n = 0;
+    Forbid();
+    p = (struct Process *)FindTask("Workbench");
+    if (p && p->pr_Task.tc_Node.ln_Type == NT_PROCESS) cli = BADDR(p->pr_CLI);
+    if (!cli) cli = Cli();
+    for (node = cli ? BADDR(cli->cli_CommandDir) : NULL; node && n < max; node = BADDR(node[0]))
+        if (node[1] && (lk[n] = DupLock(node[1]))) n++;   /* (DupLock may break the Forbid: */
+    Permit();                                              /*  Workbench's path never changes) */
+    return n;
+}
+
+/* A default tool as Workbench finds it: a full path as it is, else in the
+   project's drawer, then in Workbench's path, then in C:. Its full name into
+   'out'. */
 static BOOL find_tool(CONST_STRPTR tool, BPTR projdir, char *out, LONG size)
 {
-    BPTR l, old;
+    struct Process *me = (struct Process *)FindTask(NULL);
+    BPTR lk[MAXPATH], l, old;
+    APTR win;
+    LONG n, k;
     if (!tool || !*tool || strlen(tool) >= size - 4) return FALSE;
     if (strchr(tool, ':')) { strcpy(out, tool); return TRUE; }
     old = CurrentDir(projdir);
-    l = Lock(tool, SHARED_LOCK);
+    if (!(l = Lock(tool, SHARED_LOCK))) {
+        n = wb_path(lk, MAXPATH);
+        win = me->pr_WindowPtr;
+        me->pr_WindowPtr = (APTR)-1;             /* (a drawer on a disk not inserted: no requester) */
+        for (k = 0; k < n && !l; k++) {
+            CurrentDir(lk[k]);
+            l = Lock(tool, SHARED_LOCK);
+        }
+        me->pr_WindowPtr = win;
+        CurrentDir(projdir);
+        for (k = 0; k < n; k++) UnLock(lk[k]);
+    }
     CurrentDir(old);
     if (l) {
         BOOL ok = NameFromLock(l, out, size);
@@ -1486,6 +1520,71 @@ static BOOL find_tool(CONST_STRPTR tool, BPTR projdir, char *out, LONG size)
     strcpy(out, "C:");
     strcat(out, tool);
     return TRUE;
+}
+
+/* How Workbench starts it from a Shell: 1 an icon with the CLI tooltype
+   ("Start from: Shell") or a program with no icon of its own, 2 an icon with
+   the REXX tooltype; 0 the Workbench way. The program's own icon counts, not
+   a dock image. */
+#ifdef SD_DEBUG
+BOOL rl_noowo;                                   /* ARexx NOWB: test the fallback */
+#define RL_NOOWO rl_noowo
+#else
+#define RL_NOOWO FALSE
+#endif
+
+static LONG shell_kind(struct Item *it)
+{
+    struct DiskObject *o;
+    LONG k = 0;
+    if (it->nofile || (it->dobj->do_Type != WBTOOL && it->dobj->do_Type != WBPROJECT)) return 0;
+    if (!(o = GetDiskObject(it->path))) return it->dobj->do_Type == WBTOOL && !is_shell(it);
+    if (o->do_ToolTypes)
+        k = FindToolType(o->do_ToolTypes, "REXX") ? 2 : FindToolType(o->do_ToolTypes, "CLI") ? 1 : 0;
+    FreeDiskObject(o);
+    return k;
+}
+
+/* Started from a Shell, when Workbench refuses it: as Workbench does without
+   asking (DONOTPROMPT), in an output window opened on the first output. */
+static BOOL shell_run(struct Dock *d, struct Item *it, LONG kind)
+{
+    static char cmd[2 * SD_LINEMAX + 40], con[SD_LINEMAX + 80], tool[SD_LINEMAX + 8];
+    CONST_STRPTR deft = it->dobj->do_DefaultTool;
+    struct Screen *s = d->scr;
+    BPTR dir, old, fh, l;
+    LONG a[5], stack = 4096;
+    BOOL ok = FALSE;
+    if (!(dir = path_dir(it->path))) return FALSE;
+    cmd[0] = 0;
+    if (kind == 2) {                             /* ARexx: the icon's file is the script */
+        strcpy(cmd, (l = Lock("SYS:Rexxc/RX", SHARED_LOCK)) ? "SYS:Rexxc/RX " : "RX ");
+        if (l) UnLock(l);
+    } else if (it->dobj->do_Type == WBPROJECT && deft && *deft) {   /* a project: its tool, then it */
+        if (!find_tool(deft, dir, tool, sizeof(tool))) { UnLock(dir); return FALSE; }
+        a[0] = (LONG)tool;
+        SD_FMT(cmd, "\"%s\" ", a);
+    }
+    a[0] = (LONG)it->path;
+    SD_FMT(cmd + strlen(cmd), "\"%s\"", a);
+    a[1] = s ? s->BarHeight + 1 : 11;
+    a[2] = s && s->Width < 640 ? s->Width : 640;
+    a[3] = s && s->Height - a[1] < 200 ? s->Height - a[1] : 200;
+    a[0] = 0;
+    a[4] = (LONG)"Output window";
+    SD_FMT(con, "CON:%ld/%ld/%ld/%ld/%s/AUTO/WAIT", a);
+    WorkbenchControl(NULL, WBCTRLA_GetDefaultStackSize, &stack, TAG_END);
+    if (stack < 4096) stack = 4096;
+    if (it->dobj->do_StackSize > stack) stack = it->dobj->do_StackSize;
+    old = CurrentDir(dir);                       /* (the Shell starts in the icon's drawer) */
+    if ((fh = Open(con, MODE_OLDFILE))) {
+        ok = SystemTags(cmd, SYS_Input, fh, SYS_Output, NULL, SYS_Asynch, TRUE, SYS_UserShell, TRUE,
+                        NP_StackSize, stack, NP_WindowPtr, NULL, TAG_END) != -1;
+        if (!ok) Close(fh);
+    }
+    CurrentDir(old);
+    UnLock(dir);
+    return ok;
 }
 
 BOOL run_launch(struct Dock *d, struct Item *it, struct AppMessage *am)
@@ -1500,6 +1599,8 @@ BOOL run_launch(struct Dock *d, struct Item *it, struct AppMessage *am)
     STRPTR tt;
     CONST_STRPTR prog = it->path;
     if (!rport || !it->dobj || d->o->wbstart) return FALSE;   /* (WBSTART: Workbench starts it) */
+    if ((i = shell_kind(it)))                    /* from a Shell: as Workbench does it (its requester */
+        return (!RL_NOOWO && OpenWorkbenchObject(it->path, TAG_END)) || shell_run(d, it, i);   /* unless DONOTPROMPT) */
     proj = !run_is_tool(it);                     /* a project: its default tool, the project its argument */
     if (proj) {                                  /* (as a double-click: Workbench's OpenWorkbenchObject */
         if (it->temp || it->dobj->do_Type != WBPROJECT || !it->dobj->do_DefaultTool ||   /*  refuses some, */

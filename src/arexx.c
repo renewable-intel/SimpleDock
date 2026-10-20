@@ -416,6 +416,12 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
         }
 #endif
         else if (word(&cmd, "SETTINGS")) am_settings(d, word(&cmd, "ADVANCED"));   /* the settings window */
+#ifdef SD_DEBUG
+        else if (word(&cmd, "NOWB")) {           /* NOWB [OFF]: Shell starts without Workbench (its fallback) */
+            extern BOOL rl_noowo;
+            rl_noowo = !word(&cmd, "OFF");
+        }
+#endif
         else if (word(&cmd, "BENCH")) {          /* drawing times on this machine (bench.c) */
             dock_bench(d, res);
             out = res;
