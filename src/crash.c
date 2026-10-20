@@ -120,6 +120,21 @@ static void report(struct Dock *d)
     if (crash_usp >= (ULONG)me->tc_SPLower && crash_usp + 32 <= (ULONG)me->tc_SPUpper && !(crash_usp & 1)) {
         for (i = 0; i < 8; i++) v[i] = ((ULONG *)crash_usp)[i];   /* (only inside the task's stack) */
         put(fh, "Stack: %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n", v);
+        for (i = 0; i < 128 && crash_usp + 4 * i + 4 <= (ULONG)me->tc_SPUpper; i++) {
+            ULONG x = ((ULONG *)crash_usp)[i];   /* return addresses into SimpleDock's own code */
+            if ((v[1] = where(x, &off)) >= 0 && x != crash_pc) {
+                v[0] = 4 * i; v[2] = off; v[3] = x;
+                put(fh, "  SP+%ld: section %ld, offset $%lx ($%08lx)\n", v);
+            }
+        }
+    }
+    {
+        BPTR seg = WBenchMsg ? WBenchMsg->sm_Segment : Cli() ? Cli()->cli_Module : 0;
+        for (i = 0; seg && i < 8; i++) {          /* where each section was loaded */
+            v[0] = i; v[1] = (LONG)((ULONG *)BADDR(seg) + 1);
+            put(fh, "Section %ld at $%08lx\n", v);
+            seg = *(BPTR *)BADDR(seg);
+        }
     }
     v[0] = SysBase->LibNode.lib_Version; v[1] = SysBase->LibNode.lib_Revision;
     v[2] = IntuitionBase ? IntuitionBase->LibNode.lib_Version : 0;
