@@ -120,6 +120,13 @@
   the first output.
 - With Messages set to Verbose, the dock says why icons could not be
   shrunk to the icon size, if that happens.
+- Keys: Ctrl+Alt+M minimises the active window; Ctrl+Alt+Shift+M
+  minimises all - with a drawer active all drawer windows, with a
+  program's window all its windows (every copy; all Shells for a Shell),
+  with nothing active (the Workbench backdrop) every window on the screen;
+  with nothing showing, it brings them back. Ctrl+Alt+H switches auto-hide
+  on or off. All three can be changed or switched off in Advanced, Keys
+  (MINKEY, MINALLKEY, AHKEY).
 
 ## 1.0 (15.10.2026)
 

@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.1"
-#define SD_BUILD   " T55"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T56"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "20.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -34,6 +34,7 @@ void sd_prof(LONG slot, struct timeval *t0);
 
 struct Opts {
     STRPTR config, pos, font, pubscreen, tint, hotkey, customtint, ignore;
+    STRPTR minkey, minallkey, ahkey;  /* keys: minimise window / all, auto-hide on/off ("none": off) */
     LONG   distance, offset, icondist, delay, limit, scalew, scaleh;
     LONG   autohide, ahspeed, radius, opacity;
     BOOL   notext, hovertext, noicon, noborder, ontop, transparent, quiet, verbose, crashlog;
@@ -140,6 +141,7 @@ struct Dock {
     volatile WORD     hover;          /* cell under the pointer, -1 = none (input handler) */
     volatile BOOL     raisecheck;     /* input handler: windows may have changed (dock_settle) */
     volatile BOOL     hotkey;         /* input handler: the hotkey was pressed (ah_hotkey) */
+    volatile UBYTE    keyact;         /* input handler: other keys pressed (KEY_MIN ...) */
     volatile BOOL     pinned;         /* auto-hide: out by the hotkey until the pointer was on it and left */
     volatile BOOL     pinentered;
     volatile BOOL     showing;        /* auto-hide: held out while the settings window is open */
@@ -237,6 +239,16 @@ void ah_hotkey(struct Dock *d);
 void ah_show(struct Dock *d, BOOL on);                      /* held out (the settings window) or not */
 BOOL in_set_hotkey(CONST_STRPTR desc);                      /* commodities description; FALSE: not valid */
 BOOL in_hotkey_valid(CONST_STRPTR desc);                    /* the same check, the hotkey in use unchanged */
+#define NKEYS       3                 /* the other keys (MINKEY, MINALLKEY, AHKEY), in that order */
+#define KEY_MIN     1                 /* their bits in keyact */
+#define KEY_MINALL  2
+#define KEY_AH      4
+ULONG in_set_keys(CONST_STRPTR *desc);                      /* the NKEYS keys; bits: those not valid */
+BOOL in_key_off(CONST_STRPTR desc);                         /* "none" (or empty): a key switched off */
+BOOL in_key_valid(CONST_STRPTR desc);                       /* a valid MINKEY/MINALLKEY/AHKEY (or "none") */
+void ah_key(struct Dock *d);                                /* the auto-hide key: auto-hide on / off */
+void run_key_min(struct Dock *d);                           /* the minimise key: the active window */
+void run_key_minall(struct Dock *d);                        /* minimise all: its program, drawers, or every window */
 void dock_show(struct Dock *d);                             /* blit img into the window */
 void dock_place(struct Dock *d);                            /* cell positions from list order */
 void dock_targets(struct Dock *d, struct Item *skip, LONG gap); /* tx, ty only */

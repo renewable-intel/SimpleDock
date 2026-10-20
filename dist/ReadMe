@@ -166,6 +166,18 @@ Hotkey           CTRL ALT SHIFT: press the three together and let go
                  onto a hidden dock. Without auto-hide it brings the dock
                  to the front.
 
+Ctrl+Alt+M       Minimises the active window (as Minimise in the
+                 long-press list).
+Ctrl+Alt+Shift+M Minimises all, by what is active: a drawer window - all
+                 drawer windows; a program's window - all its windows
+                 (every copy; for a Shell, all Shells); nothing, or the
+                 Workbench backdrop - every window on the screen. With
+                 nothing showing any more, the same key brings back all
+                 the windows the dock has minimised.
+Ctrl+Alt+H       Switches auto-hide on or off (kept in the settings).
+                 These three keys can be changed or switched off (NONE)
+                 in the settings window: Advanced, Keys.
+
 Dock menu        In the Workbench menu bar (shown when Workbench is the
                  active window):
                    Show / Hide Dock   as the hotkey
@@ -316,6 +328,13 @@ Programs
   Workbench icon   Show or Hide the Workbench icon (WBHIDE)
   Hidden programs  the programs you dragged off the dock. Pick one and
                    click Remove to show it again (IGNORE)
+Keys
+  Minimise window  the key that minimises the active window (MINKEY)
+  Minimise all     the key that minimises all (MINALLKEY)
+  Auto-hide on/off the key that switches auto-hide (AHKEY)
+                   Type a key such as CTRL ALT M; NONE or empty switches
+                   it off. Modifiers alone (CTRL ALT) are only allowed
+                   for the Hotkey.
 System
   Font             name/size for the labels, empty = screen font (FONT)
   Screen           a public screen, empty = Workbench (PUBSCREEN)
@@ -405,6 +424,10 @@ command line:
   RUNHIDE             programs not on the dock are not shown
   IGNORE=<names>      ... nor these programs ("Name,Name")
   WBHIDE              no Workbench icon for the drawer windows
+  MINKEY=<keys>       minimise the active window (default ctrl alt m)
+  MINALLKEY=<keys>    minimise all (default ctrl alt shift m)
+  AHKEY=<keys>        auto-hide on/off (default ctrl alt h)
+                      (none: the key is off)
 
 Settings are applied in this order: icon tooltypes, settings file, then
 Shell command line. Each overrides the preceding source.
