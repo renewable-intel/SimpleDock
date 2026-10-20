@@ -2125,6 +2125,7 @@ static void hide_win(struct Window *w, struct Task *t)
     if (win_hide_ok()) HideWindow(w);            /* (its result is not reliable: the layer tells) */
     else {
         struct Layer_Info *li = &w->WScreen->LayerInfo;
+        struct Layer *l;
         LockLayerInfo(li);
         if (win_screen(w, t)) {
             if (w->BorderRPort && w->BorderRPort->Layer && w->BorderRPort->Layer != w->WLayer)
@@ -2132,6 +2133,18 @@ static void hide_win(struct Window *w, struct Task *t)
             if (w->WLayer) HideLayer(w->WLayer);
         }
         UnlockLayerInfo(li);
+        /* Intuition knows nothing of HideLayer: the windows uncovered are
+           damaged but not told to redraw (a blank box until one is moved,
+           CaffeineOS). The front window put to the front - no change - makes
+           Intuition look for damage and send the refreshes. */
+        if (win_screen(w, t))
+            for (l = w->WScreen->LayerInfo.top_layer; l; l = l->back) {
+                struct Window *x = (struct Window *)l->Window;
+                if (x && x != w && !(l->Flags & LAYERHIDDEN) && !(x->Flags & WFLG_BACKDROP)) {
+                    WindowToFront(x);
+                    break;
+                }
+            }
     }
     if (!active || !win_screen(w, t)) return;
     for (x = w->WScreen->FirstWindow; x; x = x->NextWindow)
