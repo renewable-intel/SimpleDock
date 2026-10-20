@@ -1455,33 +1455,84 @@ void run_forget(struct Item *it)
 /* Start the program behind 'it' as Workbench does, with the files of a drop
    (am) as further arguments. FALSE: not done (no program file, no memory, too
    many running) - the caller asks Workbench instead. */
+/* The drawer of 'path' (also for an icon with no file of its own, as a
+   DOSDriver's), locked; 0 if there is none. */
+static BPTR path_dir(CONST_STRPTR path)
+{
+    char buf[SD_LINEMAX + 8];
+    LONG k = PathPart(path) - path;
+    if (k >= (LONG)sizeof(buf)) return 0;
+    memcpy(buf, path, k);
+    buf[k] = 0;
+    return Lock(buf, SHARED_LOCK);
+}
+
+/* A project's default tool as Workbench finds it: a full path as it is,
+   else in the project's drawer, then in C:. Its full name into 'out'. */
+static BOOL find_tool(CONST_STRPTR tool, BPTR projdir, char *out, LONG size)
+{
+    BPTR l, old;
+    if (!tool || !*tool || strlen(tool) >= size - 4) return FALSE;
+    if (strchr(tool, ':')) { strcpy(out, tool); return TRUE; }
+    old = CurrentDir(projdir);
+    l = Lock(tool, SHARED_LOCK);
+    CurrentDir(old);
+    if (l) {
+        BOOL ok = NameFromLock(l, out, size);
+        UnLock(l);
+        return ok;
+    }
+    if (strchr(tool, '/')) return FALSE;
+    strcpy(out, "C:");
+    strcat(out, tool);
+    return TRUE;
+}
+
 BOOL run_launch(struct Dock *d, struct Item *it, struct AppMessage *am)
 {
+    static char toolpath[SD_LINEMAX + 8];
     struct Launch *l;
     struct Process *p;
-    BPTR file, dir, seg, home;
-    LONG i, n = 1, size, slot, stack, pri = 0;
+    BPTR file, dir, seg, home, pdir = 0;
+    LONG i, n = 1, size, slot, stack, pri = 0, first;
+    BOOL proj;
     char *nm;
     STRPTR tt;
-    if (!rport || !run_is_tool(it) || !it->dobj || d->o->wbstart) return FALSE;   /* (WBSTART: Workbench starts it) */
+    CONST_STRPTR prog = it->path;
+    if (!rport || !it->dobj || d->o->wbstart) return FALSE;   /* (WBSTART: Workbench starts it) */
+    proj = !run_is_tool(it);                     /* a project: its default tool, the project its argument */
+    if (proj) {                                  /* (as a double-click: Workbench's OpenWorkbenchObject */
+        if (it->temp || it->dobj->do_Type != WBPROJECT || !it->dobj->do_DefaultTool ||   /*  refuses some, */
+            !(pdir = path_dir(it->path))) return FALSE;                                 /*  as a DOSDriver) */
+        if (!find_tool(it->dobj->do_DefaultTool, pdir, toolpath, sizeof(toolpath))) { UnLock(pdir); return FALSE; }
+        prog = toolpath;
+    }
     for (slot = 0; slot < MAXLAUNCH && lt[slot]; slot++) ;
-    if (slot == MAXLAUNCH) return FALSE;
-    if (am) n += am->am_NumArgs < MAXARGS ? am->am_NumArgs : MAXARGS;
-    size = strlen(FilePart(it->path)) + 1;
-    for (i = 1; i < n; i++) size += (am->am_ArgList[i - 1].wa_Name ? strlen(am->am_ArgList[i - 1].wa_Name) : 0) + 1;
-    if (!(l = AllocVec(sizeof(*l) + size, MEMF_PUBLIC | MEMF_CLEAR))) return FALSE;
-    if (!(file = Lock(it->path, SHARED_LOCK))) { FreeVec(l); return FALSE; }   /* (the Shell icon has no file) */
+    if (slot == MAXLAUNCH) { if (pdir) UnLock(pdir); return FALSE; }
+    first = proj ? 2 : 1;                        /* (the arguments after the program and the project) */
+    n = first;
+    if (am) n += am->am_NumArgs < MAXARGS - 1 ? am->am_NumArgs : MAXARGS - 1;
+    size = strlen(FilePart(prog)) + 1 + (proj ? strlen(FilePart(it->path)) + 1 : 0);
+    for (i = first; i < n; i++) size += (am->am_ArgList[i - first].wa_Name ? strlen(am->am_ArgList[i - first].wa_Name) : 0) + 1;
+    if (!(l = AllocVec(sizeof(*l) + size, MEMF_PUBLIC | MEMF_CLEAR))) { if (pdir) UnLock(pdir); return FALSE; }
+    if (!(file = Lock(prog, SHARED_LOCK))) { if (pdir) UnLock(pdir); FreeVec(l); return FALSE; }   /* (the Shell icon has no file) */
     dir = ParentDir(file);
     UnLock(file);
-    if (!dir) { FreeVec(l); return FALSE; }
-    if (!(seg = LoadSeg(it->path))) { UnLock(dir); FreeVec(l); return FALSE; }
+    if (!dir) { if (pdir) UnLock(pdir); FreeVec(l); return FALSE; }
+    if (!(seg = LoadSeg(prog))) { UnLock(dir); if (pdir) UnLock(pdir); FreeVec(l); return FALSE; }
     nm = l->names;                               /* argument 0: the program, in its drawer */
-    strcpy(nm, FilePart(it->path));
+    strcpy(nm, FilePart(prog));
     l->args[0].wa_Lock = dir;
     l->args[0].wa_Name = nm;
     nm += strlen(nm) + 1;
-    for (i = 1; i < n; i++) {                    /* the dropped files */
-        struct WBArg *a = &am->am_ArgList[i - 1];
+    if (proj) {                                  /* argument 1: the project, in its drawer */
+        strcpy(nm, FilePart(it->path));
+        l->args[1].wa_Lock = pdir;
+        l->args[1].wa_Name = nm;
+        nm += strlen(nm) + 1;
+    }
+    for (i = first; i < n; i++) {                /* the dropped files */
+        struct WBArg *a = &am->am_ArgList[i - first];
         strcpy(nm, a->wa_Name ? (char *)a->wa_Name : "");
         l->args[i].wa_Lock = a->wa_Lock ? DupLock(a->wa_Lock) : 0;
         l->args[i].wa_Name = nm;
