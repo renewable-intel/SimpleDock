@@ -35,7 +35,7 @@ enum { AM_TOP = 1, AM_BOTTOM, AM_LEFT, AM_RIGHT, AM_TEXTBELOW, AM_TEXTHOVER, AM_
        AM_GAP0, AM_GAP1, AM_GAP2, AM_GAP3, AM_AH0, AM_AH1, AM_AH2, AM_AH3, AM_AH4,
        AM_GLASSOFF, AM_GLASSON, AM_FRONTOFF, AM_FRONTON, AM_COL0, AM_COL1, AM_COL2, AM_COL3, AM_COL4, AM_COL5,
        AM_OP0, AM_OP1, AM_OP2, AM_OP3, AM_OP4, AM_RAD0, AM_RAD1, AM_RAD2, AM_RAD3,
-       AM_LOAD, AM_RELOAD, AM_SAVE, AM_SAVEAS, AM_QUIT, AM_SETTINGS, AM_ABOUT,
+       AM_RELOAD, AM_SAVE, AM_QUIT, AM_SETTINGS, AM_ABOUT,
        AM_TEXTONLY, AM_CUSTOM, AM_TOGGLE };
 
 static const LONG isize[4] = { 0, 32, 48, 64 };              /* SCALEICONW/H */
@@ -162,15 +162,10 @@ static BOOL choose(struct Dock *d, ULONG id, BOOL *reopen)
         prefs_open(d, FALSE);
     } else if (id == AM_ABOUT) {
         about_open(d);
-    } else if (id == AM_LOAD) {             /* another file's settings and icons */
-        prefs_close();                      /* its values would be stale */
-        config_choose(d, FALSE);
-    } else if (id == AM_RELOAD) {           /* the dock's own file again */
+    } else if (id == AM_RELOAD) {           /* the dock's own file again (debug ARexx MENU) */
         config_reload(d, NULL);
-    } else if (id == AM_SAVE) {             /* settings and icons into the dock's own file */
+    } else if (id == AM_SAVE) {             /* settings and icons into the dock's own file (the same) */
         config_save(d, NULL);
-    } else if (id == AM_SAVEAS) {
-        config_choose(d, TRUE);
     } else if (id == AM_QUIT) {
         TRACE("quit: menu");
         run = FALSE;
@@ -334,12 +329,6 @@ static const struct { const char *label, *key; UBYTE kind; const char *const *na
 #define NADV ((LONG)(sizeof(adv) / sizeof(adv[0])))
 static const char *const alignname[] = { "Centre", "Start", "End", NULL };
 static const char *const msgname[] = { "Normal", "Quiet", "Verbose", NULL };
-/* every keyword a settings line can have (not CONFIG): Undo changes switches off those set meanwhile */
-static const char *const allkeys[] = { "POS", "DISTANCE", "OFFSET", "FONT", "PUBSCREEN", "NOTEXT", "HOVERTEXT",
-    "NOICON", "NOBORDER", "ICONDIST", "SCALEICONW", "SCALEICONH", "LIMIT", "AUTOHIDE", "ONTOP", "TRANSPARENT",
-    "TINT", "OPACITY", "RADIUS", "DELAY", "QUIET", "VERBOSE", "HOTKEY", "CUSTOMTINT", "CRASHLOG",
-    "RUNNING", "CLICKNEW", "WBSTART", "DROPMOVE", "HOLDTIME", "RUNHIDE", "IGNORE", "WBHIDE", "MINKEY", "MINALLKEY",
-    "AHKEY", "SHELLASK", "SHELLDROP", "UNPACKTO", "UNPACKDIR", "NOBEEP", NULL };
 
 static STRPTR glabels[NGROUP][11];      /* cycle labels (+ "Other" for a value set elsewhere) */
 
@@ -395,7 +384,6 @@ static struct { WORD right, top; CONST_STRPTR name; } chname[NLIST];
 static UWORD textpen = 1;
 static struct TextFont *namefont;       /* the screen font, for those names */
 static BOOL wide;                       /* the Advanced side is shown */
-static BOOL simple_shown;               /* ... and the simple one (not on a low screen) */
 static WORD wleft = -1, wtop;           /* where the window was (it is rebuilt to fold out) */
 static WORD divx = -1, divy, divh;      /* the divider between the two sides */
 static WORD linex = -1, liney, linew;   /* the line above the buttons */
@@ -765,7 +753,7 @@ static BOOL has_key(CONST_STRPTR lines, CONST_STRPTR key)
 
 static BOOL put_lines(struct Dock *d, CONST_STRPTR lines)
 {
-    char *words = AllocVec(2 * SNAPLEN, MEMF_ANY), *now = words + SNAPLEN;
+    char *words = AllocVec(2 * SNAPLEN, MEMF_ANY), *now = words + SNAPLEN, key[32];
     LONG n = 0, k;
     CONST_STRPTR l = lines;
     BOOL ok;
@@ -793,11 +781,11 @@ static BOOL put_lines(struct Dock *d, CONST_STRPTR lines)
         } else { strcpy(words + n, one); n += len; }
         words[n] = 0;
     }
-    for (k = 0; allkeys[k]; k++) {               /* set since then (only those): off now - one set */
-        LONG kl = strlen(allkeys[k]);            /* only in the icon's tooltypes is in neither, and stays */
-        if (!has_key(lines, allkeys[k]) && has_key(now, allkeys[k]) && n + kl + 4 < SNAPLEN) {
+    for (k = 1; opts_name(k, key, sizeof(key)); k++) {   /* set since then (only those): off now - one */
+        LONG kl = strlen(key);                   /* set only in the icon's tooltypes is in neither, and */
+        if (!has_key(lines, key) && has_key(now, key) && n + kl + 4 < SNAPLEN) {   /* stays (1: not CONFIG) */
             if (n) words[n++] = ' ';
-            words[n++] = '('; strcpy(words + n, allkeys[k]); n += kl; words[n++] = ')'; words[n] = 0;
+            words[n++] = '('; strcpy(words + n, key); n += kl; words[n++] = ')'; words[n] = 0;
         }
     }
     ok = config_set(d, words);
@@ -948,7 +936,6 @@ static BOOL build(struct Dock *d)
         if (both > s->Width) showsimple = FALSE;
     }
     rows = showsimple && showadv ? (rs > ra ? rs : ra) : showadv ? ra : rs;
-    simple_shown = showsimple;
     sw = showsimple ? cs * colws : 0;
     aw = showadv ? ca * colwa : 0;
     iw = sw + (showsimple && showadv ? 12 : 0) + aw + 10;
@@ -1172,9 +1159,12 @@ static void adv_apply(struct Dock *d, LONG i, UWORD code)
         strcpy(line, code == 1 ? "QUIET (VERBOSE)" : code == 2 ? "(QUIET) VERBOSE" : "(QUIET) (VERBOSE)");
         break;
     case K_LIST:
-        if (adv[i].vals) { a[0] = (LONG)adv[i].key; a[1] = adv[i].vals[code]; SD_FMT(line, "%s=%ld", a); }
-        else if (code) strcpy(line, adv[i].key);
-        else { strcpy(line, "("); strcat(line, adv[i].key); strcat(line, ")"); }
+        if (adv[i].vals) {
+            LONG nn;
+            for (nn = 0; adv[i].names[nn]; nn++) ;
+            if (code >= nn) code = 0;            /* (a chooser value out of range: the first) */
+            a[0] = (LONG)adv[i].key; a[1] = adv[i].vals[code]; SD_FMT(line, "%s=%ld", a);
+        } else SD_FMT(line, code ? "%s" : "(%s)", &adv[i].key);
         break;
     case K_KEY:                                  /* (a key not valid: beep, the one in use shown again) */
         key_case(v, str_get(ag[i]), 64, FALSE);
@@ -1184,12 +1174,11 @@ static void adv_apply(struct Dock *d, LONG i, UWORD code)
         SD_FMT(line, "%s=\"%s\"", a);
         break;
     case K_STR:
-        if (!str_get(ag[i])[0]) { strcpy(line, "("); strcat(line, adv[i].key); strcat(line, ")"); }
+        if (!str_get(ag[i])[0]) SD_FMT(line, "(%s)", &adv[i].key);
         else { strcpy(line, adv[i].key); strcat(line, "=\""); strncat(line, (char *)str_get(ag[i]), SD_LINEMAX - 1); strcat(line, "\""); }
         break;
     default:
-        if (ag[i]->Flags & GFLG_SELECTED) strcpy(line, adv[i].key);
-        else { strcpy(line, "("); strcat(line, adv[i].key); strcat(line, ")"); }
+        SD_FMT(line, ag[i]->Flags & GFLG_SELECTED ? "%s" : "(%s)", &adv[i].key);
         break;
     }
     apply_line(d, line);
@@ -1352,7 +1341,7 @@ static void prefs_store(struct Dock *d)
     loaded = FALSE;
 }
 
-void am_prefs_close(struct Dock *d) { prefs_store(d); }   /* ARexx is about to change the settings */
+void am_prefs_close(struct Dock *d) { prefs_store(d); }   /* ARexx, or quitting: its changes kept */
 
 ULONG am_prefs_sig(void)
 {
@@ -1480,8 +1469,6 @@ void am_prefs_handle(struct Dock *d)
     if (close) prefs_store(d);
     else if (pw && acted) recall_state(d);       /* (not for the ticks and moves the list asks for) */
 }
-
-void am_prefs_store(struct Dock *d) { prefs_store(d); }   /* quitting: as closing the window */
 
 BOOL am_handle(struct Dock *d)
 {

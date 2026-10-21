@@ -66,19 +66,24 @@ static UWORD tap_parse(CONST_STRPTR desc)
     return g;
 }
 
+/* A commodities key description into *ix. FALSE: not one (or no commodities). */
+static BOOL ix_parse(CONST_STRPTR desc, IX *ix)
+{
+    extern struct Library *CxBase;
+    if (!CxBase || !desc || !*desc) return FALSE;
+    ix->ix_Version = IX_VERSION;
+    return ParseIX((STRPTR)desc, ix) == 0;
+}
+
 /* The hotkey from its description ("ctrl alt d", or "ctrl alt shift");
    matched in in_watch. */
 BOOL in_set_hotkey(CONST_STRPTR desc)
 {
-    extern struct Library *CxBase;
     in_ixok = FALSE;
     in_taparmed = FALSE;
     if ((in_tapneed = tap_parse(desc))) return TRUE;
-    if (!CxBase || !desc || !*desc) return FALSE;
-    in_ix.ix_Version = IX_VERSION;
-    if (ParseIX((STRPTR)desc, &in_ix)) return FALSE;
-    in_ixok = TRUE;
-    return TRUE;
+    in_ixok = ix_parse(desc, &in_ix);
+    return in_ixok;
 }
 
 /* The other keys (minimise, minimise all, auto-hide on/off): ordinary
@@ -95,38 +100,28 @@ BOOL in_key_off(CONST_STRPTR desc)
 /* Can desc be one of them ("none" can; modifiers alone only the hotkey)? */
 BOOL in_key_valid(CONST_STRPTR desc)
 {
-    extern struct Library *CxBase;
     IX ix;
-    if (in_key_off(desc)) return TRUE;
-    if (!CxBase || tap_parse(desc)) return FALSE;
-    ix.ix_Version = IX_VERSION;
-    return ParseIX((STRPTR)desc, &ix) == 0;
+    return in_key_off(desc) || (!tap_parse(desc) && ix_parse(desc, &ix));
 }
 
 /* Returns the bits of those that are not valid descriptions (they are off). */
 ULONG in_set_keys(CONST_STRPTR *desc)
 {
-    extern struct Library *CxBase;
     ULONG bad = 0;
     LONG k;
     for (k = 0; k < NKEYS; k++) {
         in_kok[k] = FALSE;
         if (in_key_off(desc[k])) continue;
-        in_kix[k].ix_Version = IX_VERSION;
-        if (!CxBase || tap_parse(desc[k]) || ParseIX((STRPTR)desc[k], &in_kix[k])) bad |= 1UL << k;   /* (modifiers */
-        else in_kok[k] = TRUE;                   /*  only: only the hotkey can be a tap) */
+        if (tap_parse(desc[k]) || !ix_parse(desc[k], &in_kix[k])) bad |= 1UL << k;   /* (modifiers only: */
+        else in_kok[k] = TRUE;                                                         /*  only the hotkey can be a tap) */
     }
     return bad;
 }
 
 BOOL in_hotkey_valid(CONST_STRPTR desc)
 {
-    extern struct Library *CxBase;
     IX ix;
-    if (tap_parse(desc)) return TRUE;
-    if (!CxBase || !desc || !*desc) return FALSE;
-    ix.ix_Version = IX_VERSION;
-    return ParseIX((STRPTR)desc, &ix) == 0;
+    return tap_parse(desc) || ix_parse(desc, &ix);
 }
 
 

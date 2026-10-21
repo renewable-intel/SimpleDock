@@ -42,7 +42,6 @@ struct Opts {
     BOOL   notext, hovertext, noicon, noborder, ontop, transparent, quiet, verbose, crashlog;
     LONG   running, holdtime;         /* RUNNING 0-2, HOLDTIME tenths of a second */
     BOOL   clicknew, wbstart, dropmove, runhide, wbhide, shellask, nobeep;
-    BOOL   defconfig;                 /* CONFIG not given: SD_CONFIG */
 };
 
 /* A box in dock image coordinates, x1 / y1 exclusive; empty if x1 <= x0. */
@@ -208,7 +207,8 @@ LONG opts_lines(struct Dock *d, STRPTR *lines);
 BOOL opts_is_setting(CONST_STRPTR line);
 BOOL opts_nomem(void);                                     /* last parse failed for want of memory */
 LONG opts_key(CONST_STRPTR line);                           /* keyword's template index, -1: none */
-BOOL opts_switch(LONG k);                                   /* template keyword k is a switch (/S) */
+BOOL opts_switch(LONG k);
+BOOL opts_name(LONG k, char *out, LONG size);               /* template keyword k's name */                                   /* template keyword k is a switch (/S) */
 BOOL opts_check(STRPTR *lines);                             /* settings lines valid? (changes nothing) */
 BOOL opts_saved(CONST_STRPTR line);                         /* written by a save itself */
 void config_created(struct Dock *d);                        /* after dock_open: write a new file */
@@ -348,8 +348,7 @@ ULONG am_prefs_sig(void);                                   /* the settings wind
 void am_prefs_handle(struct Dock *d);
 struct Window *am_prefs_win(void);                          /* the settings window (NULL: closed) */
 void am_prefs_sync(struct Dock *d);                         /* ... shows settings changed elsewhere */
-void am_prefs_close(struct Dock *d);                        /* close it, keeping its changes (ARexx) */
-void am_prefs_store(struct Dock *d);                        /* the same, when quitting */
+void am_prefs_close(struct Dock *d);                        /* close it, keeping its changes (ARexx, quitting) */
 void am_note_overflow(struct Dock *d, LONG n);              /* "n icons do not fit" (not modal) */
 void am_settings(struct Dock *d, BOOL more);                /* the settings window (more: Advanced) */
 void am_close(void);
@@ -432,7 +431,9 @@ void sd_blend(__reg("a0") UBYTE *p, __reg("a1") const UBYTE *s, __reg("d0") LONG
 #endif
 void render_item(struct Dock *d, struct RastPort *rp, struct Item *it, WORD cx, WORD cy, BOOL selected);
 void render_divider(struct Dock *d, struct RastPort *rp, struct Box *b);   /* the divider, inside b */
-void render_dot(struct Dock *d, struct Item *it);           /* a minimised program's dot again (pulse) */
+void render_dot(struct Dock *d, struct Item *it);
+void render_clamp(struct Dock *d, WORD *x, WORD *y, WORD w, WORD h);   /* a box kept inside the image */
+void cell_at(struct Dock *d, struct Item *it, WORD *cx, WORD *cy);     /* where the cell of 'it' is drawn */           /* a minimised program's dot again (pulse) */
 void render_divider_at(struct Dock *d, struct RastPort *rp, struct Box *b, WORD at);   /* ... drawn at 'at' */
 void divider_box(struct Dock *d, WORD at, struct Box *b);   /* add where it is drawn at 'at' */
 WORD dock_along(struct Dock *d, WORD a);

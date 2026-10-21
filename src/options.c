@@ -129,6 +129,18 @@ LONG opts_key(CONST_STRPTR line)
     return FindArg((STRPTR)TEMPLATE, key);
 }
 
+/* Template keyword k's name into 'out' (FALSE: no such k). */
+BOOL opts_name(LONG k, char *out, LONG size)
+{
+    CONST_STRPTR t = TEMPLATE;
+    LONG n = 0;
+    while (k-- > 0 && (t = strchr(t, ','))) t++;
+    if (!t) return FALSE;
+    while (*t && *t != ',' && *t != '/' && *t != '=' && n < size - 1) out[n++] = *t++;
+    out[n] = 0;
+    return n > 0;
+}
+
 /* Is template keyword k a switch (/S)? */
 BOOL opts_switch(LONG k)
 {
@@ -258,7 +270,7 @@ BOOL opts_apply(struct Dock *d, STRPTR *lines, CONST_STRPTR from)
 {
     struct Opts *o = d->o;
     STRPTR home = o->config, *l;
-    BOOL def = o->defconfig, off[A_COUNT];
+    BOOL off[A_COUNT];
     LONG a[A_COUNT], t[A_COUNT], i;
     char name[512];
     struct DiskObject *dobj;
@@ -300,7 +312,6 @@ BOOL opts_apply(struct Dock *d, STRPTR *lines, CONST_STRPTR from)
         for (i = 0; i < A_COUNT; i++) if (cliargs[i]) a[i] = cliargs[i];
     fill(o, a, projcfg_kept);
     o->config = home;
-    o->defconfig = def;
     if (rd_icon) { FreeArgs(rd_icon); FreeDosObject(DOS_RDARGS, rd_icon); }
     if (rd_file) { FreeArgs(rd_file); FreeDosObject(DOS_RDARGS, rd_file); }
     rd_icon = rt;                               /* the strings in o point into these */
@@ -312,7 +323,6 @@ static void fill(struct Opts *o, LONG *a, STRPTR projcfg)
 {
     memset(o, 0, sizeof(*o));
     o->config     = a[A_CONFIG] ? (STRPTR)a[A_CONFIG] : projcfg ? projcfg : (STRPTR)SD_CONFIG;
-    o->defconfig  = !a[A_CONFIG] && !projcfg;
     o->pos        = (STRPTR)a[A_POS];
     o->font       = (STRPTR)a[A_FONT];
     o->pubscreen  = (STRPTR)a[A_PUBSCREEN];

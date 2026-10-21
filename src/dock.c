@@ -174,8 +174,8 @@ static void load_icons(struct Dock *d, WORD *cw, WORD *ch)
     if (*ch < 8) *ch = 8;
 }
 
-/* Grid of uniform cells; returns FALSE if nothing to show. */
-static BOOL layout(struct Dock *d)
+/* Grid of uniform cells (an empty dock: three free places). */
+static void layout(struct Dock *d)
 {
     WORD cw, ch, per, lines, n = 0, gap, keep, sw = d->scr->Width, sh = d->scr->Height;
     BOOL horiz;
@@ -233,7 +233,6 @@ static BOOL layout(struct Dock *d)
         gaps = (wb || prog) + (wb && prog);
     }
     per = n ? n : 3;                             /* empty: three free places to drop on */
-    if (!n) n = per;
     lines = 1;
     d->w = (horiz ? per * cw + gaps * DIVGAP : lines * cw) + 2 * d->pad;
     d->h = (horiz ? lines * ch : per * ch + gaps * DIVGAP) + 2 * d->pad;
@@ -269,7 +268,6 @@ static BOOL layout(struct Dock *d)
     case 'L': d->full = d->left + d->w; break;
     default:  d->full = sw - d->left; break;
     }
-    return TRUE;
 }
 
 /* Targets in list order, without 'skip' and leaving cell 'gap' free (-1: none).
@@ -572,11 +570,8 @@ void box_clip(struct Dock *d, struct Box *b)
 /* Add the cell where 'it' is drawn now - kept inside the image, as render_item does. */
 void item_box(struct Dock *d, struct Item *it, struct Box *b)
 {
-    WORD x = it->x, y = it->y;
-    if (x > d->w - it->w) x = d->w - it->w;
-    if (y > d->h - it->h) y = d->h - it->h;
-    if (x < 0) x = 0;
-    if (y < 0) y = 0;
+    WORD x, y;
+    cell_at(d, it, &x, &y);
     box_add(b, x, y, it->w, it->h);
 }
 
@@ -1020,11 +1015,11 @@ BOOL dock_event(struct Dock *d, struct IntuiMessage *im)
                 up = FALSE;
                 /* running: to the front, unless a new copy is asked for (Shift; with
                    CLICKNEW the other way round) */
-                if (it->temp == RUN_MORE) ;
-                else if (it->temp == RUN_WB) run_front(d, it);   /* (no new copy of Workbench) */
+                if (it->temp == RUN_WB) run_front(d, it);   /* (no new copy of Workbench; the "more" cell: nothing) */
                 else if (run_is_drawer(it)) { if (!run_front(d, it)) launch_item(d, it); }   /* (open: to the front) */
-                else if (!!(im->Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT)) != d->o->clicknew ||
-                         !run_front(d, it))
+                else if (it->temp != RUN_MORE &&
+                         (!!(im->Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT)) != d->o->clicknew ||
+                          !run_front(d, it)))
                     launch_item(d, it);
                 run_clicked(d);
             }

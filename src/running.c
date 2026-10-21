@@ -248,6 +248,16 @@ static struct { struct Window *win; struct Task *task; UBYTE shown, seen; } mini
 static LONG nmini;
 static void close_next(void);
 static void shell_sync(struct Dock *d, LONG n);
+static void list_window_close(struct Dock *d);
+
+/* The list window closed (the input handler looks at d->list: NULL first). */
+static void list_window_close(struct Dock *d)
+{
+    struct Window *w = d->list;
+    if (!w) return;
+    d->list = NULL;
+    CloseWindow(w);
+}
 
 /* Where row r of the list starts (r >= nlist: the actions, after a divider). */
 static WORD row_y(LONG r) { return PADY + r * rowh + (r >= nlist && nlist ? SEPH : 0); }
@@ -456,7 +466,6 @@ static LONG collect(BOOL titles)
     struct Screen *s;
     struct Layer *l;
     LONG n, i, k, try, ns, nl;
-    ULONG ilock;
     struct MsgPort *cons[MAXWIN];
     con_reap();
     Forbid();
@@ -482,7 +491,7 @@ static LONG collect(BOOL titles)
     for (try = 0; ; try++) {
     n = 0;
     busy = FALSE;
-    held_lock = ilock = LockIBase(0);
+    held_lock = LockIBase(0);
     Forbid();                                    /* (the windows' tasks can't end meanwhile) */
     held_ibase = TRUE;                           /* (crash recovery: undone there) */
     snap_tasks();                                /* the tasks there now */
@@ -562,7 +571,7 @@ static LONG collect(BOOL titles)
     }
     held_ibase = FALSE;
     Permit();
-    UnlockIBase(ilock);
+    UnlockIBase(held_lock);
     if (!busy || try == 3) break;
     Delay(1);                                    /* a program is changing its windows: again */
     }
@@ -693,7 +702,7 @@ static BOOL link_drawers(struct Dock *d, LONG n)
     last = sig;
     was = wbnames(d);
     FOR_ITEMS(d, it) it->wbname[0] = 0;
-    if (!any || WorkbenchBase->lib_Version < 44 ||
+    if (!any ||
         !WorkbenchControl(NULL, WBCTRLA_GetOpenDrawerList, &dl, TAG_END) || !dl) return was != 0;
     oldwin = me->pr_WindowPtr;
     me->pr_WindowPtr = (APTR)-1;                 /* (a disk not inserted: no requester) */
@@ -1497,31 +1506,37 @@ static LONG wb_path(BPTR *lk, LONG max)
     return n;
 }
 
+/* A lock on 'name' in a drawer of Workbench's path (0: none), with no
+   "please insert" requesters. */
+static BPTR wb_find(CONST_STRPTR name)
+{
+    struct Process *me = (struct Process *)FindTask(NULL);
+    BPTR lk[MAXPATH], l = 0, old;
+    APTR win = me->pr_WindowPtr;
+    LONG n = wb_path(lk, MAXPATH), k;
+    me->pr_WindowPtr = (APTR)-1;
+    for (k = 0; k < n; k++) {
+        old = CurrentDir(lk[k]);
+        if (!l) l = Lock((STRPTR)name, SHARED_LOCK);
+        CurrentDir(old);
+        UnLock(lk[k]);
+    }
+    me->pr_WindowPtr = win;
+    return l;
+}
+
 /* A default tool as Workbench finds it: a full path as it is, else in the
    project's drawer, then in Workbench's path, then in C:. Its full name into
    'out'. */
 static BOOL find_tool(CONST_STRPTR tool, BPTR projdir, char *out, LONG size)
 {
-    struct Process *me = (struct Process *)FindTask(NULL);
-    BPTR lk[MAXPATH], l, old;
-    APTR win;
-    LONG n, k;
+    BPTR l, old;
     if (!tool || !*tool || strlen(tool) >= size - 4) return FALSE;
     if (strchr(tool, ':')) { strcpy(out, tool); return TRUE; }
     old = CurrentDir(projdir);
-    if (!(l = Lock(tool, SHARED_LOCK))) {
-        n = wb_path(lk, MAXPATH);
-        win = me->pr_WindowPtr;
-        me->pr_WindowPtr = (APTR)-1;             /* (a drawer on a disk not inserted: no requester) */
-        for (k = 0; k < n && !l; k++) {
-            CurrentDir(lk[k]);
-            l = Lock(tool, SHARED_LOCK);
-        }
-        me->pr_WindowPtr = win;
-        CurrentDir(projdir);
-        for (k = 0; k < n; k++) UnLock(lk[k]);
-    }
+    l = Lock(tool, SHARED_LOCK);
     CurrentDir(old);
+    if (!l) l = wb_find(tool);
     if (l) {
         BOOL ok = NameFromLock(l, out, size);
         UnLock(l);
@@ -2054,7 +2069,7 @@ static void list_drop(struct Dock *d, LONG r)
     if (!lmode) { if (list[r].hid) lhid--; else lshow--; }
     nlist--;
     memmove(&list[r], &list[r + 1], (nlist - r) * sizeof(list[0]));
-    if (d->list) { struct Window *w = d->list; d->list = NULL; CloseWindow(w); }   /* (the input handler looks: NULL first) */
+    list_window_close(d);
     if (listbg) { WaitBlit(); FreeBitMap(listbg); listbg = NULL; }
     lsel = -1;
     if (!nlist && lmode) nact = 0;               /* (asking which one: all done) */
@@ -2279,7 +2294,6 @@ static BOOL can_hide(void)
    minimised window made active later is someone else's doing (run_wake). */
 static void hide_win(struct Window *w, struct Task *t)
 {
-    extern struct Window *volatile in_prevwin;
     struct Window *aw = IntuitionBase->ActiveWindow, *x, *to = NULL;
     BOOL active = aw == w || (w == in_prevwin && aw && aw->UserPort &&   /* (a click on the dock gives the */
                               aw->UserPort->mp_SigTask == (APTR)FindTask(NULL));   /*  focus back: queued) */
@@ -2386,8 +2400,7 @@ static BOOL hide_it(struct Window *w, struct Task *t, BOOL hid)
     BOOL ok = TRUE;
     Forbid();
     if (win_screen(w, t) && !is_mini(w)) {
-        if (!(ok = mini_add(w, t))) ;
-        else if (!hid) hide_win(w, t);
+        if ((ok = mini_add(w, t)) && !hid) hide_win(w, t);
     }
     Permit();
     return ok;
@@ -2564,21 +2577,14 @@ static const struct { const char *end, *tool, *here, *into; } packer[] = {
 static BOOL unpack_tool(CONST_STRPTR name, char *out, LONG size)
 {
     char c[40];
-    BPTR lk[MAXPATH], l = 0, old;
-    LONG n, k;
+    BPTR l;
+    LONG ok;
     strcpy(c, "C:"); strcat(c, name);
     if ((l = Lock(c, SHARED_LOCK))) { UnLock(l); strcpy(out, name); return TRUE; }
-    n = wb_path(lk, MAXPATH);
-    for (k = 0; k < n && !l; k++) {
-        old = CurrentDir(lk[k]);
-        l = Lock((STRPTR)name, SHARED_LOCK);
-        CurrentDir(old);
-    }
-    for (k = 0; k < n; k++) UnLock(lk[k]);
-    if (!l) return FALSE;
-    n = NameFromLock(l, out, size);
+    if (!(l = wb_find(name))) return FALSE;
+    ok = NameFromLock(l, out, size);
     UnLock(l);
-    return n;
+    return ok;
 }
 
 /* The unpack command for archive 'path' (name: its file name) into 'out';
@@ -3030,7 +3036,7 @@ static void pick_list(struct Dock *d, UBYTE mode)
     act[0] = ACT_ALL;
     lmode = mode;
     lsel = -1;
-    if (d->list) { struct Window *w = d->list; d->list = NULL; CloseWindow(w); }   /* (the input handler looks: NULL first) */
+    list_window_close(d);
     if (listbg) { WaitBlit(); FreeBitMap(listbg); listbg = NULL; }
     d->liststicky = TRUE;                        /* (the button is up: a click picks) */
     if (!list_open(d)) run_list_close(d);
@@ -3129,7 +3135,7 @@ void run_list_move(struct Dock *d, WORD sx, WORD sy)
 void run_list_close(struct Dock *d)
 {
     d->liststicky = FALSE;
-    if (d->list) { struct Window *w = d->list; d->list = NULL; CloseWindow(w); }   /* (the input handler looks: NULL first) */
+    list_window_close(d);
     if (listbg) { WaitBlit(); FreeBitMap(listbg); listbg = NULL; }
     nlist = 0; lsel = -1; litem = NULL; nact = 0; lmode = 0;
 }

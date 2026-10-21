@@ -700,10 +700,7 @@ void render_dot(struct Dock *d, struct Item *it)
     WORD cx = it->x, cy = it->y, x, y;
     if (!d->img || !d->bg || !d->win || d->vis != d->full || !d->o->running) return;
     if (d->dragging || an_running() || it == d->drag) return;   /* (the cell is moving, or empty) */
-    if (cx > d->w - it->w) cx = d->w - it->w;    /* where render_item draws the cell */
-    if (cy > d->h - it->h) cy = d->h - it->h;
-    if (cx < 0) cx = 0;
-    if (cy < 0) cy = 0;
+    cell_at(d, it, &cx, &cy);
     x = cx + it->w / 2; y = cy + it->h - RUNBAND;
     if (x < 2 || x + 2 >= d->w || y < 0 || y + 2 >= d->h) return;
     dz_lock();
@@ -789,10 +786,7 @@ void render_item(struct Dock *d, struct RastPort *rp, struct Item *it, WORD cx, 
 #ifdef SD_DEBUG
     if (cx < 0 || cy < 0 || cx > d->w - it->w || cy > d->h - it->h) render_clamps++;
 #endif
-    if (cx > d->w - it->w) cx = d->w - it->w;
-    if (cy > d->h - it->h) cy = d->h - it->h;
-    if (cx < 0) cx = 0;
-    if (cy < 0) cy = 0;
+    render_clamp(d, &cx, &cy, it->w, it->h);
     if (it->w > d->w || it->h > d->h) return;
     if (it->dobj && !d->o->noicon)
         icon_dock(d, rp, it, cx + (it->w - it->iw) / 2, cy + ICON_DY(d, it), selected);
@@ -828,14 +822,20 @@ void render_items(struct Dock *d, struct RastPort *rp, struct Item *only, BOOL s
     PROF_STOP(0, t0);
 }
 
+/* A w x h box at x, y kept inside the dock image. */
+void render_clamp(struct Dock *d, WORD *x, WORD *y, WORD w, WORD h)
+{
+    if (*x > d->w - w) *x = d->w - w;
+    if (*y > d->h - h) *y = d->h - h;
+    if (*x < 0) *x = 0;
+    if (*y < 0) *y = 0;
+}
+
 /* Where render_item draws the cell of 'it' (kept inside the image). */
-static void cell_at(struct Dock *d, struct Item *it, WORD *cx, WORD *cy)
+void cell_at(struct Dock *d, struct Item *it, WORD *cx, WORD *cy)
 {
     WORD x = it->x, y = it->y;
-    if (x > d->w - it->w) x = d->w - it->w;
-    if (y > d->h - it->h) y = d->h - it->h;
-    if (x < 0) x = 0;
-    if (y < 0) y = 0;
+    render_clamp(d, &x, &y, it->w, it->h);
     *cx = x; *cy = y;
 }
 

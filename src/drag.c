@@ -121,10 +121,7 @@ static void show_frame(struct Dock *d, struct Box *b)
     WORD x = px - offx, y = py - offy;
     if (!base) { dock_compose(d); return; }
     if (bw > d->w || bh > d->h) return;          /* would not fit the dock image */
-    if (x > d->w - bw) x = d->w - bw;
-    if (y > d->h - bh) y = d->h - bh;
-    if (x < 0) x = 0;
-    if (y < 0) y = 0;
+    render_clamp(d, &x, &y, bw, bh);
     if (last.x1 > last.x0) box_add(&dirty, last.x0, last.y0, last.x1 - last.x0, last.y1 - last.y0);
     box_add(&dirty, x, y, bw, bh);
     box_clip(d, &dirty);
@@ -157,7 +154,7 @@ void drag_redraw(struct Dock *d, struct Box *b)
 }
 
 /* The cell under window coordinates, for a drop or a gap (-1: outside the dock). */
-static LONG cell_at(struct Dock *d, WORD x, WORD y)
+static LONG cell_under(struct Dock *d, WORD x, WORD y)
 {
     LONG c;
     if (x < -MARGIN || y < -MARGIN || x >= d->w + MARGIN || y >= d->h + MARGIN) return -1;
@@ -246,7 +243,7 @@ static void start(struct Dock *d)
 
 static void move(struct Dock *d, WORD mx, WORD my)
 {
-    LONG g = cell_at(d, mx, my);
+    LONG g = cell_under(d, mx, my);
     BOOL keep;
     LONG at;
     PROF_START(t0);
@@ -312,7 +309,7 @@ static LONG allowed(struct Dock *d, LONG g, WORD x, WORD y, BOOL *keep)
 static void drop(struct Dock *d, WORD x, WORD y)
 {
     struct Item *it = d->drag, *before = NULL, *i;
-    LONG cell = cell_at(d, x, y), k = 0, to;
+    LONG cell = cell_under(d, x, y), k = 0, to;
     BOOL was_inside = inside, keep;              /* finish() clears it */
     BOOL temp = it->temp, refuse = it->temp && cell >= 0 && kept_side(d, x, y), cancel = cell < 0 && d->fromlist;
     to = allowed(d, cell, x, y, &keep);
@@ -415,14 +412,7 @@ BOOL drag_drop_wb(struct Dock *d, struct AppMessage *am)
        locks the screen during an icon drag, so the dock can't slide out to
        show where the icon would land. If Workbench ever allows it, the drop
        could be placed by its position along the strip. */
-#ifdef SD_STRIP_DROP
-    if (d->vis != d->full) {
-        if (d->horiz) y = d->pad + d->ch / 2;
-        else x = d->pad + d->cw / 2;
-    }
-#else
     if (d->vis != d->full) return FALSE;
-#endif
     if (am->am_UserData != d->gen) return FALSE; /* queued for a window that is gone: its zones differ */
     if (am->am_NumArgs <= 0) { dz_reset(d); dock_show(d); return FALSE; }
     /* onto the middle of an icon: open them with it */
