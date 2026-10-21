@@ -332,6 +332,20 @@ Programs
   Workbench icon   Show or Hide the Workbench icon (WBHIDE)
   Hidden programs  the programs you dragged off the dock. Pick one and
                    click Remove to show it again (IGNORE)
+Shell drops
+  Icons into a     Type paths (default) or Off: icons dropped from
+  Shell            Workbench onto a Shell window have their paths typed
+                   at the cursor (in quotes if needed). A single archive
+                   whose tool is in C: or Workbench's path gets the
+                   command that unpacks it instead, e.g. lha x "Work:a.lha"
+                   - check it and press Return. Archives: .lha .lzh .lzx
+                   .zip .tar .tgz .tar.gz .gz .bz2 .xz .7z .rar (lha, lzx,
+                   unzip, tar, gzip, bzip2, xz, 7z, unrar). Not on 3.2,
+                   whose Shell types paths itself, nor in consoles that
+                   have their own (KingCON, ViNCEd) (SHELLDROP)
+  Unpack archives  into the Shell's current drawer, RAM:, or the Unpack
+  to               drawer (UNPACKTO=0/1/2)
+  Unpack drawer    the drawer for that (UNPACKDIR)
 Keys
   Minimise window  the key that minimises the active window (MINKEY)
   Minimise all     the key that minimises all (MINALLKEY)
@@ -432,6 +446,10 @@ command line:
   MINALLKEY=<keys>    minimise all (default ctrl alt shift m)
   AHKEY=<keys>        auto-hide on/off (default ctrl alt h)
   SHELLASK            Shell icons ask first ("Execute a file")
+  SHELLDROP=<n>       1 = icons dropped onto a Shell typed (default), 0 = off
+  UNPACKTO=<n>        archives unpack: 0 = Shell's drawer, 1 = RAM:,
+                      2 = UNPACKDIR
+  UNPACKDIR=<drawer>  the drawer for UNPACKTO=2
                       (none: the key is off)
 
 Settings are applied in this order: icon tooltypes, settings file, then

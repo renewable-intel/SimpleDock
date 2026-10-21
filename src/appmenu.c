@@ -282,6 +282,10 @@ static const LONG runval[] = { 0, 1, 2 };
 static const char *const clickname[] = { "Bring to front", "New copy", NULL };
 static const char *const startname[] = { "SimpleDock", "Workbench", NULL };
 static const char *const askname[] = { "Start at once", "Ask first", NULL };
+static const char *const sdropname[] = { "Off", "Type paths", NULL };
+static const LONG sdropval[] = { 0, 1 };
+static const char *const unpackname[] = { "Shell's drawer", "RAM:", "Unpack drawer", NULL };
+static const LONG unpackval[] = { 0, 1, 2 };
 static const char *const dropname[] = { "Copy", "Like Workbench", NULL };
 static const char *const holdname[] = { "Normal (0.3 s)", "Long (0.4 s)", "Longer (0.5 s)", NULL };
 static const LONG holdval[] = { 3, 4, 5 };
@@ -312,6 +316,9 @@ static const struct { const char *label, *key; UBYTE kind; const char *const *na
     { "Programs not on the dock", "RUNHIDE", K_LIST, othername, NULL, 0 },
     { "Workbench icon", "WBHIDE", K_LIST, othername, NULL, 0 },
     { "Hidden programs", "IGNORE", K_HIDE },
+    { "Icons into a Shell", "SHELLDROP", K_LIST, sdropname, sdropval, 1, "Shell drops" },
+    { "Unpack archives to", "UNPACKTO", K_LIST, unpackname, unpackval, 0 },
+    { "Unpack drawer", "UNPACKDIR", K_STR },
     { "Minimise window", "MINKEY", K_KEY, NULL, NULL, 0, "Keys" },
     { "Minimise all", "MINALLKEY", K_KEY },
     { "Auto-hide on/off", "AHKEY", K_KEY },
@@ -330,7 +337,7 @@ static const char *const allkeys[] = { "POS", "DISTANCE", "OFFSET", "FONT", "PUB
     "NOICON", "NOBORDER", "ICONDIST", "SCALEICONW", "SCALEICONH", "LIMIT", "AUTOHIDE", "ONTOP", "TRANSPARENT",
     "TINT", "OPACITY", "RADIUS", "DELAY", "QUIET", "VERBOSE", "HOTKEY", "CUSTOMTINT", "CRASHLOG",
     "RUNNING", "CLICKNEW", "WBSTART", "DROPMOVE", "HOLDTIME", "RUNHIDE", "IGNORE", "WBHIDE", "MINKEY", "MINALLKEY",
-    "AHKEY", "SHELLASK", NULL };
+    "AHKEY", "SHELLASK", "SHELLDROP", "UNPACKTO", "UNPACKDIR", NULL };
 
 static STRPTR glabels[NGROUP][11];      /* cycle labels (+ "Other" for a value set elsewhere) */
 
@@ -1481,9 +1488,11 @@ BOOL am_handle(struct Dock *d)
         { char t[64]; LONG v[3]; v[0] = am->am_Type; v[1] = am->am_ID; v[2] = am->am_NumArgs;
           SD_FMT(t, "appmsg type %ld id %ld args %ld", v); TRACE(t); }
 #endif
-        dropped = (am->am_Type == AMTYPE_APPWINDOW || am->am_Type == AMTYPE_APPWINDOWZONE) && d->win &&
-                  drag_drop_wb(d, am);
+        struct Window *sh = am->am_Type == AMTYPE_APPWINDOW && am->am_ID == 0x5344 ? run_shell_drop(d, am) : NULL;
+        dropped = !sh && am->am_ID != 0x5344 && (am->am_Type == AMTYPE_APPWINDOW || am->am_Type == AMTYPE_APPWINDOWZONE) &&
+                  d->win && drag_drop_wb(d, am);
         ReplyMsg((struct Message *)am);
+        if (sh) run_shell_type(d, sh);           /* (icons dropped onto a Shell window: running.c) */
         if (dropped) {                             /* the dock grows, icons make way */
             dock_reopen_glide(d);
             config_store(d);

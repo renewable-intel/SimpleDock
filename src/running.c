@@ -38,6 +38,9 @@
 #include <graphics/layers.h>
 #include <libraries/asl.h>
 #include <proto/asl.h>
+#include <proto/keymap.h>
+#include <devices/input.h>
+#include <devices/inputevent.h>
 #include "sd.h"
 
 extern struct IntuitionBase *IntuitionBase;
@@ -69,6 +72,7 @@ struct Own {                            /* a window and the program it belongs t
     char           title[TITLELEN];
     char           cmd[CMDLEN];         /* Shell command with a full path, else empty */
     BOOL           con;                 /* a Shell's console window */
+    BOOL           stdcon;              /* ... of the standard console (no port of its own) */
     BOOL           widget;              /* a small window without border or gadgets (a title-bar clock) */
     struct Screen *scr;                 /* its screen */
     BOOL           hid;                 /* hidden (minimised: its layer is) */
@@ -241,6 +245,7 @@ static LONG mini_at(struct Window *w);
 static struct { struct Window *win; struct Task *task; UBYTE shown, seen; } mini[MAXMINI];   /* see "minimised" below */
 static LONG nmini;
 static void close_next(void);
+static void shell_sync(struct Dock *d, LONG n);
 
 /* Where row r of the list starts (r >= nlist: the actions, after a divider). */
 static WORD row_y(LONG r) { return PADY + r * rowh + (r >= nlist && nlist ? SEPH : 0); }
@@ -505,6 +510,7 @@ static LONG collect(BOOL titles)
             else task_name(t, own[n].name, own[n].cmd);
             for (k = 0; k < ncon && contask[k] != t; k++) ;
             own[n].con = k < ncon;
+            own[n].stdcon = own[n].con && !w->UserPort;
             own[n].widget = (w->Flags & WFLG_BORDERLESS) &&
                             !(w->Flags & (WFLG_CLOSEGADGET | WFLG_DEPTHGADGET | WFLG_DRAGBAR | WFLG_SIZEGADGET)) &&
                             (w->Width < s->Width / 2 || w->Height < s->Height / 2);
@@ -543,6 +549,7 @@ static LONG collect(BOOL titles)
         else task_name(mini[k].task, own[n].name, own[n].cmd);
         for (i = 0; i < ncon && contask[i] != mini[k].task; i++) ;
         own[n].con = i < ncon;
+        own[n].stdcon = FALSE;
         own[n].widget = FALSE;
         own[n].title[0] = 0;
         if ((titles || own[n].wb) && mini[k].win->Title) {
@@ -1227,6 +1234,7 @@ static BOOL scan(struct Dock *d)
     run_scans++; run_found = n;
 #endif
     if (busy) { later = TRUE; goto done; }       /* (not all windows seen: again in a moment) */
+    shell_sync(d, n);                            /* Shell windows: drop targets */
     if (link_drawers(d, n)) lastsig = 0;         /* (docked drawers open in Workbench: counted anew) */
     {                                             /* the same windows and Shells as last time: nothing to count */
         ULONG sig = n * 31 + nshells + d->o->runhide + 2 * d->o->wbhide, wsum = 0;
@@ -2344,6 +2352,232 @@ void run_show_all(void)
         nmini--;
     }
 }
+
+/* ------------------------------------------------- icons dropped into a Shell */
+
+/* Workbench 3.2's console types the path of an icon dropped onto a Shell
+   window itself; older ones (3.1, 3.9, CaffeineOS) do nothing. There the
+   dock makes the standard console's Shell windows drop targets (consoles
+   with a port of their own, KingCON or ViNCEd, are left alone: they may do
+   it themselves) and types the paths - or, for one archive whose tool is
+   found, the command that unpacks it (SHELLDROP, UNPACKTO, UNPACKDIR). The
+   text is typed as keys at the cursor, without Return. */
+#define SHELL_AWID 0x5344                        /* AppWindow id of a Shell window (am_ID; the dock's is 0) */
+#define MAXSDW 16
+static struct { struct Window *win; struct Task *task; struct AppWindow *aw; } sdw[MAXSDW];
+static LONG nsdw;
+
+static BOOL drop_on(struct Dock *d)
+{
+    return d->o->shelldrop && WorkbenchBase->lib_Version < 47 && am_port();
+}
+
+/* Another window became active and the dock does not look for running
+   programs (RUNNING=0): the Shell windows looked at here. */
+void run_shell_check(struct Dock *d)
+{
+    if (!d->o->running && (drop_on(d) || nsdw)) shell_sync(d, collect(FALSE));
+}
+
+/* No Shell window is a drop target any more (quitting, or SHELLDROP off). */
+void run_shell_off(void)
+{
+    while (nsdw > 0) RemoveAppWindow(sdw[--nsdw].aw);
+}
+
+/* After a look (collect: n windows): the Shell windows there now are drop
+   targets, those gone are not. */
+static void shell_sync(struct Dock *d, LONG n)
+{
+    LONG i, k;
+    if (!drop_on(d)) { run_shell_off(); return; }
+    for (k = 0; k < nsdw; k++) {
+        for (i = 0; i < n && !(own[i].stdcon && own[i].win == sdw[k].win && own[i].task == sdw[k].task); i++) ;
+        if (i == n) {
+            RemoveAppWindow(sdw[k].aw);
+            sdw[k--] = sdw[--nsdw];
+        }
+    }
+    for (i = 0; i < n && nsdw < MAXSDW; i++) {
+        if (!own[i].stdcon || own[i].hid) continue;
+        for (k = 0; k < nsdw && sdw[k].win != own[i].win; k++) ;
+        if (k < nsdw) continue;
+        if ((sdw[nsdw].aw = AddAppWindow(SHELL_AWID, (ULONG)own[i].win, own[i].win, am_port(), TAG_END))) {
+            sdw[nsdw].win = own[i].win;
+            sdw[nsdw++].task = own[i].task;
+        }
+    }
+}
+
+/* The archive kinds: name ending, tool, its arguments (unpacking in the
+   current drawer / into %d); %a the archive, %n its name without the
+   ending (one-file packers write it with ">"). */
+static const struct { const char *end, *tool, *here, *into; } packer[] = {
+    { ".lha", "lha", "x %a", "x %a %d" },       { ".lzh", "lha", "x %a", "x %a %d" },
+    { ".lzx", "lzx", "x %a", "x %a %d" },       { ".zip", "unzip", "%a", "%a -d %d" },
+    { ".tar.gz", "tar", "xzvf %a", "xzvf %a -C %d" }, { ".tgz", "tar", "xzvf %a", "xzvf %a -C %d" },
+    { ".tar", "tar", "xvf %a", "xvf %a -C %d" }, { ".gz", "gzip", ">%n -dc %a", ">%d%n -dc %a" },
+    { ".bz2", "bzip2", ">%n -dc %a", ">%d%n -dc %a" }, { ".xz", "xz", ">%n -dc %a", ">%d%n -dc %a" },
+    { ".7z", "7z", "x %a", "x %a -o%d" },       { ".rar", "unrar", "x %a", "x %a %d" } };
+#define NPACKER ((LONG)(sizeof(packer) / sizeof(packer[0])))
+
+/* Tool 'name' in C: (then out = name) or in Workbench's path (out = its full
+   name). */
+static BOOL unpack_tool(CONST_STRPTR name, char *out, LONG size)
+{
+    char c[40];
+    BPTR lk[MAXPATH], l = 0, old;
+    LONG n, k;
+    strcpy(c, "C:"); strcat(c, name);
+    if ((l = Lock(c, SHARED_LOCK))) { UnLock(l); strcpy(out, name); return TRUE; }
+    n = wb_path(lk, MAXPATH);
+    for (k = 0; k < n && !l; k++) {
+        old = CurrentDir(lk[k]);
+        l = Lock((STRPTR)name, SHARED_LOCK);
+        CurrentDir(old);
+    }
+    for (k = 0; k < n; k++) UnLock(lk[k]);
+    if (!l) return FALSE;
+    n = NameFromLock(l, out, size);
+    UnLock(l);
+    return n;
+}
+
+/* The unpack command for archive 'path' (name: its file name) into 'out';
+   FALSE: not an archive, or its tool is not there. */
+static BOOL unpack_cmd(struct Dock *d, CONST_STRPTR path, CONST_STRPTR name, char *out, LONG size)
+{
+    char tool[SD_LINEMAX], dest[SD_LINEMAX], base[108], *o;
+    CONST_STRPTR t, dir = d->o->unpackto == 1 ? (CONST_STRPTR)"RAM:" : d->o->unpackto == 2 ? d->o->unpackdir : NULL;
+    LONG k, nl = strlen(name), el;
+    for (k = 0; k < NPACKER; k++) {
+        el = strlen(packer[k].end);
+        if (nl > el && !Stricmp((STRPTR)name + nl - el, (STRPTR)packer[k].end)) break;
+    }
+    if (k == NPACKER || !unpack_tool(packer[k].tool, tool, sizeof(tool))) return FALSE;
+    memcpy(base, name, nl - el); base[nl - el] = 0;
+    dest[0] = 0;
+    if (dir && *dir && strlen(dir) < sizeof(dest) - 2) {   /* (a drawer: ends in ':' or '/') */
+        strcpy(dest, dir);
+        if (dest[strlen(dest) - 1] != ':' && dest[strlen(dest) - 1] != '/') strcat(dest, "/");
+    }
+    if (strlen(tool) + strlen(path) + strlen(dest) + nl + 40 > size) return FALSE;
+    out[0] = 0;
+    add_name(out, tool);
+    strcat(out, " ");
+    for (t = dest[0] ? packer[k].into : packer[k].here; *t; t++) {
+        o = out + strlen(out);
+        if (*t != '%') { o[0] = *t; o[1] = 0; continue; }
+        t++;
+        if (*t == 'a') add_name(out, path);
+        else if (*t == 'd' && t[1] == '%' && t[2] == 'n') {   /* (">%d%n": one name, in quotes if needed) */
+            char both[2 * SD_LINEMAX];
+            strcpy(both, dest); strcat(both, base);
+            add_name(out, both);
+            t += 2;
+        } else if (*t == 'd') add_name(out, dest);
+        else if (*t == 'n') add_name(out, base);
+    }
+    return TRUE;
+}
+
+/* What to type for icons dropped onto a Shell window (before the drop is
+   answered: its locks are valid until then). The window, if it is still
+   one of ours; NULL: nothing to type. */
+static char droptext[2048];
+struct Window *run_shell_drop(struct Dock *d, struct AppMessage *am)
+{
+    char path[SD_LINEMAX + 8], cmd[2 * SD_LINEMAX + 64];
+    struct Window *w = (struct Window *)am->am_UserData;
+    LONG i, k;
+    droptext[0] = 0;
+    for (k = 0; k < nsdw && sdw[k].win != w; k++) ;
+    if (k == nsdw) return NULL;
+    for (i = 0; i < am->am_NumArgs; i++) {
+        struct WBArg *a = &am->am_ArgList[i];
+        BOOL file = a->wa_Name && a->wa_Name[0];
+        if (!a->wa_Lock || !NameFromLock(a->wa_Lock, path, sizeof(path) - 2)) continue;
+        if (file && !AddPart(path, a->wa_Name, sizeof(path) - 2)) continue;
+        if (am->am_NumArgs == 1 && file && unpack_cmd(d, path, a->wa_Name, cmd, sizeof(cmd))) {
+            strcpy(droptext, cmd);
+            break;
+        }
+        if (strlen(droptext) + strlen(path) + 4 >= sizeof(droptext)) break;
+        add_name(droptext, path);
+        strcat(droptext, " ");
+    }
+    return droptext[0] ? w : NULL;
+}
+
+/* The text into Shell window w (after the drop was answered): the window
+   made active, then the text typed as keys (keymap.library: this keymap's
+   keys for each character). Not typed if the window does not become
+   active (it would go to another one). */
+void run_shell_type(struct Dock *d, struct Window *w)
+{
+    struct Library *KeymapBase;
+    struct MsgPort *port;
+    struct IOStdReq *io;
+    struct InputEvent ie;
+    UBYTE keys[16];
+    LONG i, k, n, wait;
+    if (!w || !droptext[0]) return;
+    Forbid();
+    for (k = 0; k < nsdw && sdw[k].win != w; k++) ;
+    if (k < nsdw && win_screen(w, sdw[k].task)) ActivateWindow(w);
+    else w = NULL;
+    Permit();
+    if (!w) return;
+    for (wait = 0; wait < 25 && IntuitionBase->ActiveWindow != w; wait++) Delay(1);
+    if (IntuitionBase->ActiveWindow != w) { DisplayBeep(d->scr); return; }
+    if (!(KeymapBase = OpenLibrary("keymap.library", 37))) return;
+    if ((port = CreateMsgPort())) {
+        if ((io = (struct IOStdReq *)CreateIORequest(port, sizeof(*io)))) {
+            if (!OpenDevice("input.device", 0, (struct IORequest *)io, 0)) {
+                for (i = 0; droptext[i]; i++) {
+                    n = MapANSI((STRPTR)droptext + i, 1, (STRPTR)keys, sizeof(keys), NULL);
+                    for (k = 0; k < n; k++) {
+                        memset(&ie, 0, sizeof(ie));
+                        ie.ie_Class = IECLASS_RAWKEY;
+                        ie.ie_Code = keys[2 * k];
+                        ie.ie_Qualifier = keys[2 * k + 1];
+                        io->io_Command = IND_WRITEEVENT;
+                        io->io_Data = &ie;
+                        io->io_Length = sizeof(ie);
+                        DoIO((struct IORequest *)io);
+                        ie.ie_Code |= IECODE_UP_PREFIX;
+                        DoIO((struct IORequest *)io);
+                    }
+                }
+                CloseDevice((struct IORequest *)io);
+            }
+            DeleteIORequest((struct IORequest *)io);
+        }
+        DeleteMsgPort(port);
+    }
+    CloseLibrary(KeymapBase);
+}
+
+#ifdef SD_DEBUG
+/* ARexx SHELLDROPTEST DIR NAME (tests): DIR/NAME dropped onto the first
+   Shell window that is a drop target, as Workbench sends it. RC 5: none. */
+LONG run_debug_shelldrop(struct Dock *d, CONST_STRPTR dir, CONST_STRPTR name)
+{
+    struct AppMessage am;
+    struct WBArg wa;
+    struct Window *w;
+    if (!nsdw || !(wa.wa_Lock = Lock((STRPTR)dir, SHARED_LOCK))) return 5;
+    memset(&am, 0, sizeof(am));
+    wa.wa_Name = (BYTE *)name;
+    am.am_NumArgs = 1;
+    am.am_ArgList = &wa;
+    am.am_UserData = (ULONG)sdw[0].win;
+    w = run_shell_drop(d, &am);
+    UnLock(wa.wa_Lock);
+    run_shell_type(d, w);
+    return w ? 0 : 5;
+}
+#endif
 
 /* ------------------------------------------------------- the minimise keys */
 

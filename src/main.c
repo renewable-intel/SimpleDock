@@ -224,7 +224,7 @@ int main(void)
             ah_pointer(d);
             tip_update(d);
             run_check(d);
-            if (d->winchange) { d->winchange = FALSE; run_wake(d); run_soon(d); }
+            if (d->winchange) { d->winchange = FALSE; run_wake(d); run_soon(d); run_shell_check(d); }
             if (d->delquit) {                    /* (only if that cell still holds the icon it held at */
                 LONG c = d->delquit - 1;         /*  the key: an ARexx MOVE or a scan in this pass may */
                 d->delquit = 0;                  /*  have changed the icons) */
@@ -243,6 +243,7 @@ out:
     drop_copy_wait();                          /* a copy into a dock drawer finishes first */
     crash_set(FALSE);
     dock_close(d);                             /* drop target and window before the port */
+    run_shell_off();                           /* (the Shell windows' too) */
     am_close();
     an_close();
     ah_close();
