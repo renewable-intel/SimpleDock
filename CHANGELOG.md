@@ -139,6 +139,9 @@
   Shell does it itself). A single archive gets the command to unpack it, if its tool
   is there (lha, lzx, unzip, tar, gzip, bzip2, xz, 7z, unrar), into the
   Shell's drawer, RAM: or a drawer of your choice (Advanced, Shell drops).
+  Icons dropped onto the dock's Shell icon go into the Shell window in
+  front the same way (any system, any console) instead of starting a new
+  Shell; with no Shell open, a new one starts as before.
 - Smaller and lighter: the program is about 18 KB smaller on disk (small
   data model), and it uses about 40 KB less memory while idle: the
   settings window's buffers, the crash report's spare stack and ARexx

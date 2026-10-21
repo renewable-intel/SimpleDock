@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.1"
-#define SD_BUILD   " T62"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T63"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "20.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -253,6 +253,8 @@ BOOL ask_command(struct Dock *d, char *buf, LONG size);     /* ask.c: "Execute a
 struct Window *run_shell_drop(struct Dock *d, struct AppMessage *am);   /* icons onto a Shell: the text */
 void run_shell_type(struct Dock *d, struct Window *w);      /* ... typed (after the drop is answered) */
 void run_shell_check(struct Dock *d);                       /* RUNNING=0: Shell windows looked at */
+BOOL run_shell_front(struct Dock *d, struct Item *it, struct AppMessage *am);   /* onto the Shell icon */
+void run_shell_pending(struct Dock *d);                     /* ... typed into the Shell in front */
 void run_shell_off(void);                                   /* no Shell window a drop target (quitting) */
 void run_key_min(struct Dock *d);                           /* the minimise key: the active window */
 void run_key_minall(struct Dock *d);                        /* minimise all: its program, drawers, or every window */
