@@ -120,6 +120,11 @@
   the first output.
 - With Messages set to Verbose, the dock says why icons could not be
   shrunk to the icon size, if that happens.
+- The hotkey tap (Ctrl+Alt+Shift) is recognised from the modifier keys'
+  own press and release events, not only from the qualifier field the
+  keyboard driver fills in (a USB keyboard through a PiStorm could leave
+  it wrong, and taps were lost); a mouse-button release the dock missed
+  no longer blocks the hotkey (the next key event corrects it).
 - The hotkey toggles on what is seen: a dock that is out (and not
   covered) hides and stays hidden until the pointer has left the edge;
   otherwise it comes out in front. Before, a dock out because the pointer
