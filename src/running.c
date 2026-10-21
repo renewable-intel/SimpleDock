@@ -2485,14 +2485,18 @@ static BOOL unpack_cmd(struct Dock *d, CONST_STRPTR path, CONST_STRPTR name, cha
    answered: its locks are valid until then). The window, if it is still
    one of ours; NULL: nothing to type. */
 static char droptext[2048];
+static LONG nd_rx, nd_target, nd_text, nd_typed, nd_inactive;   /* drops: received, onto a target, with */
+                                                 /* text, typed, window not active (DROPINFO) */
 struct Window *run_shell_drop(struct Dock *d, struct AppMessage *am)
 {
     char path[SD_LINEMAX + 8], cmd[2 * SD_LINEMAX + 64];
     struct Window *w = (struct Window *)am->am_UserData;
     LONG i, k;
     droptext[0] = 0;
+    nd_rx++;
     for (k = 0; k < nsdw && sdw[k].win != w; k++) ;
     if (k == nsdw) return NULL;
+    nd_target++;
     for (i = 0; i < am->am_NumArgs; i++) {
         struct WBArg *a = &am->am_ArgList[i];
         BOOL file = a->wa_Name && a->wa_Name[0];
@@ -2506,6 +2510,7 @@ struct Window *run_shell_drop(struct Dock *d, struct AppMessage *am)
         add_name(droptext, path);
         strcat(droptext, " ");
     }
+    if (droptext[0]) nd_text++;
     return droptext[0] ? w : NULL;
 }
 
@@ -2529,7 +2534,8 @@ void run_shell_type(struct Dock *d, struct Window *w)
     Permit();
     if (!w) return;
     for (wait = 0; wait < 25 && IntuitionBase->ActiveWindow != w; wait++) Delay(1);
-    if (IntuitionBase->ActiveWindow != w) { DisplayBeep(d->scr); return; }
+    if (IntuitionBase->ActiveWindow != w) { nd_inactive++; DisplayBeep(d->scr); return; }
+    nd_typed++;
     if (!(KeymapBase = OpenLibrary("keymap.library", 37))) return;
     if ((port = CreateMsgPort())) {
         if ((io = (struct IOStdReq *)CreateIORequest(port, sizeof(*io)))) {
@@ -2588,8 +2594,15 @@ void run_dropinfo(struct Dock *d, char *out, LONG size)
     }
     UnlockIBase(lock);
     v[0] = ncon; v[1] = nsdw; v[2] = WorkbenchBase->lib_Version; v[3] = d->o->shelldrop;
-    SD_FMT(line, "consoles %ld, drop targets %ld, workbench %ld, SHELLDROP %ld", v);
+    SD_FMT(line, "consoles %ld, drop targets %ld, workbench %ld, SHELLDROP %ld\n", v);
     strcpy(out + l, line);
+    l += strlen(line);
+    {
+        LONG u[5];
+        u[0] = nd_rx; u[1] = nd_target; u[2] = nd_text; u[3] = nd_typed; u[4] = nd_inactive;
+        SD_FMT(line, "drops: received %ld, onto a target %ld, with text %ld, typed %ld, not active %ld", u);
+        strcpy(out + l, line);
+    }
 }
 
 #ifdef SD_DEBUG
