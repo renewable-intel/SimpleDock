@@ -419,13 +419,13 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
 #endif
         else if (word(&cmd, "SETTINGS")) am_settings(d, word(&cmd, "ADVANCED"));   /* the settings window */
         else if (word(&cmd, "HOTKEYINFO")) {     /* the hotkey's counters and the state it looks at */
-            LONG v[16], j;
+            LONG v[HK_N + 8], j;
             for (j = 0; j < HK_N; j++) v[j] = hk_stat[j];
             v[HK_N] = d->lmb; v[HK_N + 1] = d->dragging; v[HK_N + 2] = d->pinned; v[HK_N + 3] = d->vis;
-            v[HK_N + 4] = d->full; v[HK_N + 5] = d->o->autohide;
+            v[HK_N + 4] = d->full; v[HK_N + 5] = d->o->autohide; v[HK_N + 6] = d->parked; v[HK_N + 7] = dock_covered(d);
             SD_FMT(res, "tap armed %ld, fired %ld, cancelled by a key %ld, by a button %ld\n"
                         "handled %ld: busy %ld, reopened %ld, to front %ld, shown %ld, hidden %ld\n"
-                        "now: button %ld, dragging %ld, pinned %ld, vis %ld of %ld, autohide %ld", v);
+                        "now: button %ld, dragging %ld, pinned %ld, vis %ld of %ld, autohide %ld, parked %ld, covered %ld", v);
             out = res;
         }
         else if (word(&cmd, "DROPINFO")) {       /* Shell drops: the windows as the dock sees them (running.c) */

@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.1"
-#define SD_BUILD   " T66"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T67"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "20.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -146,6 +146,8 @@ struct Dock {
     volatile UBYTE    keyact;         /* input handler: other keys pressed (KEY_MIN ...) */
     volatile BOOL     pinned;         /* auto-hide: out by the hotkey until the pointer was on it and left */
     volatile BOOL     pinentered;
+    volatile BOOL     parked;         /* auto-hide: hidden by the hotkey until the pointer has left the edge */
+    volatile BOOL     parkleft;
     volatile BOOL     showing;        /* auto-hide: held out while the settings window is open */
     struct Window    *list;           /* the held list of a program's windows (running.c) */
     volatile BOOL     liststicky;     /* ... still open after the button went up */
@@ -231,6 +233,7 @@ BOOL dock_event(struct Dock *d, struct IntuiMessage *im);   /* FALSE = quit */
 void dock_reopen(struct Dock *d);
 void dock_set_pos(struct Dock *d, char edge);
 BOOL dock_raise(struct Dock *d);                            /* TRUE: brought forward (a moment later) */
+BOOL dock_covered(struct Dock *d);                          /* a window in front overlaps the dock */
 void dock_raise_now(struct Dock *d);                        /* ... also with the settings window open */
 void dock_settle(struct Dock *d);                           /* after a click: in front, new snapshot */
 ULONG dock_behind(struct Dock *d);                          /* signature of the windows behind it */

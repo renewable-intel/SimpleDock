@@ -855,6 +855,17 @@ static BOOL covered(struct Dock *d, struct Window *w, struct Window *pw)
     return FALSE;
 }
 
+/* Is a window in front overlapping the dock (the hotkey: out but not seen)? */
+BOOL dock_covered(struct Dock *d)
+{
+    BOOL cov;
+    if (!d->win) return FALSE;
+    LockLayerInfo(&d->scr->LayerInfo);
+    cov = covered(d, d->win, am_prefs_win());
+    UnlockLayerInfo(&d->scr->LayerInfo);
+    return cov;
+}
+
 /* ONTOP: if a window covers part of the dock (or its held list), bring the
    dock, its label and the list to the front. Never while the button is
    held (that would cancel a Workbench icon drag), while the settings window

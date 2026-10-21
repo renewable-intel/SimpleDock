@@ -397,6 +397,11 @@ void in_check(struct InputEvent *ev)
         else if (d->pinentered) d->pinned = FALSE;
         if (d->pinned) want = TRUE;
     }
+    if (d->parked) {                    /* hidden by the hotkey: until the pointer has left the edge and come back */
+        if (!want) d->parkleft = TRUE;
+        else if (d->parkleft) d->parked = FALSE;
+        if (d->parked) want = FALSE;
+    }
     if (d->showing || d->list) want = TRUE;      /* (the settings window, the held list) */
     if (!d->o->autohide) want = TRUE;
     /* The button state is always tracked (auto-hide and labels need it), but a
