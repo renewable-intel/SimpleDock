@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.1"
-#define SD_BUILD   " T67"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T68"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "20.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -242,7 +242,7 @@ void ah_peek_end(struct Dock *d);
 void ah_strip_grab(struct Dock *d, BOOL hiding);            /* what the hidden strip shows */
 void ah_hotkey(struct Dock *d);
 /* hotkey counters (ARexx HOTKEYINFO): input handler, then what ah_hotkey did */
-enum { HK_ARMED, HK_FIRED, HK_KEYOFF, HK_BTNOFF, HK_HANDLED, HK_BUSY, HK_REOPEN, HK_FRONT, HK_PIN, HK_UNPIN, HK_N };
+enum { HK_ARMED, HK_FIRED, HK_KEYOFF, HK_BTNOFF, HK_LMBFIX, HK_HANDLED, HK_BUSY, HK_REOPEN, HK_FRONT, HK_PIN, HK_UNPIN, HK_N };
 extern LONG hk_stat[HK_N];
 void ah_show(struct Dock *d, BOOL on);                      /* held out (the settings window) or not */
 BOOL in_set_hotkey(CONST_STRPTR desc);                      /* commodities description; FALSE: not valid */

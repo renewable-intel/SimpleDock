@@ -35,6 +35,9 @@ static UWORD in_hotcode = 0xFFFF;       /* its key while down: the key-up is swa
 static UWORD in_tapneed;                /* the groups wanted (0: a normal hotkey) */
 LONG hk_stat[HK_N];                     /* (ARexx HOTKEYINFO) */
 static BOOL in_taparmed;                /* all of them held, nothing else yet */
+static UWORD in_held;                   /* the groups held, from the modifier keys' own press and release
+                                           events (the qualifier field can lag or be wrong - a USB keyboard
+                                           through the PiStorm: taps were lost); either way arms */
 
 static UWORD tap_groups(UWORD q)
 {
@@ -234,14 +237,25 @@ void in_watch(struct InputEvent *ev)
                                              IEQUALIFIER_LALT, IEQUALIFIER_RALT, IEQUALIFIER_LCOMMAND,
                                              IEQUALIFIER_RCOMMAND };
                 if (k < 0x60 || k > 0x67) {
-                    if (!(ev->ie_Code & IECODE_UP_PREFIX)) { if (in_taparmed) hk_stat[HK_KEYOFF]++; in_taparmed = FALSE; }
+                    if (!(ev->ie_Code & IECODE_UP_PREFIX)) {
+                        if (in_taparmed) hk_stat[HK_KEYOFF]++;
+                        in_taparmed = FALSE;
+                        if (!tap_groups(ev->ie_Qualifier)) in_held = 0;   /* (a release missed: cleared) */
+                    }
                 } else if (!(ev->ie_Code & IECODE_UP_PREFIX)) {
-                    if (tap_groups(ev->ie_Qualifier | kq[k - 0x60]) == in_tapneed) { in_taparmed = TRUE; hk_stat[HK_ARMED]++; }
-                } else if (in_taparmed && k != 0x62) {   /* (Caps Lock does not count) */
-                    in_taparmed = FALSE;
-                    in_dock->hotkey = TRUE;
-                    hk_stat[HK_FIRED]++;
-                    Signal(in_task, in_sigmask);
+                    in_held |= tap_groups(kq[k - 0x60]);
+                    if (!in_taparmed && (in_held == in_tapneed || tap_groups(ev->ie_Qualifier | kq[k - 0x60]) == in_tapneed)) {
+                        in_taparmed = TRUE;
+                        hk_stat[HK_ARMED]++;
+                    }
+                } else {
+                    in_held &= ~tap_groups(kq[k - 0x60]);
+                    if (in_taparmed && k != 0x62) {   /* (Caps Lock does not count) */
+                        in_taparmed = FALSE;
+                        in_dock->hotkey = TRUE;
+                        hk_stat[HK_FIRED]++;
+                        Signal(in_task, in_sigmask);
+                    }
                 }
             } else if (ev->ie_Class == IECLASS_RAWMOUSE && (ev->ie_Code & ~IECODE_UP_PREFIX) != IECODE_NOBUTTON) {
                 if (in_taparmed) hk_stat[HK_BTNOFF]++;
@@ -250,6 +264,10 @@ void in_watch(struct InputEvent *ev)
         }
         if (ev->ie_Class == IECLASS_RAWKEY && !(ev->ie_Code & IECODE_UP_PREFIX) && in_dock)
             in_dock->userin = TRUE;              /* (someone is at the machine: dock_raise) */
+        if (ev->ie_Class == IECLASS_RAWKEY && in_lmb && !(ev->ie_Qualifier & IEQUALIFIER_LEFTBUTTON)) {
+            in_lmb = FALSE;                      /* a button release missed (the key's qualifier says so): */
+            hk_stat[HK_LMBFIX]++;                /* else the hotkey (and auto-hide) would wait for a click */
+        }
         if (ev->ie_Class == IECLASS_RAWKEY && in_dock && in_task) {   /* Del over a running icon: it closes */
             if (ev->ie_Code == (0x46 | IECODE_UP_PREFIX) && in_delup) {
                 in_delup = FALSE;
