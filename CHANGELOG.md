@@ -120,6 +120,14 @@
   the first output.
 - With Messages set to Verbose, the dock says why icons could not be
   shrunk to the icon size, if that happens.
+- Force Quit: once Close was tried on a program, its long-press list
+  offers Force Quit... It first sends the break signals (Ctrl+C, D, E,
+  F), which stop Shell programs and ports; if the program is still there
+  after two seconds, it asks, and ends the program: its tasks are removed
+  and their windows (and an empty screen of its own) closed. As with
+  Scout's Remove, what the program held stays in use until a reboot, and
+  a program ended inside a system call can take the system down - the
+  requester says so.
 - The hotkey tap (Ctrl+Alt+Shift) no longer fails when the mouse is
   moving while the keys are pressed (every movement event cancelled it:
   a wrong comparison with the "no button" code).
