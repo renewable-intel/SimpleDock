@@ -33,6 +33,7 @@ static UWORD in_hotcode = 0xFFFF;       /* its key while down: the key-up is swa
    program never brings the dock out). Groups: 1 Shift, 2 Alt, 4 Ctrl,
    8 left Amiga, 16 right Amiga. */
 static UWORD in_tapneed;                /* the groups wanted (0: a normal hotkey) */
+LONG hk_stat[HK_N];                     /* (ARexx HOTKEYINFO) */
 static BOOL in_taparmed;                /* all of them held, nothing else yet */
 
 static UWORD tap_groups(UWORD q)
@@ -232,16 +233,20 @@ void in_watch(struct InputEvent *ev)
                 static const UWORD kq[8] = { IEQUALIFIER_LSHIFT, IEQUALIFIER_RSHIFT, 0, IEQUALIFIER_CONTROL,
                                              IEQUALIFIER_LALT, IEQUALIFIER_RALT, IEQUALIFIER_LCOMMAND,
                                              IEQUALIFIER_RCOMMAND };
-                if (k < 0x60 || k > 0x67) { if (!(ev->ie_Code & IECODE_UP_PREFIX)) in_taparmed = FALSE; }
-                else if (!(ev->ie_Code & IECODE_UP_PREFIX)) {
-                    if (tap_groups(ev->ie_Qualifier | kq[k - 0x60]) == in_tapneed) in_taparmed = TRUE;
+                if (k < 0x60 || k > 0x67) {
+                    if (!(ev->ie_Code & IECODE_UP_PREFIX)) { if (in_taparmed) hk_stat[HK_KEYOFF]++; in_taparmed = FALSE; }
+                } else if (!(ev->ie_Code & IECODE_UP_PREFIX)) {
+                    if (tap_groups(ev->ie_Qualifier | kq[k - 0x60]) == in_tapneed) { in_taparmed = TRUE; hk_stat[HK_ARMED]++; }
                 } else if (in_taparmed && k != 0x62) {   /* (Caps Lock does not count) */
                     in_taparmed = FALSE;
                     in_dock->hotkey = TRUE;
+                    hk_stat[HK_FIRED]++;
                     Signal(in_task, in_sigmask);
                 }
-            } else if (ev->ie_Class == IECLASS_RAWMOUSE && (ev->ie_Code & ~IECODE_UP_PREFIX) != IECODE_NOBUTTON)
+            } else if (ev->ie_Class == IECLASS_RAWMOUSE && (ev->ie_Code & ~IECODE_UP_PREFIX) != IECODE_NOBUTTON) {
+                if (in_taparmed) hk_stat[HK_BTNOFF]++;
                 in_taparmed = FALSE;
+            }
         }
         if (ev->ie_Class == IECLASS_RAWKEY && !(ev->ie_Code & IECODE_UP_PREFIX) && in_dock)
             in_dock->userin = TRUE;              /* (someone is at the machine: dock_raise) */
@@ -275,6 +280,7 @@ void in_watch(struct InputEvent *ev)
                                                                                 /*  safe here, as commodities' own handler) */
                 if (!(ev->ie_Qualifier & IEQUALIFIER_REPEAT)) {      /* held down: once */
                     in_dock->hotkey = TRUE;      /* the dock task does the rest */
+                    hk_stat[HK_FIRED]++;
                     Signal(in_task, in_sigmask);
                 }
                 in_hotcode = ev->ie_Code;

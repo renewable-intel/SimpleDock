@@ -2609,7 +2609,7 @@ static void type_into(struct Dock *d, struct Window *w, struct Task *t)
     Forbid();
     if (win_screen(w, t)) {
         if (is_mini(w)) reveal(w, t);            /* (never typed into a hidden window) */
-        ActivateWindow(w);
+        to_front(w, t);                          /* (in front and active: it may be behind another) */
     } else w = NULL;
     Permit();
     if (!w) return;
