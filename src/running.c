@@ -72,7 +72,7 @@ struct Own {                            /* a window and the program it belongs t
     char           title[TITLELEN];
     char           cmd[CMDLEN];         /* Shell command with a full path, else empty */
     BOOL           con;                 /* a Shell's console window */
-    BOOL           stdcon;              /* ... of the standard console (no port of its own) */
+    BOOL           stdcon;              /* ... a Shell window icons can be dropped into (any console) */
     BOOL           widget;              /* a small window without border or gadgets (a title-bar clock) */
     struct Screen *scr;                 /* its screen */
     BOOL           hid;                 /* hidden (minimised: its layer is) */
@@ -510,7 +510,7 @@ static LONG collect(BOOL titles)
             else task_name(t, own[n].name, own[n].cmd);
             for (k = 0; k < ncon && contask[k] != t; k++) ;
             own[n].con = k < ncon;
-            own[n].stdcon = own[n].con && !w->UserPort;
+            own[n].stdcon = own[n].con;          /* (the standard console's, KingCON's ...) */
             own[n].widget = (w->Flags & WFLG_BORDERLESS) &&
                             !(w->Flags & (WFLG_CLOSEGADGET | WFLG_DEPTHGADGET | WFLG_DRAGBAR | WFLG_SIZEGADGET)) &&
                             (w->Width < s->Width / 2 || w->Height < s->Height / 2);
@@ -2356,12 +2356,12 @@ void run_show_all(void)
 /* ------------------------------------------------- icons dropped into a Shell */
 
 /* Workbench 3.2's console types the path of an icon dropped onto a Shell
-   window itself; older ones (3.1, 3.9, CaffeineOS) do nothing. There the
-   dock makes the standard console's Shell windows drop targets (consoles
-   with a port of their own, KingCON or ViNCEd, are left alone: they may do
-   it themselves) and types the paths - or, for one archive whose tool is
-   found, the command that unpacks it (SHELLDROP, UNPACKTO, UNPACKDIR). The
-   text is typed as keys at the cursor, without Return. */
+   window itself; older ones (3.1, 3.9, CaffeineOS) do nothing, nor does
+   KingCON (1.8, user's CaffeineOS). There the dock makes the Shell windows
+   drop targets - any console's - and types the paths, or for one archive
+   whose tool is found the command that unpacks it (SHELLDROP, UNPACKTO,
+   UNPACKDIR). The text is typed as keys at the cursor, without Return. A
+   console that types paths itself would get them twice: SHELLDROP=0. */
 #define SHELL_AWID 0x5344                        /* AppWindow id of a Shell window (am_ID; the dock's is 0) */
 #define MAXSDW 16
 static struct { struct Window *win; struct Task *task; struct AppWindow *aw; } sdw[MAXSDW];

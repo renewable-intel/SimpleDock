@@ -340,9 +340,11 @@ Shell drops
                    command that unpacks it instead, e.g. lha x "Work:a.lha"
                    - check it and press Return. Archives: .lha .lzh .lzx
                    .zip .tar .tgz .tar.gz .gz .bz2 .xz .7z .rar (lha, lzx,
-                   unzip, tar, gzip, bzip2, xz, 7z, unrar). Not on 3.2,
-                   whose Shell types paths itself, nor in consoles that
-                   have their own (KingCON, ViNCEd) (SHELLDROP)
+                   unzip, tar, gzip, bzip2, xz, 7z, unrar). In the standard
+                   console and in others such as KingCON; not on 3.2,
+                   whose Shell types paths itself. A console that types
+                   them itself too would get them twice: then Off
+                   (SHELLDROP)
   Unpack archives  into the Shell's current drawer, RAM:, or the Unpack
   to               drawer (UNPACKTO=0/1/2)
   Unpack drawer    the drawer for that (UNPACKDIR)
