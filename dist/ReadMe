@@ -162,9 +162,11 @@ Hotkey           CTRL ALT SHIFT: press the three together and let go
                  (change it in the settings window). Programs that use
                  Ctrl+Alt+Shift with another key are not affected. With
                  auto-hide it brings the dock out until the pointer has
-                 entered and left it; press it before dragging an icon
-                 onto a hidden dock. Without auto-hide it brings the dock
-                 to the front.
+                 entered and left it, or until you press the hotkey
+                 again (it is a toggle: a press while the dock is out
+                 hides it); press it before dragging an icon onto a
+                 hidden dock. Without auto-hide it brings the dock to
+                 the front.
 
 Ctrl+Alt+M       Minimises the active window (as Minimise in the
                  long-press list).
