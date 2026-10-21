@@ -69,7 +69,8 @@ BOOL launch_with(struct Dock *d, struct Item *it, struct AppMessage *am)
 #ifdef SD_DEBUG
     { extern LONG lw_count, lw_args; extern char *lw_path; lw_count++; lw_args = i; lw_path = it->path; }
 #endif
-    if (run_launch(d, it, am) || OpenWorkbenchObjectA(it->path, tags)) return TRUE;
+    if (run_launch(d, it, am) || OpenWorkbenchObjectA(it->path, tags)) { run_note_front(TRUE); return TRUE; }
+    run_note_front(FALSE);
     DisplayBeep(d->scr);
     sd_msg(d, "Cannot open %s", (LONG)it->path);
     return FALSE;

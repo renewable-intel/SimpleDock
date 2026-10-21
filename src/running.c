@@ -2530,16 +2530,30 @@ struct Window *run_shell_drop(struct Dock *d, struct AppMessage *am)
    Typed once the drop is answered (run_shell_pending). */
 static struct Window *pendw;
 static struct Task *pendt;
+static char lastfront[80] = "none yet";         /* DROPINFO: what the last drop onto the Shell icon did */
+static BOOL frontmiss;                          /* ... it found no Shell: launch.c notes the new one */
 BOOL run_shell_front(struct Dock *d, struct Item *it, struct AppMessage *am)
 {
-    LONG n, i;
+    LONG n, i, v[2];
     if (!d->o->shelldrop || !is_shell(it)) return FALSE;
-    n = collect(FALSE);
+    n = collect(TRUE);
     for (i = 0; i < n && !(own[i].con && !own[i].hid && !own[i].widget && own[i].scr == d->scr); i++) ;
-    if (i == n || !drop_text(d, am)) return FALSE;
+    frontmiss = TRUE;
+    if (i == n) { strcpy(lastfront, "no Shell window: a new Shell"); return FALSE; }
+    if (!drop_text(d, am)) { strcpy(lastfront, "no text: a new Shell"); return FALSE; }
+    frontmiss = FALSE;
+    v[0] = (LONG)own[i].title; v[1] = (LONG)own[i].name;
+    SD_FMT(lastfront, "typed into \"%.30s\" (%.20s)", v);
     pendw = own[i].win;
     pendt = own[i].task;
     return TRUE;
+}
+
+/* launch.c: a new Shell for a drop onto the Shell icon started (ok) or not. */
+void run_note_front(BOOL ok)
+{
+    if (frontmiss) strcat(lastfront, ok ? " started" : " NOT started");
+    frontmiss = FALSE;
 }
 
 static void type_into(struct Dock *d, struct Window *w, struct Task *t);
@@ -2645,8 +2659,10 @@ void run_dropinfo(struct Dock *d, char *out, LONG size)
     {
         LONG u[5];
         u[0] = nd_rx; u[1] = nd_target; u[2] = nd_text; u[3] = nd_typed; u[4] = nd_inactive;
-        SD_FMT(line, "drops: received %ld, onto a target %ld, with text %ld, typed %ld, not active %ld", u);
+        SD_FMT(line, "drops: received %ld, onto a target %ld, with text %ld, typed %ld, not active %ld\n", u);
         strcpy(out + l, line);
+        l += strlen(line);
+        if (l + 100 < size) { strcpy(out + l, "last drop onto the Shell icon: "); strcat(out + l, lastfront); }
     }
 }
 
