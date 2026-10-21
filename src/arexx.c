@@ -418,6 +418,11 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
         }
 #endif
         else if (word(&cmd, "SETTINGS")) am_settings(d, word(&cmd, "ADVANCED"));   /* the settings window */
+        else if (word(&cmd, "DROPINFO")) {       /* Shell drops: the windows as the dock sees them (running.c) */
+            extern void run_dropinfo(struct Dock *, char *, LONG);
+            run_dropinfo(d, res, sizeof(res));
+            out = res;
+        }
 #ifdef SD_DEBUG
         else if (word(&cmd, "DROPCOPY")) {       /* DROPCOPY CELL DIR NAME: a drop onto a dock drawer, as from */
             struct AppMessage am;                /*  Workbench (tests the copy process) */

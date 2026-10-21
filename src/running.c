@@ -2558,6 +2558,40 @@ void run_shell_type(struct Dock *d, struct Window *w)
     CloseLibrary(KeymapBase);
 }
 
+/* ARexx DROPINFO (diagnosis of Shell drops, while they are new): every
+   window on the dock's screen, one per line - its title, its task's name,
+   its port (S signal, I soft interrupt, - none), C if its task is a
+   Shell's console, D if it is a drop target now - then the counts. */
+void run_dropinfo(struct Dock *d, char *out, LONG size)
+{
+    struct Window *w;
+    LONG l = 0, k, i, v[5];
+    char line[160];
+    ULONG lock;
+    out[0] = 0;
+    collect(FALSE);                              /* (the Shells' consoles: contask) */
+    lock = LockIBase(0);
+    for (w = d->scr ? d->scr->FirstWindow : NULL; w; w = w->NextWindow) {
+        struct Task *t = w->UserPort ? (struct Task *)w->UserPort->mp_SigTask : con_task(w);
+        UBYTE pf = w->UserPort ? (w->UserPort->mp_Flags & PF_ACTION) : 0xFF;
+        for (k = 0; k < ncon && contask[k] != t; k++) ;
+        for (i = 0; i < nsdw && sdw[i].win != w; i++) ;
+        v[0] = (LONG)(w->Title ? (char *)w->Title : "-");
+        v[1] = (LONG)(t && t->tc_Node.ln_Name ? t->tc_Node.ln_Name : "?");
+        v[2] = pf == 0xFF ? '-' : pf == PA_SOFTINT ? 'I' : pf == PA_SIGNAL ? 'S' : 'O';
+        v[3] = k < ncon ? 'C' : '.';
+        v[4] = i < nsdw ? 'D' : '.';
+        SD_FMT(line, "%.40s | %.24s | %lc %lc%lc\n", v);
+        if (l + (LONG)strlen(line) >= size - 80) break;
+        strcpy(out + l, line);
+        l += strlen(line);
+    }
+    UnlockIBase(lock);
+    v[0] = ncon; v[1] = nsdw; v[2] = WorkbenchBase->lib_Version; v[3] = d->o->shelldrop;
+    SD_FMT(line, "consoles %ld, drop targets %ld, workbench %ld, SHELLDROP %ld", v);
+    strcpy(out + l, line);
+}
+
 #ifdef SD_DEBUG
 /* ARexx SHELLDROPTEST DIR NAME (tests): DIR/NAME dropped onto the first
    Shell window that is a drop target, as Workbench sends it. RC 5: none. */
