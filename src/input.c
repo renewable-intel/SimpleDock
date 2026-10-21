@@ -29,9 +29,9 @@ static volatile BOOL in_ixok;
 static UWORD in_hotcode = 0xFFFF;       /* its key while down: the key-up is swallowed too */
 
 /* A hotkey of modifiers only ("ctrl alt shift"): they are held together and
-   let go with no other key or button in between (so Ctrl+Alt+Shift+key in a
-   program never brings the dock out). Groups: 1 Shift, 2 Alt, 4 Ctrl,
-   8 left Amiga, 16 right Amiga. */
+   let go with no other key or button pressed in between (so Ctrl+Alt+Shift+key
+   in a program never brings the dock out); moving the mouse meanwhile is
+   fine. Groups: 1 Shift, 2 Alt, 4 Ctrl, 8 left Amiga, 16 right Amiga. */
 static UWORD in_tapneed;                /* the groups wanted (0: a normal hotkey) */
 LONG hk_stat[HK_N];                     /* (ARexx HOTKEYINFO) */
 static BOOL in_taparmed;                /* all of them held, nothing else yet */
@@ -257,10 +257,12 @@ void in_watch(struct InputEvent *ev)
                         Signal(in_task, in_sigmask);
                     }
                 }
-            } else if (ev->ie_Class == IECLASS_RAWMOUSE && (ev->ie_Code & ~IECODE_UP_PREFIX) != IECODE_NOBUTTON) {
-                if (in_taparmed) hk_stat[HK_BTNOFF]++;
-                in_taparmed = FALSE;
-            }
+            } else if (ev->ie_Class == IECLASS_RAWMOUSE && !(ev->ie_Code & IECODE_UP_PREFIX) &&
+                       (ev->ie_Code == IECODE_LBUTTON || ev->ie_Code == IECODE_RBUTTON || ev->ie_Code == IECODE_MBUTTON)) {
+                if (in_taparmed) hk_stat[HK_BTNOFF]++;   /* a button pressed meanwhile: no tap. (Before, the */
+                in_taparmed = FALSE;                 /* test masked the up-prefix bit off IECODE_NOBUTTON, so */
+            }                                        /* every movement event cancelled it: taps were lost */
+                                                     /* whenever the mouse moved during the press) */
         }
         if (ev->ie_Class == IECLASS_RAWKEY && !(ev->ie_Code & IECODE_UP_PREFIX) && in_dock)
             in_dock->userin = TRUE;              /* (someone is at the machine: dock_raise) */
