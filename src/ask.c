@@ -90,7 +90,7 @@ LONG ask_command(struct Dock *d, char *buf, LONG size)
     if (!w) goto out;
     rc = 0;                                      /* (asked: the answer decides) */
     GT_RefreshWindow(w, NULL);
-    SetAPen(w->RPort, 1);                        /* (the screen's text pen) */
+    SetAPen(w->RPort, 1);                        /* (pen 1: text on every standard screen) */
     SetFont(w->RPort, w->WScreen->RastPort.Font);
     Move(w->RPort, s->WBorLeft + 10, s->WBorTop + fh + 1 + 8 + w->RPort->TxBaseline);
     Text(w->RPort, (STRPTR)prompt, sizeof(prompt) - 1);

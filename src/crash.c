@@ -5,10 +5,10 @@
    With CRASHLOG on, the dock's own task gets a trap handler (crashtrap.s). It
    costs nothing until an error happens in that task: a bad memory access,
    an illegal instruction, a division by zero. Then the dock writes a report
-   to ENVARC:SimpleDock-crash.txt, says so, and closes as cleanly as it can.
-   The input handler goes first: its code must not run after the program is
-   gone. Errors in other tasks (Workbench's drag, the input handler itself)
-   are not caught here. */
+   to ENVARC:SimpleDock-crash.txt, says so, and closes as cleanly as it can
+   (the input handler before anything that could unload the program: its
+   code must not run after that). Errors in other tasks (Workbench's drag,
+   the input handler itself) are not caught here. */
 #include <string.h>
 #include <exec/execbase.h>
 #include <dos/dos.h>
@@ -163,8 +163,9 @@ static void report(struct Dock *d)
     Close(fh);
 }
 
-/* After a crash (crashtrap.s continues here, on the spare stack): write the
-   report, then close everything, the input handler first. */
+/* After a crash (crashtrap.s continues here, on the spare stack): what the
+   crashed code may hold is let go, the report is written, then everything
+   is closed in the order main uses. */
 void crash_recover(void)
 {
     struct Dock *d = cd;

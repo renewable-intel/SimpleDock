@@ -668,10 +668,7 @@ static void title_of(CONST_STRPTR path, char *out)
 
 #define MAXDRAW 16                      /* open drawers looked at */
 
-/* Docked drawers and disks open in Workbench: their windows' title (wbname),
-   from Workbench's list of open drawers (V44+) compared by lock. Looked up
-   again only when Workbench's windows or the icons changed. TRUE: a drawer
-   was linked or unlinked. */
+/* A hash of the docked drawers' names: changed when the icons changed. */
 static ULONG wbnames(struct Dock *d)
 {
     struct Item *it;
@@ -681,6 +678,10 @@ static ULONG wbnames(struct Dock *d)
     return h;
 }
 
+/* Docked drawers and disks open in Workbench: their windows' title (wbname),
+   from Workbench's list of open drawers (V44+) compared by lock. Looked up
+   again only when Workbench's windows or the icons changed. TRUE: a drawer
+   was linked or unlinked. */
 static BOOL link_drawers(struct Dock *d, LONG n)
 {
     static ULONG last;
@@ -2625,10 +2626,7 @@ static BOOL unpack_cmd(struct Dock *d, CONST_STRPTR path, CONST_STRPTR name, cha
     return TRUE;
 }
 
-/* What to type for icons dropped onto a Shell window (before the drop is
-   answered: its locks are valid until then). The window, if it is still
-   one of ours; NULL: nothing to type. */
-static char droptext[2048];
+static char droptext[2048];              /* what the last drop types */
 static LONG nd_rx, nd_target, nd_text, nd_typed, nd_inactive;   /* drops: received, onto a target, with */
                                                  /* text, typed, window not active (DROPINFO) */
 /* The text for the icons of a drop into droptext: their paths, or one
@@ -2655,6 +2653,9 @@ static BOOL drop_text(struct Dock *d, struct AppMessage *am)
     return droptext[0] != 0;
 }
 
+/* Icons dropped onto a Shell window (before the drop is answered: its locks
+   are valid until then): the window, if it is still one of ours, with the
+   text ready; NULL: nothing to type. */
 struct Window *run_shell_drop(struct Dock *d, struct AppMessage *am)
 {
     struct Window *w = (struct Window *)am->am_UserData;

@@ -80,7 +80,7 @@ BOOL pick_open(struct Dock *d, ULONG rgb)
             lw = TextLength(&s->RastPort, (STRPTR)name[i], strlen(name[i]));
     top = s->WBorTop + fh + 1 + 6;
     step = fh + 6;
-    sw = 160;                                    /* slider */
+    sw = 160;
     btw = TextLength(&s->RastPort, "Cancel", 6) + 24;
     bw = 3 * step - 4; bh = 3 * step - 6;
     iw = 10 + lw + 8 + sw + 8 + 4 * fh + 12 + bw + 10;   /* labels, sliders, level text, preview */

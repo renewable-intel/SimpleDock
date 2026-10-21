@@ -242,7 +242,7 @@ BOOL drop_copy(struct Dock *d, struct Item *it, struct AppMessage *am)
         if (!obj) continue;
         if (inside(target, obj)) { UnLock(obj); continue; }        /* itself, or one of its own drawers */
         UnLock(obj);
-        if (!(j->dir[j->n] = DupLock(a->wa_Lock))) continue;     /* (0 would be the boot disk's root) */
+        if (!(j->dir[j->n] = DupLock(a->wa_Lock))) continue;
         strcpy(j->name[j->n], a->wa_Name);
         j->move[j->n] = d->o->dropmove && SameDevice(a->wa_Lock, target);   /* like Workbench */
         j->nobeep = d->o->nobeep;

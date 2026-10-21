@@ -107,12 +107,12 @@ ULONG am_open(void)
     return 1UL << amport->mp_SigBit;
 }
 
-/* One menu or settings window choice; FALSE = quit. The caller reopens the
-   dock when *reopen is set. */
 static void prefs_open(struct Dock *d, BOOL more);
 static void prefs_close(void);
 static void about_open(struct Dock *d);
 
+/* One menu or settings window choice; FALSE = quit. The caller reopens the
+   dock when *reopen is set. */
 static BOOL choose(struct Dock *d, ULONG id, BOOL *reopen)
 {
     BOOL run = TRUE;
@@ -734,8 +734,6 @@ static void sync(struct Dock *d)
     for (i = 0; i < NADV; i++) if (!strcmp(adv[i].key, "OPACITY")) set_off(ag[i], !d->o->transparent);
 }
 
-/* Put saved settings lines back into use (Undo changes, a refused change). Keywords missing from
-   the lines were not set then, so they are switched off. */
 /* Do settings lines 'lines' have keyword 'key' (on or off)? */
 static BOOL has_key(CONST_STRPTR lines, CONST_STRPTR key)
 {
@@ -751,6 +749,9 @@ static BOOL has_key(CONST_STRPTR lines, CONST_STRPTR key)
     return FALSE;
 }
 
+/* Put saved settings lines back into use (Undo changes, a refused change).
+   Keywords missing from the lines were not set then, so they are switched
+   off. */
 static BOOL put_lines(struct Dock *d, CONST_STRPTR lines)
 {
     char *words = AllocVec(2 * SNAPLEN, MEMF_ANY), *now = words + SNAPLEN, key[32];

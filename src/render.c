@@ -645,8 +645,6 @@ static void mark_missing(struct Dock *d, struct RastPort *rp, struct Item *it, W
     }
 }
 
-/* A running program: a small rounded dot (5 x 3) under its cell (RUNBAND),
-   and with two copies or more their number on the icon's top right corner. */
 /* The dot's pen: a minimised program's steps bright - dim - bright (d->pulse). */
 static LONG dot_pen(struct Dock *d, struct Item *it)
 {
@@ -655,6 +653,8 @@ static LONG dot_pen(struct Dock *d, struct Item *it)
     return p >= 0 ? p : d->textpen;
 }
 
+/* A running program: a small rounded dot (5 x 3) under its cell (RUNBAND),
+   and with two copies or more their number on the icon's top right corner. */
 static void mark_running(struct Dock *d, struct RastPort *rp, struct Item *it, WORD cx, WORD cy)
 {
     struct RastPort r = *rp;

@@ -36,8 +36,8 @@ static UWORD in_tapneed;                /* the groups wanted (0: a normal hotkey
 LONG hk_stat[HK_N];                     /* (ARexx HOTKEYINFO) */
 static BOOL in_taparmed;                /* all of them held, nothing else yet */
 static UWORD in_held;                   /* the groups held, from the modifier keys' own press and release
-                                           events (the qualifier field can lag or be wrong - a USB keyboard
-                                           through the PiStorm: taps were lost); either way arms */
+                                           events (the qualifier field can lag or be wrong on some
+                                           keyboards); either way arms */
 
 static UWORD tap_groups(UWORD q)
 {
@@ -254,10 +254,9 @@ void in_watch(struct InputEvent *ev)
                 }
             } else if (ev->ie_Class == IECLASS_RAWMOUSE && !(ev->ie_Code & IECODE_UP_PREFIX) &&
                        (ev->ie_Code == IECODE_LBUTTON || ev->ie_Code == IECODE_RBUTTON || ev->ie_Code == IECODE_MBUTTON)) {
-                if (in_taparmed) hk_stat[HK_BTNOFF]++;   /* a button pressed meanwhile: no tap. (Before, the */
-                in_taparmed = FALSE;                 /* test masked the up-prefix bit off IECODE_NOBUTTON, so */
-            }                                        /* every movement event cancelled it: taps were lost */
-                                                     /* whenever the mouse moved during the press) */
+                if (in_taparmed) hk_stat[HK_BTNOFF]++;   /* a button pressed meanwhile: no tap (movement */
+                in_taparmed = FALSE;                 /* is fine: its code is NOBUTTON, 0xFF - never */
+            }                                        /* mask the up bit off it) */
         }
         if (ev->ie_Class == IECLASS_RAWKEY && !(ev->ie_Code & IECODE_UP_PREFIX) && in_dock)
             in_dock->userin = TRUE;              /* (someone is at the machine: dock_raise) */
@@ -354,7 +353,9 @@ void in_watch(struct InputEvent *ev)
     }
 }
 
-/* Runs in the input.device task: short, no waiting, no calls but Signal(). */
+/* Runs in the input.device task: short, no waiting, no calls but Signal()
+   (and MatchIX, which only compares - commodities' own handler does the
+   same). */
 void in_check(struct InputEvent *ev)
 {
     struct Dock *d = in_dock;

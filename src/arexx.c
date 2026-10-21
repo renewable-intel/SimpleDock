@@ -412,8 +412,8 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
             LONG v[13];
             v[0] = d->vis; v[1] = d->full; v[2] = d->lmb; v[3] = d->want; v[4] = ah_frames; v[5] = ah_ms;
             v[6] = in_calls; v[7] = in_sigs; v[8] = ah_calls; v[9] = in_lastx; v[10] = in_lasty;
-            v[11] = 0; v[12] = in_on;
-            SD_FMT(res, "vis %ld full %ld lmb %ld want %ld frames %ld ms %ld | in %ld sig %ld ah %ld at %ld,%ld entries %ld on %ld", v);
+            v[11] = in_on;
+            SD_FMT(res, "vis %ld full %ld lmb %ld want %ld frames %ld ms %ld | in %ld sig %ld ah %ld at %ld,%ld on %ld", v);
             out = res;
         }
 #endif

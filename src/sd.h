@@ -123,7 +123,7 @@ struct Dock {
     /* auto-hide (autohide.c); vis/full/want are also read by the input handler */
     volatile WORD     vis;            /* visible extent along the slide axis */
     WORD              full;           /* h (top/bottom) or w (left/right) plus the gap to the edge */
-    volatile BOOL     want;           /* pointer says: show (set by the input handler) */
+    volatile BOOL     want;           /* show (the input handler from the pointer; the dock: hotkey, lists) */
     /* grid (also read by the input handler) */
     WORD              cw, ch, per, ncells;
     WORD              nkept;          /* the first cells: icons kept on the dock; then the running others */
@@ -376,9 +376,8 @@ void run_soon(struct Dock *d);                              /* a window became a
 void run_layout_out(struct Dock *d);                        /* the running others out of the icon list */
 void run_layout_all(struct Dock *d);                        /* ... all of them in (to load their icons) */
 void run_layout_in(struct Dock *d, LONG room);              /* ... as many as fit, then the "more" cell */
-void run_free_all(struct Dock *d);
-void run_free_hidden(struct Dock *d);
-void run_wake(struct Dock *d);                              /* a minimised window made active: shown */                          /* forget the running others */
+void run_free_all(struct Dock *d);                          /* forget the running others */void run_free_hidden(struct Dock *d);
+void run_wake(struct Dock *d);                              /* a minimised window made active: shown */
 BOOL run_hide(struct Dock *d, struct Item *it);             /* dragged off: not shown again (IGNORE), asked first */
 BOOL run_locate(struct Dock *d, struct Item *it);           /* its file not known: ask (TRUE: found) */
 void run_images_free(struct Dock *d);                       /* icons of the running others not shown (dock closing) */
@@ -436,8 +435,7 @@ void render_clamp(struct Dock *d, WORD *x, WORD *y, WORD w, WORD h);   /* a box 
 void cell_at(struct Dock *d, struct Item *it, WORD *cx, WORD *cy);     /* where the cell of 'it' is drawn */           /* a minimised program's dot again (pulse) */
 void render_divider_at(struct Dock *d, struct RastPort *rp, struct Box *b, WORD at);   /* ... drawn at 'at' */
 void divider_box(struct Dock *d, WORD at, struct Box *b);   /* add where it is drawn at 'at' */
-WORD dock_along(struct Dock *d, WORD a);
-BOOL dock_in_gap(struct Dock *d, WORD a);                   /* in a divider's space (input handler too) */                    /* along the dock: without the divider's space */
+WORD dock_along(struct Dock *d, WORD a);                    /* along the dock: without the divider's space */BOOL dock_in_gap(struct Dock *d, WORD a);                   /* in a divider's space (input handler too) */
 BOOL render_image(struct Dock *d);
 void render_free(struct Dock *d);
 BOOL render_resnap(struct Dock *d);

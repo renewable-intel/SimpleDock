@@ -174,8 +174,8 @@ static BOOL clut_own(struct Dock *d, struct Item *it, WORD w, WORD h, LONG depth
 }
 
 /* Why icons were not shrunk since dock_open cleared it (VERBOSE tells): 1 no
-   black and white pens, 2 no Picasso96, 8/16 no bitmap over black/white, 32
-   no memory. */
+   black and white pens, 2 no Picasso96, 8/16 no bitmap over black/white
+   (true colour), 32 no memory or bitmap (8-bit). */
 LONG scale_why;
 
 /* The icon's images, made once (iw, ih: its size, then the size shown). */
