@@ -120,6 +120,9 @@
   the first output.
 - With Messages set to Verbose, the dock says why icons could not be
   shrunk to the icon size, if that happens.
+- The hotkey tap (Ctrl+Alt+Shift) no longer fails when the mouse is
+  moving while the keys are pressed (every movement event cancelled it:
+  a wrong comparison with the "no button" code).
 - The hotkey tap (Ctrl+Alt+Shift) is recognised from the modifier keys'
   own press and release events, not only from the qualifier field the
   keyboard driver fills in (a USB keyboard through a PiStorm could leave
