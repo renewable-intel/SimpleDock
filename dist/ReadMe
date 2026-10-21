@@ -347,7 +347,7 @@ Shell drops
                    (SHELLDROP)
                    Icons dropped onto the dock's Shell icon go into the
                    Shell window in front the same way (on any system);
-                   with no Shell open, a new one starts.
+                   with no Shell open, a new one starts and gets them.
   Unpack archives  into the Shell's current drawer, RAM:, or the Unpack
   to               drawer (UNPACKTO=0/1/2)
   Unpack drawer    the drawer for that (UNPACKDIR)

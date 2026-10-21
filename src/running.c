@@ -2532,6 +2532,7 @@ static struct Window *pendw;
 static struct Task *pendt;
 static char lastfront[80] = "none yet";         /* DROPINFO: what the last drop onto the Shell icon did */
 static BOOL frontmiss;                          /* ... it found no Shell: launch.c notes the new one */
+static BOOL pendnew;                            /* ... typed into the new Shell once its window is there */
 BOOL run_shell_front(struct Dock *d, struct Item *it, struct AppMessage *am)
 {
     LONG n, i, v[2];
@@ -2539,7 +2540,11 @@ BOOL run_shell_front(struct Dock *d, struct Item *it, struct AppMessage *am)
     n = collect(TRUE);
     for (i = 0; i < n && !(own[i].con && !own[i].hid && !own[i].widget && own[i].scr == d->scr); i++) ;
     frontmiss = TRUE;
-    if (i == n) { strcpy(lastfront, "no Shell window: a new Shell"); return FALSE; }
+    if (i == n) {                                /* a new Shell starts (launch.c); the text goes into it */
+        pendnew = drop_text(d, am);
+        strcpy(lastfront, "no Shell window: a new Shell");
+        return FALSE;
+    }
     if (!drop_text(d, am)) { strcpy(lastfront, "no text: a new Shell"); return FALSE; }
     frontmiss = FALSE;
     v[0] = (LONG)own[i].title; v[1] = (LONG)own[i].name;
@@ -2553,6 +2558,7 @@ BOOL run_shell_front(struct Dock *d, struct Item *it, struct AppMessage *am)
 void run_note_front(BOOL ok)
 {
     if (frontmiss) strcat(lastfront, ok ? " started" : " NOT started");
+    if (!frontmiss || !ok) pendnew = FALSE;
     frontmiss = FALSE;
 }
 
@@ -2560,8 +2566,23 @@ static void type_into(struct Dock *d, struct Window *w, struct Task *t);
 
 void run_shell_pending(struct Dock *d)
 {
+    LONG k, n, i;
     if (pendw) type_into(d, pendw, pendt);
     pendw = NULL;
+    if (!pendnew) return;
+    pendnew = FALSE;
+    for (k = 0; k < 15; k++) {                   /* the new Shell's window: up to 3 s */
+        Delay(10);
+        n = collect(FALSE);
+        for (i = 0; i < n && !(own[i].con && !own[i].hid && !own[i].widget && own[i].scr == d->scr); i++) ;
+        if (i < n) {
+            Delay(25);                           /* (its prompt first) */
+            type_into(d, own[i].win, own[i].task);
+            strcat(lastfront, ", typed into it");
+            return;
+        }
+    }
+    strcat(lastfront, ", its window not seen");
 }
 
 /* The text into Shell window w (after the drop was answered): the window
