@@ -1493,6 +1493,7 @@ BOOL am_handle(struct Dock *d)
                   d->win && drag_drop_wb(d, am);
         ReplyMsg((struct Message *)am);
         if (sh) run_shell_type(d, sh);           /* (icons dropped onto a Shell window: running.c) */
+        run_shell_pending(d);                    /* (... onto the dock's Shell icon: into the Shell in front) */
         if (dropped) {                             /* the dock grows, icons make way */
             dock_reopen_glide(d);
             config_store(d);

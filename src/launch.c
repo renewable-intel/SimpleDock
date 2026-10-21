@@ -60,6 +60,7 @@ BOOL launch_with(struct Dock *d, struct Item *it, struct AppMessage *am)
     if (it->dobj && (it->dobj->do_Type == WBDRAWER || it->dobj->do_Type == WBDISK) && !it->missing)
         return drop_copy(d, it, am);
     if (it->dobj && it->dobj->do_Type == WBGARBAGE) { DisplayBeep(d->scr); return FALSE; }   /* not the Trash */
+    if (run_shell_front(d, it, am)) return TRUE; /* onto the Shell icon: typed into the Shell in front */
     for (i = 0; i < am->am_NumArgs && i < 32; i++) {
         tags[n].ti_Tag = WBOPENA_ArgLock; tags[n++].ti_Data = (ULONG)am->am_ArgList[i].wa_Lock;
         tags[n].ti_Tag = WBOPENA_ArgName; tags[n++].ti_Data = (ULONG)am->am_ArgList[i].wa_Name;

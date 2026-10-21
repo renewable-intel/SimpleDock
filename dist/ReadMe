@@ -345,6 +345,9 @@ Shell drops
                    whose Shell types paths itself. A console that types
                    them itself too would get them twice: then Off
                    (SHELLDROP)
+                   Icons dropped onto the dock's Shell icon go into the
+                   Shell window in front the same way (on any system);
+                   with no Shell open, a new one starts.
   Unpack archives  into the Shell's current drawer, RAM:, or the Unpack
   to               drawer (UNPACKTO=0/1/2)
   Unpack drawer    the drawer for that (UNPACKDIR)

@@ -2487,16 +2487,13 @@ static BOOL unpack_cmd(struct Dock *d, CONST_STRPTR path, CONST_STRPTR name, cha
 static char droptext[2048];
 static LONG nd_rx, nd_target, nd_text, nd_typed, nd_inactive;   /* drops: received, onto a target, with */
                                                  /* text, typed, window not active (DROPINFO) */
-struct Window *run_shell_drop(struct Dock *d, struct AppMessage *am)
+/* The text for the icons of a drop into droptext: their paths, or one
+   archive's unpack command. TRUE: there is some. */
+static BOOL drop_text(struct Dock *d, struct AppMessage *am)
 {
     char path[SD_LINEMAX + 8], cmd[2 * SD_LINEMAX + 64];
-    struct Window *w = (struct Window *)am->am_UserData;
-    LONG i, k;
+    LONG i;
     droptext[0] = 0;
-    nd_rx++;
-    for (k = 0; k < nsdw && sdw[k].win != w; k++) ;
-    if (k == nsdw) return NULL;
-    nd_target++;
     for (i = 0; i < am->am_NumArgs; i++) {
         struct WBArg *a = &am->am_ArgList[i];
         BOOL file = a->wa_Name && a->wa_Name[0];
@@ -2511,7 +2508,46 @@ struct Window *run_shell_drop(struct Dock *d, struct AppMessage *am)
         strcat(droptext, " ");
     }
     if (droptext[0]) nd_text++;
-    return droptext[0] ? w : NULL;
+    return droptext[0] != 0;
+}
+
+struct Window *run_shell_drop(struct Dock *d, struct AppMessage *am)
+{
+    struct Window *w = (struct Window *)am->am_UserData;
+    LONG k;
+    droptext[0] = 0;
+    nd_rx++;
+    for (k = 0; k < nsdw && sdw[k].win != w; k++) ;
+    if (k == nsdw) return NULL;
+    nd_target++;
+    return drop_text(d, am) ? w : NULL;
+}
+
+/* Icons dropped onto the dock's Shell icon: typed into the Shell window in
+   front (the first one showing, front to back) instead of starting a new
+   Shell - also on 3.2 and in any console, as the drop is the dock's. FALSE:
+   no Shell window (a new Shell starts, as before), or SHELLDROP is off.
+   Typed once the drop is answered (run_shell_pending). */
+static struct Window *pendw;
+static struct Task *pendt;
+BOOL run_shell_front(struct Dock *d, struct Item *it, struct AppMessage *am)
+{
+    LONG n, i;
+    if (!d->o->shelldrop || !is_shell(it)) return FALSE;
+    n = collect(FALSE);
+    for (i = 0; i < n && !(own[i].con && !own[i].hid && !own[i].widget && own[i].scr == d->scr); i++) ;
+    if (i == n || !drop_text(d, am)) return FALSE;
+    pendw = own[i].win;
+    pendt = own[i].task;
+    return TRUE;
+}
+
+static void type_into(struct Dock *d, struct Window *w, struct Task *t);
+
+void run_shell_pending(struct Dock *d)
+{
+    if (pendw) type_into(d, pendw, pendt);
+    pendw = NULL;
 }
 
 /* The text into Shell window w (after the drop was answered): the window
@@ -2519,6 +2555,14 @@ struct Window *run_shell_drop(struct Dock *d, struct AppMessage *am)
    keys for each character). Not typed if the window does not become
    active (it would go to another one). */
 void run_shell_type(struct Dock *d, struct Window *w)
+{
+    LONG k;
+    for (k = 0; k < nsdw && sdw[k].win != w; k++) ;
+    if (w && k < nsdw) type_into(d, w, sdw[k].task);
+}
+
+/* The text into window w of task t, if it still exists (see run_shell_type). */
+static void type_into(struct Dock *d, struct Window *w, struct Task *t)
 {
     struct Library *KeymapBase;
     struct MsgPort *port;
@@ -2528,9 +2572,10 @@ void run_shell_type(struct Dock *d, struct Window *w)
     LONG i, k, n, wait;
     if (!w || !droptext[0]) return;
     Forbid();
-    for (k = 0; k < nsdw && sdw[k].win != w; k++) ;
-    if (k < nsdw && win_screen(w, sdw[k].task)) ActivateWindow(w);
-    else w = NULL;
+    if (win_screen(w, t)) {
+        if (is_mini(w)) reveal(w, t);            /* (never typed into a hidden window) */
+        ActivateWindow(w);
+    } else w = NULL;
     Permit();
     if (!w) return;
     for (wait = 0; wait < 25 && IntuitionBase->ActiveWindow != w; wait++) Delay(1);
