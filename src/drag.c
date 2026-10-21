@@ -346,7 +346,7 @@ static void drop(struct Dock *d, WORD x, WORD y)
     if (temp && cell < 0) keep = refuse = FALSE; /* (not hidden: back to its place) */
     if (temp && keep && it->nofile && !run_locate(d, it)) keep = refuse = FALSE;   /* (not found: back) */
     if (temp && !keep) {                         /* running, not kept: back to its place */
-        if (refuse) DisplayBeep(d->scr);         /* (the dock is full) */
+        if (refuse) sd_beep(d);         /* (the dock is full) */
         dock_compose(d);
         dock_targets(d, NULL, -1);
         dz_resume(d);
@@ -434,7 +434,7 @@ BOOL drag_drop_wb(struct Dock *d, struct AppMessage *am)
         return FALSE;
     }
     if (d->nkept + d->pushed + am->am_NumArgs > d->fit) {
-        DisplayBeep(d->scr);                    /* full: as long as the screen (or LIMIT) allows */
+        sd_beep(d);                    /* full: as long as the screen (or LIMIT) allows */
         dz_reset(d);
         dock_show(d);                           /* what the zone hook drew */
         return FALSE;

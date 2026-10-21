@@ -31,6 +31,7 @@ struct Job {
     BPTR  dir[MAXCOPY];                 /* each object: the drawer it is in ... */
     char  name[MAXCOPY][108];           /* ... its name ... */
     BOOL  move[MAXCOPY];                /* ... and moved (same disk, DROPMOVE) or copied */
+    BOOL  nobeep;                       /* (the setting, for the copying process) */
 };
 
 static volatile LONG jobs;              /* copying processes still running */
@@ -198,7 +199,7 @@ static __saveds LONG copier(void)
         for (k = 0; k < j->n; k++) if (!copy_one(j, k, buf)) ok = FALSE;
         FreeVec(buf);
     }
-    if (!ok) DisplayBeep(NULL);                  /* something was not copied */
+    if (!ok && !j->nobeep) DisplayBeep(NULL);    /* something was not copied */
     free_job(j);
     Forbid();                                    /* the dock may quit once this returns */
     jobs--;
@@ -228,8 +229,8 @@ BOOL drop_copy(struct Dock *d, struct Item *it, struct AppMessage *am)
     BPTR target, obj, old;
     LONG i;
     if (donesig < 0) { dock = FindTask(NULL); donesig = AllocSignal(-1); }
-    if (donesig < 0 || !(j = AllocVec(sizeof(*j), MEMF_PUBLIC | MEMF_CLEAR))) { DisplayBeep(d->scr); return FALSE; }
-    if (!(target = Lock(it->path, SHARED_LOCK))) { FreeVec(j); DisplayBeep(d->scr); return FALSE; }
+    if (donesig < 0 || !(j = AllocVec(sizeof(*j), MEMF_PUBLIC | MEMF_CLEAR))) { sd_beep(d); return FALSE; }
+    if (!(target = Lock(it->path, SHARED_LOCK))) { FreeVec(j); sd_beep(d); return FALSE; }
     j->dest = target;
     for (i = 0; i < am->am_NumArgs && j->n < MAXCOPY; i++) {
         struct WBArg *a = &am->am_ArgList[i];
@@ -244,13 +245,14 @@ BOOL drop_copy(struct Dock *d, struct Item *it, struct AppMessage *am)
         if (!(j->dir[j->n] = DupLock(a->wa_Lock))) continue;     /* (0 would be the boot disk's root) */
         strcpy(j->name[j->n], a->wa_Name);
         j->move[j->n] = d->o->dropmove && SameDevice(a->wa_Lock, target);   /* like Workbench */
+        j->nobeep = d->o->nobeep;
         j->n++;
     }
-    if (j->n < am->am_NumArgs) DisplayBeep(d->scr);   /* some (or all) refused */
+    if (j->n < am->am_NumArgs) sd_beep(d);   /* some (or all) refused */
     if (!j->n) { free_job(j); return FALSE; }
     p = CreateNewProcTags(NP_Entry, copier, NP_Name, "SimpleDock copy", NP_StackSize, 16384,
                           NP_WindowPtr, NULL, TAG_END);
-    if (!p) { free_job(j); DisplayBeep(d->scr); return FALSE; }
+    if (!p) { free_job(j); sd_beep(d); return FALSE; }
     Forbid();
     jobs++;
     Permit();

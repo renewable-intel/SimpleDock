@@ -120,6 +120,8 @@
   the first output.
 - With Messages set to Verbose, the dock says why icons could not be
   shrunk to the icon size, if that happens.
+- Advanced, System: Beep On / Off - the beep (screen flash) on a refused
+  action or a failure (NOBEEP).
 - Force Quit: once Close was tried on a program, its long-press list
   offers Force Quit... It first sends the break signals (Ctrl+C, D, E,
   F), which stop Shell programs and ports; if the program is still there

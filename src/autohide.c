@@ -178,7 +178,7 @@ void ah_key(struct Dock *d)
     if (d->dragging || d->lmb) return;           /* (as the hotkey) */
     v[0] = d->o->autohide > 0 ? d->o->autohide : d->o->ahspeed > 0 ? d->o->ahspeed : 3;
     SD_FMT(line, d->o->autohide > 0 ? "(AUTOHIDE=%ld)" : "AUTOHIDE=%ld", v);
-    if (!config_set(d, line)) { DisplayBeep(d->scr); return; }
+    if (!config_set(d, line)) { sd_beep(d); return; }
     if (!d->hidden) dock_reopen(d);              /* (shown: with auto-hide on it slides away as usual) */
     else ah_start(d);
     config_store(d);

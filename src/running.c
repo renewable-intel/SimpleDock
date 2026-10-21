@@ -971,7 +971,7 @@ BOOL run_hide(struct Dock *d, struct Item *it)
     char line[SD_LINEMAX + 16];
     CONST_STRPTR name = FilePart(it->path), old = d->o->ignore ? d->o->ignore : (STRPTR)"";
     LONG n = strlen(old);
-    if (!*name || n + strlen(name) + 12 > SD_LINEMAX) { DisplayBeep(d->scr); return FALSE; }
+    if (!*name || n + strlen(name) + 12 > SD_LINEMAX) { sd_beep(d); return FALSE; }
     if (EasyRequest(d->win, &es, NULL, (LONG)name) != 1) return FALSE;
     strcpy(line, "IGNORE=\"");
     strcat(line, old);
@@ -979,7 +979,7 @@ BOOL run_hide(struct Dock *d, struct Item *it)
     if (n) strcat(line, ",");
     strcat(line, name);
     strcat(line, "\"");
-    if (!config_set(d, line)) { DisplayBeep(d->scr); return FALSE; }
+    if (!config_set(d, line)) { sd_beep(d); return FALSE; }
     am_prefs_sync(d);                            /* (an open settings window: its Hidden programs) */
     config_store(d);
     dz_suspend();
@@ -2031,7 +2031,7 @@ static void list_del(struct Dock *d, LONG r)
         list_drop(d, r);
         return;
     }
-    if (!close_row(d, r)) { DisplayBeep(d->scr); return; }
+    if (!close_row(d, r)) { sd_beep(d); return; }
     list_drop(d, r);
 }
 
@@ -2119,7 +2119,7 @@ static void close_program(struct Dock *d, struct Item *it)
             } else ok = FALSE;                   /* (no close gadget) */
         }
     }
-    if (!ok) DisplayBeep(d->scr);
+    if (!ok) sd_beep(d);
     run_clicked(d);                              /* the dots and numbers soon (and the queue) */
 }
 
@@ -2181,7 +2181,7 @@ static void end_program(struct Dock *d, struct Item *it)
     struct Screen *scrs[MAXWIN], *s;
     LONG m, k, i, nw = 0;
     CONST_STRPTR name = it->label ? it->label : FilePart(it->path);
-    if (!(m = prog_tasks(it, t, MAXPT, TRUE))) { DisplayBeep(d->scr); return; }
+    if (!(m = prog_tasks(it, t, MAXPT, TRUE))) { sd_beep(d); return; }
     Forbid();
     snap_tasks();
     for (k = 0; k < m; k++)
@@ -2400,7 +2400,7 @@ static BOOL hide_it(struct Window *w, struct Task *t, BOOL hid)
 static BOOL hide_one(struct Dock *d, struct Window *w, struct Task *t, BOOL hid)
 {
     BOOL ok = hide_it(w, t, hid);
-    if (!ok) DisplayBeep(d->scr);
+    if (!ok) sd_beep(d);
     lastsig = 0;
     run_clicked(d);                              /* its mark soon */
     return ok;
@@ -2413,7 +2413,7 @@ static void minimise(struct Dock *d, struct Item *it)
     BOOL ok = TRUE;
     for (i = 0; i < n && ok; i++)
         if (is_it(&own[i], it)) ok = hide_it(own[i].win, own[i].task, own[i].hid);
-    if (!ok) DisplayBeep(d->scr);                /* (MAXMINI windows minimised already) */
+    if (!ok) sd_beep(d);                /* (MAXMINI windows minimised already) */
     lastsig = 0;
     run_clicked(d);                              /* its mark soon */
 }
@@ -2755,7 +2755,7 @@ static void type_into(struct Dock *d, struct Window *w, struct Task *t)
     Permit();
     if (!w) return;
     for (wait = 0; wait < 25 && IntuitionBase->ActiveWindow != w; wait++) Delay(1);
-    if (IntuitionBase->ActiveWindow != w) { nd_inactive++; DisplayBeep(d->scr); return; }
+    if (IntuitionBase->ActiveWindow != w) { nd_inactive++; sd_beep(d); return; }
     nd_typed++;
     if (!(KeymapBase = OpenLibrary("keymap.library", 37))) return;
     if ((port = CreateMsgPort())) {
@@ -2899,10 +2899,10 @@ static LONG active_own(struct Dock *d, LONG n)
 void run_key_min(struct Dock *d)
 {
     LONG n, a;
-    if (!can_hide()) { DisplayBeep(d->scr); return; }
+    if (!can_hide()) { sd_beep(d); return; }
     n = collect(FALSE);
     if ((a = active_own(d, n)) < 0) return;
-    if (!hide_it(own[a].win, own[a].task, FALSE)) DisplayBeep(d->scr);   /* (MAXMINI minimised already) */
+    if (!hide_it(own[a].win, own[a].task, FALSE)) sd_beep(d);   /* (MAXMINI minimised already) */
     lastsig = 0;
     run_clicked(d);                              /* its mark soon */
 }
@@ -2918,7 +2918,7 @@ void run_key_minall(struct Dock *d)
     struct Screen *front = IntuitionBase->FirstScreen;
     LONG n, a, i, done = 0;
     BOOL ok = TRUE;
-    if (!can_hide()) { DisplayBeep(d->scr); return; }
+    if (!can_hide()) { sd_beep(d); return; }
     n = collect(FALSE);
     a = active_own(d, n);
     for (i = 0; i <= n && ok; i++) {             /* (the active window last: hiding it makes another */
@@ -2938,7 +2938,7 @@ void run_key_minall(struct Dock *d)
                 reveal(own[i].win, own[i].task);
                 done++;
             }
-    if (!ok || !done) DisplayBeep(d->scr);       /* (no room left, or nothing to do) */
+    if (!ok || !done) sd_beep(d);       /* (no room left, or nothing to do) */
     lastsig = 0;
     run_clicked(d);                              /* the marks soon */
 }
@@ -2970,7 +2970,7 @@ static void keep(struct Dock *d, struct Item *it)
 {
     struct Item *b;
     if (it->temp != RUN_TEMP) return;
-    if (DOCKFULL(d)) { DisplayBeep(d->scr); return; }   /* (the dock is full) */
+    if (DOCKFULL(d)) { sd_beep(d); return; }   /* (the dock is full) */
     if (it->nofile && !run_locate(d, it)) return;
     dz_suspend();
     Remove((struct Node *)it);
@@ -3001,7 +3001,7 @@ static void show_wb(struct Dock *d, struct Item *it)
     strncpy(p, it->path, sizeof(p) - 1);
     p[sizeof(p) - 1] = 0;
     *PathPart(p) = 0;
-    if (!p[0] || !OpenWorkbenchObject(p, TAG_END)) DisplayBeep(d->scr);
+    if (!p[0] || !OpenWorkbenchObject(p, TAG_END)) sd_beep(d);
 }
 
 /* What can be done with the program behind 'it' (the list's last rows). */
@@ -3052,7 +3052,7 @@ static void pick_row(struct Dock *d, LONG r)
     there = win_screen(w, t) != NULL;
     Permit();
     if (there) {
-        if (lmode == LM_CLOSE) { if (!close_row(d, r)) { DisplayBeep(d->scr); return; } }
+        if (lmode == LM_CLOSE) { if (!close_row(d, r)) { sd_beep(d); return; } }
         else if (lmode == LM_MINI) { if (!hide_one(d, w, t, list[r].hid)) return; }   /* (full: the row stays) */
         else { reveal(w, t); run_clicked(d); }   /* (in front: ShowWindow; the list opens again over it) */
     }

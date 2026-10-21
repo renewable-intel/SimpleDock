@@ -380,6 +380,8 @@ System
   Messages         Normal; Quiet (no message requesters at all); Verbose
                    (also messages that are normally silent, for example
                    a hotkey that is not valid) (QUIET, VERBOSE)
+  Beep             On or Off: the beep (a screen flash) on a refused
+                   action or a failure (NOBEEP)
   Crash reports    off by default; see BUG REPORTS below (CRASHLOG)
   No border        no thin border around the dock (NOBORDER)
 
@@ -466,6 +468,7 @@ command line:
   MINALLKEY=<keys>    minimise all (default ctrl alt shift m)
   AHKEY=<keys>        auto-hide on/off (default ctrl alt h)
   SHELLASK            Shell icons ask first ("Execute a file")
+  NOBEEP              no beep on a refused action or a failure
   SHELLDROP=<n>       1 = icons dropped onto a Shell typed (default), 0 = off
   UNPACKTO=<n>        archives unpack: 0 = Shell's drawer, 1 = RAM:,
                       2 = UNPACKDIR

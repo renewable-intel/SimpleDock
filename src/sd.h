@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.1"
-#define SD_BUILD   " T73"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T74"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "20.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -41,7 +41,7 @@ struct Opts {
     LONG   autohide, ahspeed, radius, opacity;
     BOOL   notext, hovertext, noicon, noborder, ontop, transparent, quiet, verbose, crashlog;
     LONG   running, holdtime;         /* RUNNING 0-2, HOLDTIME tenths of a second */
-    BOOL   clicknew, wbstart, dropmove, runhide, wbhide, shellask;
+    BOOL   clicknew, wbstart, dropmove, runhide, wbhide, shellask, nobeep;
     BOOL   defconfig;                 /* CONFIG not given: SD_CONFIG */
 };
 
@@ -194,6 +194,7 @@ struct Dock {
 
 /* main.c */
 void sd_putch(void);                                        /* rawfmt.s, for RawDoFmt */
+void sd_beep(struct Dock *d);                               /* DisplayBeep on the dock's screen, unless NOBEEP */
 #define SD_FMT(buf, fmt, args) RawDoFmt((STRPTR)(fmt), (APTR)(args), (void (*)())sd_putch, (APTR)(buf))
 void sd_msg(struct Dock *d, CONST_STRPTR fmt, ...);
 void sd_verbose(struct Dock *d, CONST_STRPTR fmt, ...);

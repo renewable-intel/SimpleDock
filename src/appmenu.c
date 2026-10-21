@@ -290,6 +290,7 @@ static const char *const dropname[] = { "Copy", "Like Workbench", NULL };
 static const char *const holdname[] = { "Normal (0.3 s)", "Long (0.4 s)", "Longer (0.5 s)", NULL };
 static const LONG holdval[] = { 3, 4, 5 };
 static const char *const othername[] = { "Show", "Hide", NULL };
+static const char *const beepname[] = { "On", "Off", NULL };
 /* K_LIST: a list of choices for a keyword, with values (KEY=n; the one at
    'def' when it is not set), or without (a switch: first choice = off).
    K_HIDE: the IGNORE names as a list, with Remove. K_KEY: a key (commodities
@@ -326,6 +327,7 @@ static const struct { const char *label, *key; UBYTE kind; const char *const *na
     { "Screen", "PUBSCREEN", K_STR },
     { "Start delay, 1/50 s", "DELAY", K_INT },
     { "Messages", "QUIET", K_MSG },
+    { "Beep", "NOBEEP", K_LIST, beepname, NULL, 0 },
     { "Crash reports", "CRASHLOG", K_SWITCH },
     { "No border", "NOBORDER", K_SWITCH } };
 #define HIDEROWS 3                      /* the Hidden programs list: rows high */
@@ -337,7 +339,7 @@ static const char *const allkeys[] = { "POS", "DISTANCE", "OFFSET", "FONT", "PUB
     "NOICON", "NOBORDER", "ICONDIST", "SCALEICONW", "SCALEICONH", "LIMIT", "AUTOHIDE", "ONTOP", "TRANSPARENT",
     "TINT", "OPACITY", "RADIUS", "DELAY", "QUIET", "VERBOSE", "HOTKEY", "CUSTOMTINT", "CRASHLOG",
     "RUNNING", "CLICKNEW", "WBSTART", "DROPMOVE", "HOLDTIME", "RUNHIDE", "IGNORE", "WBHIDE", "MINKEY", "MINALLKEY",
-    "AHKEY", "SHELLASK", "SHELLDROP", "UNPACKTO", "UNPACKDIR", NULL };
+    "AHKEY", "SHELLASK", "SHELLDROP", "UNPACKTO", "UNPACKDIR", "NOBEEP", NULL };
 
 static STRPTR glabels[NGROUP][11];      /* cycle labels (+ "Other" for a value set elsewhere) */
 
@@ -1129,7 +1131,7 @@ static void key_apply(struct Dock *d)
         d->o->hotkey = d->keybuf;
         in_set_hotkey(d->keybuf);
     } else {
-        DisplayBeep(d->scr);
+        sd_beep(d);
         key_case(keyshown, d->o->hotkey, sizeof(keyshown), TRUE);
         GT_SetGadgetAttrs(keyg, pw, NULL, GTST_String, keyshown, TAG_END);
     }
@@ -1174,7 +1176,7 @@ static void adv_apply(struct Dock *d, LONG i, UWORD code)
     case K_KEY:                                  /* (a key not valid: beep, the one in use shown again) */
         key_case(v, str_get(ag[i]), 64, FALSE);
         if (!Stricmp(v, key_now(d, i)) || (in_key_off(v) && in_key_off(key_now(d, i)))) { sync(d); return; }
-        if (!in_key_valid(v)) { DisplayBeep(d->scr); sync(d); return; }
+        if (!in_key_valid(v)) { sd_beep(d); sync(d); return; }
         a[0] = (LONG)adv[i].key; a[1] = (LONG)(in_key_off(v) ? "none" : v);
         SD_FMT(line, "%s=\"%s\"", a);
         break;
@@ -1225,7 +1227,7 @@ static void apply_line(struct Dock *d, CONST_STRPTR line)
     BOOL told = d->overtold, wasopen = !d->hidden;
     if (!before || (config_get(d, NULL, before, SNAPLEN), !config_set(d, line))) {
         FreeVec(before);
-        DisplayBeep(d->scr);
+        sd_beep(d);
         sync(d);
         return;
     }
@@ -1236,7 +1238,7 @@ static void apply_line(struct Dock *d, CONST_STRPTR line)
     if ((wasopen && d->hidden) || dock_extra(d) > over) {
         put_lines(d, before);
         if (wasopen) dock_reopen(d);
-        DisplayBeep(d->scr);
+        sd_beep(d);
     }
     FreeVec(before);
     d->overtold = told;
@@ -1322,7 +1324,7 @@ static void recall_state(struct Dock *d)
 static void recall(struct Dock *d)
 {
     pick_close();
-    if (!snapbuf || !put_lines(d, snapbuf)) DisplayBeep(d->scr);   /* (not taken: too many settings lines) */
+    if (!snapbuf || !put_lines(d, snapbuf)) sd_beep(d);   /* (not taken: too many settings lines) */
     if (snapopen || !d->hidden) dock_reopen(d);   /* (also the hotkey: ah_start) */
     sync(d);
     if (pw) WindowToFront(pw);                   /* a new dock window opens in front */
@@ -1425,7 +1427,7 @@ void am_prefs_handle(struct Dock *d)
             else if (id == G_BHREM) hidden_remove(d);
             else if (id == G_BPICK) {            /* Custom...: the colour picker */
                 ULONG start = d->o->customtint ? hexval(d->o->customtint) : d->tint;
-                if (!pick_open(d, start)) DisplayBeep(d->scr);
+                if (!pick_open(d, start)) sd_beep(d);
             }
             else if (id >= 0 && id < NGROUP && map(d, id, code) > 0) {   /* a change: on the dock at once */
                 BOOL reopen = FALSE, told = d->overtold;
@@ -1442,7 +1444,7 @@ void am_prefs_handle(struct Dock *d)
                         *d->o = was;
                         memcpy(d->posbuf, wpos, sizeof(wpos));
                         dock_reopen(d);
-                        DisplayBeep(d->scr);
+                        sd_beep(d);
                     }
                     d->overtold = told;
                 }

@@ -90,6 +90,13 @@ void sd_msg(struct Dock *d, CONST_STRPTR fmt, ...)
     vmsg(d, fmt, (APTR)(&fmt + 1));
 }
 
+/* The beep for a refused action or a failure (NOBEEP: none). */
+void sd_beep(struct Dock *d)
+{
+    if (d && d->o && d->o->nobeep) return;
+    DisplayBeep(d ? d->scr : NULL);
+}
+
 void sd_verbose(struct Dock *d, CONST_STRPTR fmt, ...)
 {
     if (!d || !d->o || !d->o->verbose || d->o->quiet) return;

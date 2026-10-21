@@ -23,13 +23,13 @@ BOOL launch_item(struct Dock *d, struct Item *it)
     if (it->temp) {                              /* running, not kept: a new copy, if its file is known */
         if (it->temp == RUN_TEMP && !it->nofile && dock_exists(it->path) &&
             (run_launch(d, it, NULL) || OpenWorkbenchObject(it->path, TAG_END))) return TRUE;
-        DisplayBeep(d->scr);
+        sd_beep(d);
         return FALSE;
     }
     if ((it->missing = !dock_exists(it->path)) == FALSE) {
         if (was) dock_show_item(d, it, FALSE);   /* back (a disk inserted): unmarked */
         if (run_launch(d, it, NULL) || OpenWorkbenchObject(it->path, TAG_END)) return TRUE;   /* (programs: the dock starts them) */
-        DisplayBeep(d->scr);
+        sd_beep(d);
         sd_msg(d, "Cannot open %s", (LONG)it->path);
         return FALSE;
     }
@@ -56,10 +56,10 @@ BOOL launch_with(struct Dock *d, struct Item *it, struct AppMessage *am)
 {
     struct TagItem tags[2 * 32 + 1];
     LONG i, n = 0;
-    if (it->temp == RUN_MORE || it->nofile) { DisplayBeep(d->scr); return FALSE; }
+    if (it->temp == RUN_MORE || it->nofile) { sd_beep(d); return FALSE; }
     if (it->dobj && (it->dobj->do_Type == WBDRAWER || it->dobj->do_Type == WBDISK) && !it->missing)
         return drop_copy(d, it, am);
-    if (it->dobj && it->dobj->do_Type == WBGARBAGE) { DisplayBeep(d->scr); return FALSE; }   /* not the Trash */
+    if (it->dobj && it->dobj->do_Type == WBGARBAGE) { sd_beep(d); return FALSE; }   /* not the Trash */
     if (run_shell_front(d, it, am)) return TRUE; /* onto the Shell icon: typed into the Shell in front */
     for (i = 0; i < am->am_NumArgs && i < 32; i++) {
         tags[n].ti_Tag = WBOPENA_ArgLock; tags[n++].ti_Data = (ULONG)am->am_ArgList[i].wa_Lock;
@@ -71,7 +71,7 @@ BOOL launch_with(struct Dock *d, struct Item *it, struct AppMessage *am)
 #endif
     if (run_launch(d, it, am) || OpenWorkbenchObjectA(it->path, tags)) { run_note_front(TRUE); return TRUE; }
     run_note_front(FALSE);
-    DisplayBeep(d->scr);
+    sd_beep(d);
     sd_msg(d, "Cannot open %s", (LONG)it->path);
     return FALSE;
 }
