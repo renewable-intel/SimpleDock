@@ -2191,15 +2191,40 @@ static void end_program(struct Dock *d, struct Item *it)
         Permit();
         CloseWindow(wins[i]);
     }
-    for (i = 0; i < nw; i++) {                   /* a screen of its own with nothing left on it */
-        BOOL again = FALSE;
+    for (i = 0; i < nw; i++) {                   /* a screen of its own (not Workbench, not public): what */
+        struct Window *rest[MAXWIN];             /* is left on it - windows with no port (a display window), */
+        LONG nr = 0;                             /* or a port of a task that is gone - closed, then the screen */
+        BOOL again = FALSE;                      /* (the user was left on PocketSNES's dead screen) */
         for (k = 0; k < i && !again; k++) again = scrs[k] == scrs[i];
         if (again || scrs[i] == d->scr) continue;
         Forbid();
         for (s = IntuitionBase->FirstScreen; s && s != scrs[i]; s = s->NextScreen) ;
-        if (s && !s->FirstWindow && !(s->Flags & WBENCHSCREEN)) { Permit(); CloseScreen(s); }
+        if (!s || (s->Flags & SCREENTYPE) == WBENCHSCREEN || (s->Flags & SCREENTYPE) == PUBLICSCREEN) {
+            Permit();                            /* (the type is a value in those bits: CUSTOMSCREEN has them all */
+            continue;                            /*  set, so a bit test took every custom screen for Workbench) */
+        }
+        snap_tasks();
+        for (w = s->FirstWindow; w && nr < MAXWIN; w = w->NextWindow)
+            if (!w->UserPort || (w->UserPort->mp_Flags & PF_ACTION) == PA_SOFTINT || !w->UserPort->mp_SigTask ||
+                !alive((struct Task *)w->UserPort->mp_SigTask)) rest[nr++] = w;
+        Permit();
+        for (k = 0; k < nr; k++) {
+            struct Message *msg;
+            Forbid();
+            if (rest[k]->UserPort) {
+                while ((msg = GetMsg(rest[k]->UserPort))) ReplyMsg(msg);
+                rest[k]->UserPort = NULL;
+                ModifyIDCMP(rest[k], 0);
+            }
+            Permit();
+            CloseWindow(rest[k]);
+        }
+        Forbid();
+        for (s = IntuitionBase->FirstScreen; s && s != scrs[i]; s = s->NextScreen) ;
+        if (s && !s->FirstWindow) { Permit(); CloseScreen(s); }
         else Permit();
     }
+    WBenchToFront();                             /* (never left on a dead screen) */
     it->asked = FALSE;
     lastsig = 0;
     run_clicked(d);                              /* its mark goes */
@@ -2790,6 +2815,21 @@ LONG run_debug_act(struct Dock *d, CONST_STRPTR name, CONST_STRPTR action, BOOL 
     if (a == nact) { run_list_close(d); return 5; }
     do_act(d, a);
     return 0;
+}
+
+/* ARexx SCREENS (tests): how many screens, and their titles. */
+void run_debug_screens(char *out, LONG size)
+{
+    struct Screen *s;
+    LONG n = 0, l = 0;
+    ULONG lock = LockIBase(0);
+    for (s = IntuitionBase->FirstScreen; s; s = s->NextScreen) {
+        CONST_STRPTR t = s->Title ? (CONST_STRPTR)s->Title : (CONST_STRPTR)"-";
+        n++;
+        if (l + (LONG)strlen(t) + 3 < size - 16) { if (l) out[l++] = ','; strcpy(out + l, t); l += strlen(t); }
+    }
+    UnlockIBase(lock);
+    { LONG v[1]; char c[16]; v[0] = n; SD_FMT(c, " (%ld)", v); strcpy(out + l, c); }
 }
 
 /* ARexx SHELLDROPTEST DIR NAME (tests): DIR/NAME dropped onto the first

@@ -449,6 +449,11 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
                 UnLock(wa.wa_Lock);
             }
         }
+        else if (word(&cmd, "SCREENS")) {        /* the screens (run_debug_screens) */
+            extern void run_debug_screens(char *, LONG);
+            run_debug_screens(res, sizeof(res));
+            out = res;
+        }
         else if (word(&cmd, "DOACT")) {          /* DOACT NAME ACTION [NOASK] (run_debug_act) */
             extern LONG run_debug_act(struct Dock *, CONST_STRPTR, CONST_STRPTR, BOOL);
             if (!(ra = rargs(cmd, "NAME/A,ACTION/A,NOASK/S", a, 3))) rc = RC_ERROR;
