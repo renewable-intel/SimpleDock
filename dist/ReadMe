@@ -108,6 +108,17 @@ Long press       Hold the button on a running program's icon for a
                          are there; a minimised program's icon cannot
                          be dragged)
                        Close
+                       Force Quit... (only once Close was tried and
+                         the program is still there): first the break
+                         signals Ctrl+C, D, E, F, which stop Shell
+                         programs and ports; still there after two
+                         seconds, it asks, then ends the program and
+                         closes its windows. Unsaved work in it is
+                         lost; what it held (memory, files, locks)
+                         stays in use until a reboot, and a program
+                         ended inside a system call can take the
+                         system down - the same as Scout's Remove.
+                         Save your work first.
                  With several windows these read Minimise...,
                  Show... and Close...: the list then shows those
                  windows, with Minimise All / Show All / Close All at

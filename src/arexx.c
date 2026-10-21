@@ -449,6 +449,11 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
                 UnLock(wa.wa_Lock);
             }
         }
+        else if (word(&cmd, "DOACT")) {          /* DOACT NAME ACTION [NOASK] (run_debug_act) */
+            extern LONG run_debug_act(struct Dock *, CONST_STRPTR, CONST_STRPTR, BOOL);
+            if (!(ra = rargs(cmd, "NAME/A,ACTION/A,NOASK/S", a, 3))) rc = RC_ERROR;
+            else rc = run_debug_act(d, (STRPTR)a[0], (STRPTR)a[1], a[2] != 0);
+        }
         else if (word(&cmd, "SHELLDROPTEST")) {  /* SHELLDROPTEST DIR NAME (run_debug_shelldrop) */
             extern LONG run_debug_shelldrop(struct Dock *, CONST_STRPTR, CONST_STRPTR);
             if (!(ra = rargs(cmd, "DIR/A,NAME/A", a, 2))) rc = RC_ERROR;

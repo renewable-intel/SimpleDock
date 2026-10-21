@@ -195,7 +195,7 @@ static struct BitMap *listbg;
 static WORD lx, ly, lw, lh, rowh;
 /* After the windows (and a divider) the list ends with what can be done
    with the program: rows nlist .. nlist + nact - 1. */
-enum { ACT_KEEP = 1, ACT_REMOVE, ACT_SHOWWB, ACT_MINI, ACT_SHOW, ACT_CLOSE, ACT_ALL };
+enum { ACT_KEEP = 1, ACT_REMOVE, ACT_SHOWWB, ACT_MINI, ACT_SHOW, ACT_CLOSE, ACT_ALL, ACT_FORCE };
 static UBYTE act[6];
 static LONG nact;
 static UBYTE lmode;                     /* the list asks which window: LM_MINI / LM_SHOW / LM_CLOSE (0: no) */
@@ -222,6 +222,7 @@ static CONST_STRPTR act_text(LONG a)
         return t;
     }
     case ACT_ALL:    return lmode == LM_CLOSE ? "Close All" : lmode == LM_MINI ? "Minimise All" : "Show All";
+    case ACT_FORCE:  return "Force Quit...";
     default:         return nlist > 1 ? "Close..." : "Close";
     }
 }
@@ -237,6 +238,7 @@ static void show_one(struct Window *w, struct Task *t, BOOL hid);
 static BOOL same_win(struct Window *x, struct Window *w, struct Task *t);
 static void list_actions(struct Item *it);
 static void close_program(struct Dock *d, struct Item *it);
+static void end_program(struct Dock *d, struct Item *it);
 static LONG list_row(WORD sx, WORD sy);
 static BOOL is_mini(struct Window *w);
 static void mini_drop(LONG k);
@@ -1279,6 +1281,7 @@ static BOOL scan(struct Dock *d)
         }
         if (it->running != copies) {
             it->running = copies;
+            if (!copies) it->asked = FALSE;      /* (gone: a next copy starts afresh) */
             if (d->vis != d->full) continue;     /* hidden: drawn when it comes out */
             dock_show_item(d, it, FALSE);
             if (d->tip && d->tipcell >= 0 && dock_item(d, d->tipcell) == it) {
@@ -2086,6 +2089,7 @@ static void close_program(struct Dock *d, struct Item *it)
 {
     LONG n, i, k;
     BOOL ok = TRUE;
+    it->asked = TRUE;                            /* (Force Quit offered from now on) */
     n = collect(FALSE);
     if (n > 1) {                                 /* oldest first, as the list shows them */
         for (i = 1; i < n; i++) {
@@ -2117,6 +2121,88 @@ static void close_program(struct Dock *d, struct Item *it)
     }
     if (!ok) DisplayBeep(d->scr);
     run_clicked(d);                              /* the dots and numbers soon (and the queue) */
+}
+
+/* The tasks of the program behind 'it' (its windows' owners, each once). */
+static LONG prog_tasks(struct Item *it, struct Task **out, LONG max)
+{
+    LONG n = collect(FALSE), i, k, m = 0;
+    for (i = 0; i < n; i++) {
+        if (!is_it(&own[i], it) || own[i].wb || own[i].con) continue;   /* (not Workbench; a Shell's console */
+        for (k = 0; k < m && out[k] != own[i].task; k++) ;              /*  handler is not the program) */
+        if (k == m && m < max) out[m++] = own[i].task;
+    }
+    return m;
+}
+
+/* Force Quit (the list, once Close was tried). First the break signals
+   Ctrl+C, D, E and F: Shell programs and ports stop on those and clean up
+   after themselves. Still there two seconds later, the user is asked, and
+   the program is ended: its tasks are taken out of the system and their
+   windows closed (Intuition's way: messages replied, the port detached),
+   then a screen of its own left with no windows. AmigaOS tracks nothing a
+   program holds, so its memory, open files and locks stay in use until a
+   reboot, and a program ended inside a system call can take the system
+   down - the requester says so. The same as Scout's Remove. */
+#define MAXPT 16
+#ifdef SD_DEBUG
+BOOL fq_noask;                                   /* tests: the requester skipped (DOACT ... NOASK) */
+#endif
+static void end_program(struct Dock *d, struct Item *it)
+{
+    static struct EasyStruct es = { sizeof(struct EasyStruct), 0, SD_NAME,
+        "%s does not respond.\nEnd it anyway? Unsaved work in it is lost,\n"
+        "what it holds stays in use until a reboot,\nand the system may become unstable.", "End it|Cancel" };
+    struct Task *t[MAXPT];
+    struct Window *wins[MAXWIN], *w;
+    struct Screen *scrs[MAXWIN], *s;
+    LONG m, k, i, nw = 0;
+    CONST_STRPTR name = it->label ? it->label : FilePart(it->path);
+    if (!(m = prog_tasks(it, t, MAXPT))) { DisplayBeep(d->scr); return; }
+    Forbid();
+    snap_tasks();
+    for (k = 0; k < m; k++)
+        if (alive(t[k])) Signal(t[k], SIGBREAKF_CTRL_C | SIGBREAKF_CTRL_D | SIGBREAKF_CTRL_E | SIGBREAKF_CTRL_F);
+    Permit();
+    Delay(100);                                  /* (2 s: most stop by then) */
+    if (!prog_tasks(it, t, MAXPT)) { lastsig = 0; run_clicked(d); return; }   /* it stopped */
+#ifdef SD_DEBUG
+    if (!fq_noask)
+#endif
+    if (EasyRequest(d->win, &es, NULL, (LONG)name) != 1) return;
+    m = prog_tasks(it, t, MAXPT);
+    for (k = 0; k < m; k++) {
+        Forbid();
+        snap_tasks();
+        if (!alive(t[k])) { Permit(); continue; }
+        RemTask(t[k]);                           /* (exec frees its stack and process structure) */
+        for (s = IntuitionBase->FirstScreen; s; s = s->NextScreen)   /* its windows, noted while nothing moves */
+            for (w = s->FirstWindow; w && nw < MAXWIN; w = w->NextWindow)
+                if (w->UserPort && (w->UserPort->mp_Flags & PF_ACTION) != PA_SOFTINT &&
+                    w->UserPort->mp_SigTask == (APTR)t[k]) { wins[nw] = w; scrs[nw++] = s; }
+        Permit();
+    }
+    for (i = 0; i < nw; i++) {                   /* closed as Intuition wants it (CloseWindowSafely) */
+        struct Message *msg;
+        Forbid();
+        while ((msg = GetMsg(wins[i]->UserPort))) ReplyMsg(msg);
+        wins[i]->UserPort = NULL;
+        ModifyIDCMP(wins[i], 0);
+        Permit();
+        CloseWindow(wins[i]);
+    }
+    for (i = 0; i < nw; i++) {                   /* a screen of its own with nothing left on it */
+        BOOL again = FALSE;
+        for (k = 0; k < i && !again; k++) again = scrs[k] == scrs[i];
+        if (again || scrs[i] == d->scr) continue;
+        Forbid();
+        for (s = IntuitionBase->FirstScreen; s && s != scrs[i]; s = s->NextScreen) ;
+        if (s && !s->FirstWindow && !(s->Flags & WBENCHSCREEN)) { Permit(); CloseScreen(s); }
+        else Permit();
+    }
+    it->asked = FALSE;
+    lastsig = 0;
+    run_clicked(d);                              /* its mark goes */
 }
 
 /* ------------------------------------------------------------- minimised */
@@ -2688,6 +2774,24 @@ void run_dropinfo(struct Dock *d, char *out, LONG size)
 }
 
 #ifdef SD_DEBUG
+/* ARexx DOACT NAME ACTION [NOASK] (tests): the long-press list of the icon
+   named NAME opened and its action ACTION (as the list shows it) done.
+   RC 5: no such icon or action. */
+LONG run_debug_act(struct Dock *d, CONST_STRPTR name, CONST_STRPTR action, BOOL noask)
+{
+    struct Item *it;
+    LONG a;
+    FOR_ITEMS(d, it) if (same_name(FilePart(it->path), name)) break;
+    if (!it->node.mln_Succ) return 5;
+    fq_noask = noask;
+    run_hold(d, it);
+    if (!d->list) return 10;
+    for (a = 0; a < nact && Stricmp((STRPTR)act_text(act[a]), (STRPTR)action); a++) ;
+    if (a == nact) { run_list_close(d); return 5; }
+    do_act(d, a);
+    return 0;
+}
+
 /* ARexx SHELLDROPTEST DIR NAME (tests): DIR/NAME dropped onto the first
    Shell window that is a drop target, as Workbench sends it. RC 5: none. */
 LONG run_debug_shelldrop(struct Dock *d, CONST_STRPTR dir, CONST_STRPTR name)
@@ -2843,6 +2947,7 @@ static void list_actions(struct Item *it)
     if (shown && can_hide()) act[nact++] = ACT_MINI;   /* (some showing, some minimised: both) */
     if (hidden && can_hide()) act[nact++] = ACT_SHOW;
     if (nlist) act[nact++] = ACT_CLOSE;
+    if (nlist && it->asked) act[nact++] = ACT_FORCE;   /* (Close was tried: the next step) */
 }
 
 /* Minimise... / Show... / Close... with several windows: the list asks which
@@ -2906,6 +3011,7 @@ static void do_act(struct Dock *d, LONG a)
                      else if (mode == LM_CLOSE) close_program(d, it);
                      else if (unminimise(it)) front(it, TRUE);
                      break;
+    case ACT_FORCE:  end_program(d, it); break;
     default:         close_program(d, it); break;
     }
 }
