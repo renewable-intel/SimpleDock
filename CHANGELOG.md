@@ -141,7 +141,8 @@
   Shell's drawer, RAM: or a drawer of your choice (Advanced, Shell drops).
   Icons dropped onto the dock's Shell icon go into the Shell window in
   front the same way (any system, any console) instead of starting a new
-  Shell; with no Shell open, a new one starts and gets them.
+  Shell, which is brought to the front; with no Shell open, a new one
+  starts and gets them.
 - Smaller and lighter: the program is about 18 KB smaller on disk (small
   data model), and it uses about 40 KB less memory while idle: the
   settings window's buffers, the crash report's spare stack and ARexx
