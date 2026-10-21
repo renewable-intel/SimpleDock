@@ -2123,14 +2123,37 @@ static void close_program(struct Dock *d, struct Item *it)
     run_clicked(d);                              /* the dots and numbers soon (and the queue) */
 }
 
-/* The tasks of the program behind 'it' (its windows' owners, each once). */
-static LONG prog_tasks(struct Item *it, struct Task **out, LONG max)
+/* The tasks of the program behind 'it': its windows' owners, each once, and
+   (all: also the copies with no window - a copy that never got as far as
+   opening one, PocketSNES started by an IconX script) every other process
+   running the same program by name. Not the Shell icon (every Shell would
+   count), not the dock itself. */
+static LONG prog_tasks(struct Item *it, struct Task **out, LONG max, BOOL all)
 {
     LONG n = collect(FALSE), i, k, m = 0;
+    struct Task *me = FindTask(NULL);
     for (i = 0; i < n; i++) {
         if (!is_it(&own[i], it) || own[i].wb || own[i].con) continue;   /* (not Workbench; a Shell's console */
         for (k = 0; k < m && out[k] != own[i].task; k++) ;              /*  handler is not the program) */
         if (k == m && m < max) out[m++] = own[i].task;
+    }
+    if (all && !is_shell(it) && it->temp != RUN_WB) {
+        struct List *lists[2];
+        struct Node *nd;
+        LONG l;
+        Forbid();
+        lists[0] = &SysBase->TaskReady; lists[1] = &SysBase->TaskWait;
+        for (l = 0; l < 2; l++)
+            for (nd = lists[l]->lh_Head; nd->ln_Succ && m < max; nd = nd->ln_Succ) {
+                struct Task *t = (struct Task *)nd;
+                char nm[NAMELEN];
+                if (t == me || t->tc_Node.ln_Type != NT_PROCESS) continue;
+                task_name(t, nm, NULL);
+                if (!nm[0] || !same_name(nm, FilePart(it->path))) continue;
+                for (k = 0; k < m && out[k] != t; k++) ;
+                if (k == m) out[m++] = t;
+            }
+        Permit();
     }
     return m;
 }
@@ -2158,19 +2181,19 @@ static void end_program(struct Dock *d, struct Item *it)
     struct Screen *scrs[MAXWIN], *s;
     LONG m, k, i, nw = 0;
     CONST_STRPTR name = it->label ? it->label : FilePart(it->path);
-    if (!(m = prog_tasks(it, t, MAXPT))) { DisplayBeep(d->scr); return; }
+    if (!(m = prog_tasks(it, t, MAXPT, TRUE))) { DisplayBeep(d->scr); return; }
     Forbid();
     snap_tasks();
     for (k = 0; k < m; k++)
         if (alive(t[k])) Signal(t[k], SIGBREAKF_CTRL_C | SIGBREAKF_CTRL_D | SIGBREAKF_CTRL_E | SIGBREAKF_CTRL_F);
     Permit();
     Delay(100);                                  /* (2 s: most stop by then) */
-    if (!prog_tasks(it, t, MAXPT)) { lastsig = 0; run_clicked(d); return; }   /* it stopped */
+    if (!prog_tasks(it, t, MAXPT, TRUE)) { lastsig = 0; run_clicked(d); return; }   /* it stopped */
 #ifdef SD_DEBUG
     if (!fq_noask)
 #endif
     if (EasyRequest(d->win, &es, NULL, (LONG)name) != 1) return;
-    m = prog_tasks(it, t, MAXPT);
+    m = prog_tasks(it, t, MAXPT, TRUE);
     for (k = 0; k < m; k++) {
         Forbid();
         snap_tasks();

@@ -123,7 +123,8 @@
 - Force Quit: once Close was tried on a program, its long-press list
   offers Force Quit... It first sends the break signals (Ctrl+C, D, E,
   F), which stop Shell programs and ports; if the program is still there
-  after two seconds, it asks, and ends the program: its tasks are removed
+  after two seconds, it asks, and ends the program (every copy, also one
+  with no window): its tasks are removed
   and their windows (and a screen of its own) closed, and a Shell
   process's entry in the Shell list cleared (Status showed a ghost, and
   Break on it would have touched freed memory). As with
