@@ -124,7 +124,9 @@
   offers Force Quit... It first sends the break signals (Ctrl+C, D, E,
   F), which stop Shell programs and ports; if the program is still there
   after two seconds, it asks, and ends the program: its tasks are removed
-  and their windows (and an empty screen of its own) closed. As with
+  and their windows (and a screen of its own) closed, and a Shell
+  process's entry in the Shell list cleared (Status showed a ghost, and
+  Break on it would have touched freed memory). As with
   Scout's Remove, what the program held stays in use until a reboot, and
   a program ended inside a system call can take the system down - the
   requester says so.

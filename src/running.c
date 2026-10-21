@@ -2175,6 +2175,13 @@ static void end_program(struct Dock *d, struct Item *it)
         Forbid();
         snap_tasks();
         if (!alive(t[k])) { Permit(); continue; }
+        if (t[k]->tc_Node.ln_Type == NT_PROCESS) {   /* a Shell process: its slot in DOS's table of them */
+            struct Process *p = (struct Process *)t[k];   /* cleared, as its normal exit would (else Status */
+            struct RootNode *rn = (struct RootNode *)DOSBase->dl_Root;   /* lists a ghost, and Break on */
+            LONG *ta = rn ? (LONG *)BADDR(rn->rn_TaskArray) : NULL;      /* that number touches freed memory) */
+            if (ta && p->pr_TaskNum > 0 && p->pr_TaskNum <= ta[0] && ta[p->pr_TaskNum] == (LONG)&p->pr_MsgPort)
+                ta[p->pr_TaskNum] = 0;
+        }
         RemTask(t[k]);                           /* (exec frees its stack and process structure) */
         for (s = IntuitionBase->FirstScreen; s; s = s->NextScreen)   /* its windows, noted while nothing moves */
             for (w = s->FirstWindow; w && nw < MAXWIN; w = w->NextWindow)
