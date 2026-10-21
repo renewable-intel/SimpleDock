@@ -325,7 +325,7 @@ static const struct { const char *label, *key; UBYTE kind; const char *const *na
     { "Beep", "NOBEEP", K_LIST, beepname, NULL, 0 },
     { "Crash reports", "CRASHLOG", K_SWITCH },
     { "No border", "NOBORDER", K_SWITCH } };
-#define HIDEROWS 3                      /* the Hidden programs list: rows high */
+#define HIDEROWS 6                      /* the Hidden programs list: rows high */
 #define NADV ((LONG)(sizeof(adv) / sizeof(adv[0])))
 static const char *const alignname[] = { "Centre", "Start", "End", NULL };
 static const char *const msgname[] = { "Normal", "Quiet", "Verbose", NULL };
@@ -449,7 +449,7 @@ static LONG slots(struct Slot *ss, struct Slot *as, LONG *na, BOOL compact)
     for (i = 0; i < NADV && n < MAXSLOT - 1; i++) {
         if (adv[i].head && !compact) { as[n].what = -1 - i; as[n++].h = 1; }   /* (a heading: its row's index) */
         as[n].what = i;
-        as[n++].h = adv[i].kind != K_HIDE ? 1 : compact ? 2 : HIDEROWS;
+        as[n++].h = adv[i].kind != K_HIDE ? 1 : (compact ? 2 : HIDEROWS) + 1;   /* (+1: Remove beneath it) */
     }
     *na = n;
     return ns;
@@ -1012,16 +1012,16 @@ static BOOL build(struct Dock *d)
         ng.ng_Width = adv[i].kind == K_SWITCH ? 26 : gw;
         ng.ng_GadgetText = (STRPTR)adv[i].label;
         ng.ng_GadgetID = G_ADV + i;
-        if (adv[i].kind == K_HIDE) {             /* the list (its name drawn by divider()), Remove beside it */
-            hidden_fill(d);
+        if (adv[i].kind == K_HIDE) {             /* the list (its name drawn by divider()), the full field */
+            hidden_fill(d);                      /* width - names can be long; Remove beneath it, at the right */
             hlabx = ng.ng_LeftEdge - 8;
-            hlaby = ng.ng_TopEdge + (fh + 4 - fh + 1) / 2;
+            hlaby = ng.ng_TopEdge + 2;
             ng.ng_GadgetText = NULL;
-            ng.ng_Width = gw - rbw - 4;
-            ng.ng_Height = (as[k].h - 1) * step + fh + 4;
+            ng.ng_Height = (as[k].h - 2) * step + fh + 4;
             g = ag[i] = CreateGadget(LISTVIEW_KIND, g, &ng, GTLV_Labels, &hlist, GTLV_ShowSelected, NULL, TAG_END);
-            ng.ng_Height = fh + 4;
             if (!g) break;
+            ng.ng_TopEdge += (as[k].h - 1) * step;
+            ng.ng_Height = fh + 4;
             ng.ng_LeftEdge += gw - rbw;
             ng.ng_Width = rbw;
             ng.ng_GadgetText = (STRPTR)"Remove";
