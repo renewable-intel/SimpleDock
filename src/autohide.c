@@ -154,14 +154,14 @@ void ah_hotkey(struct Dock *d)
     if (d->vis == d->full && !d->parked && !dock_covered(d)) {   /* seen: hidden */
         hk_stat[HK_UNPIN]++;
         d->pinned = FALSE;
+        d->parkleft = FALSE;                     /* (before parked: the input handler reads them in that order) */
         d->parked = TRUE;
-        d->parkleft = FALSE;
         d->want = FALSE;
     } else {                                     /* hidden, sliding, covered: out and in front */
         hk_stat[HK_PIN]++;
         d->parked = FALSE;
+        d->pinentered = FALSE;                   /* (before pinned, as above) */
         d->pinned = TRUE;
-        d->pinentered = FALSE;
         d->want = TRUE;
         WindowToFront(d->win);
         if (d->tip) WindowToFront(d->tip);

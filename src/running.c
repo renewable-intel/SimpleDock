@@ -1590,7 +1590,7 @@ static BOOL shell_run(struct Dock *d, struct Item *it, LONG kind, BOOL ask)
         strcat(cmd, " ");
     }
     add_name(cmd, it->path);
-    if (ask && !ask_command(d, cmd, sizeof(cmd))) { UnLock(dir); return TRUE; }   /* (Cancel) */
+    if (ask && ask_command(d, cmd, sizeof(cmd)) == 0) { UnLock(dir); return TRUE; }   /* (Cancel; could not ask: run) */
     a[1] = s ? s->BarHeight + 1 : 11;
     a[2] = s && s->Width < 640 ? s->Width : 640;
     a[3] = s && s->Height - a[1] < 200 ? s->Height - a[1] : 200;
@@ -1886,7 +1886,7 @@ static BOOL list_open(struct Dock *d)
     d->list = OpenWindowTags(NULL, WA_PubScreen, d->scr, WA_Left, lx, WA_Top, ly, WA_Width, lw, WA_Height, lh,
                              WA_Borderless, TRUE, WA_Activate, FALSE, WA_SmartRefresh, TRUE,
                              WA_NoCareRefresh, TRUE, WA_BackFill, LAYERS_NOBACKFILL, TAG_END);
-    if (!d->list) { FreeBitMap(listbg); listbg = NULL; return FALSE; }
+    if (!d->list) { WaitBlit(); FreeBitMap(listbg); listbg = NULL; return FALSE; }
     list_draw(d);
     return TRUE;
 }
@@ -1946,7 +1946,7 @@ open:
     ldock = d;
     lsel = -1;
     d->liststicky = FALSE;
-    list_open(d);
+    if (!list_open(d)) run_list_close(d);
 }
 
 /* Ask the window to close, as its close gadget would: an IDCMP_CLOSEWINDOW
@@ -2138,21 +2138,18 @@ static LONG prog_tasks(struct Item *it, struct Task **out, LONG max, BOOL all)
         if (k == m && m < max) out[m++] = own[i].task;
     }
     if (all && !is_shell(it) && it->temp != RUN_WB) {
-        struct List *lists[2];
-        struct Node *nd;
-        LONG l;
+        LONG j;
         Forbid();
-        lists[0] = &SysBase->TaskReady; lists[1] = &SysBase->TaskWait;
-        for (l = 0; l < 2; l++)
-            for (nd = lists[l]->lh_Head; nd->ln_Succ && m < max; nd = nd->ln_Succ) {
-                struct Task *t = (struct Task *)nd;
-                char nm[NAMELEN];
-                if (t == me || t->tc_Node.ln_Type != NT_PROCESS) continue;
-                task_name(t, nm, NULL);
-                if (!nm[0] || !same_name(nm, FilePart(it->path))) continue;
-                for (k = 0; k < m && out[k] != t; k++) ;
-                if (k == m) out[m++] = t;
-            }
+        snap_tasks();                            /* (the lists copied with interrupts off: a walk under */
+        for (j = 0; j < ntasks && m < max; j++) {   /*  Forbid alone can miss a task that a Signal() moves) */
+            struct Task *t = tasks[j];
+            char nm[NAMELEN];
+            if (t == me || t->tc_Node.ln_Type != NT_PROCESS) continue;
+            task_name(t, nm, NULL);
+            if (!nm[0] || !same_name(nm, FilePart(it->path))) continue;
+            for (k = 0; k < m && out[k] != t; k++) ;
+            if (k == m) out[m++] = t;
+        }
         Permit();
     }
     return m;
@@ -2595,7 +2592,7 @@ static BOOL unpack_cmd(struct Dock *d, CONST_STRPTR path, CONST_STRPTR name, cha
         el = strlen(packer[k].end);
         if (nl > el && !Stricmp((STRPTR)name + nl - el, (STRPTR)packer[k].end)) break;
     }
-    if (k == NPACKER || !unpack_tool(packer[k].tool, tool, sizeof(tool))) return FALSE;
+    if (k == NPACKER || nl - el >= (LONG)sizeof(base) || !unpack_tool(packer[k].tool, tool, sizeof(tool))) return FALSE;
     memcpy(base, name, nl - el); base[nl - el] = 0;
     dest[0] = 0;
     if (dir && *dir && strlen(dir) < sizeof(dest) - 2) {   /* (a drawer: ends in ':' or '/') */
@@ -2798,8 +2795,8 @@ void run_dropinfo(struct Dock *d, char *out, LONG size)
     out[0] = 0;
     collect(FALSE);                              /* (the Shells' consoles: contask) */
     lock = LockIBase(0);
-    for (w = d->scr ? d->scr->FirstWindow : NULL; w; w = w->NextWindow) {
-        struct Task *t = w->UserPort ? (struct Task *)w->UserPort->mp_SigTask : con_task(w);
+    for (w = d->scr ? d->scr->FirstWindow : NULL; w && l < size - 400; w = w->NextWindow) {   /* (room for the */
+        struct Task *t = w->UserPort ? (struct Task *)w->UserPort->mp_SigTask : con_task(w);   /*  lines below) */
         UBYTE pf = w->UserPort ? (w->UserPort->mp_Flags & PF_ACTION) : 0xFF;
         for (k = 0; k < ncon && contask[k] != t; k++) ;
         for (i = 0; i < nsdw && sdw[i].win != w; i++) ;
@@ -2809,7 +2806,6 @@ void run_dropinfo(struct Dock *d, char *out, LONG size)
         v[3] = k < ncon ? 'C' : '.';
         v[4] = i < nsdw ? 'D' : '.';
         SD_FMT(line, "%.40s | %.24s | %lc %lc%lc\n", v);
-        if (l + (LONG)strlen(line) >= size - 80) break;
         strcpy(out + l, line);
         l += strlen(line);
     }
@@ -2824,7 +2820,8 @@ void run_dropinfo(struct Dock *d, char *out, LONG size)
         SD_FMT(line, "drops: received %ld, onto a target %ld, with text %ld, typed %ld, not active %ld\n", u);
         strcpy(out + l, line);
         l += strlen(line);
-        if (l + 100 < size) { strcpy(out + l, "last drop onto the Shell icon: "); strcat(out + l, lastfront); }
+        strcpy(out + l, "last drop onto the Shell icon: ");   /* (lastfront is 80 bytes at most) */
+        strcat(out + l, lastfront);
     }
 }
 

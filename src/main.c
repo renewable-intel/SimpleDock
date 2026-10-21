@@ -182,9 +182,9 @@ int main(void)
         rc = RETURN_WARN;
         goto out;
     }
-    if (o.delay > 0) Delay(o.delay);
     TRACE("config");
     if (!config_load(d, NULL)) config_free(d);   /* unreadable config: start empty, never overwrite it */
+    if (o.delay > 0) Delay(o.delay);             /* (DELAY from the file counts too) */
     menusig = am_open();                       /* before the dock: its drop target */
     TRACE("open");
     timersig = ah_open(d);                     /* timers first: the dock's drawing is timed (debug) */
@@ -223,6 +223,7 @@ int main(void)
                 k = d->keyact;
                 d->keyact = 0;
                 Permit();
+                if (d->dragging || d->lmb) k = 0;   /* (a window change now would deadlock the drag) */
                 if (k & KEY_MIN) run_key_min(d);
                 if (k & KEY_MINALL) run_key_minall(d);
                 if (k & KEY_AH) ah_key(d);
@@ -233,9 +234,14 @@ int main(void)
             run_check(d);
             if (d->winchange) { d->winchange = FALSE; run_wake(d); run_soon(d); run_shell_check(d); }
             if (d->delquit) {                    /* (only if that cell still holds the icon it held at */
-                LONG c = d->delquit - 1;         /*  the key: an ARexx MOVE or a scan in this pass may */
-                d->delquit = 0;                  /*  have changed the icons) */
-                if (d->win && dock_item(d, c) == d->delitem) run_quit(d, c);
+                LONG c;                          /*  the key: an ARexx MOVE or a scan in this pass may */
+                struct Item *di;                 /*  have changed the icons) */
+                Forbid();                        /* (a second Del meanwhile: both fields together) */
+                c = d->delquit - 1;
+                di = d->delitem;
+                d->delquit = 0;
+                Permit();
+                if (d->win && dock_item(d, c) == di) run_quit(d, c);
             }
         }
         if (sigs & timersig) { ah_timer(d); run_check(d); }   /* (a slide shows or hides the dock) */

@@ -396,12 +396,16 @@ void render_tables_free(struct Dock *d)
 static void shade(struct Dock *d, struct BitMap *bm, struct RastPort *rp, LONG depth, LONG w, LONG h,
                   LONG rad, LONG opacity, LONG y0, LONG y1, LONG xa, LONG xb)
 {
+    static BOOL told;                            /* (said once: this runs per row, under dz_lock) */
     if (y1 <= y0 || xb <= xa) return;
     if (depth <= 8 && (GetBitMapAttr(bm, BMA_FLAGS) & BMF_STANDARD)) shade_clut(d, bm, depth, w, h, rad, opacity, y0, y1, xa, xb);
     else if (depth <= 8 && P96Base) shade_chunky8(d, rp, depth, w, h, rad, opacity, y0, y1, xa, xb);   /* 8-bit card */
-    else if (depth <= 8) sd_verbose(d, "Cannot tint this screen's background");
-    else if (P96Base) shade_truecolour(d, rp, w, h, rad, opacity, y0, y1, xa, xb);
-    else sd_verbose(d, "Picasso96API.library not found: background not tinted");
+    else if (depth > 8 && P96Base) shade_truecolour(d, rp, w, h, rad, opacity, y0, y1, xa, xb);
+    else if (!told) {
+        told = TRUE;
+        sd_verbose(d, depth <= 8 ? "Cannot tint this screen's background"
+                                 : "Picasso96API.library not found: background not tinted");
+    }
 }
 
 /* Copy the screen at left/top (or bitmap src there, if given) and tint it
@@ -695,6 +699,7 @@ void render_dot(struct Dock *d, struct Item *it)
     struct RastPort rp;
     WORD cx = it->x, cy = it->y, x, y;
     if (!d->img || !d->bg || !d->win || d->vis != d->full || !d->o->running) return;
+    if (d->dragging || an_running() || it == d->drag) return;   /* (the cell is moving, or empty) */
     if (cx > d->w - it->w) cx = d->w - it->w;    /* where render_item draws the cell */
     if (cy > d->h - it->h) cy = d->h - it->h;
     if (cx < 0) cx = 0;

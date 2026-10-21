@@ -162,12 +162,12 @@ BOOL config_load(struct Dock *d, CONST_STRPTR path)
             if (!path) d->cfgfailed = TRUE;                             /* never saved over */
             return FALSE;
         }
-        d->cfgcreate = TRUE;                                            /* missing: make it */
         for (i = 0; spare[i] && !fh && strlen(file) + 5 < sizeof(alt); i++) {
             strcpy(alt, file);
             strcat(alt, spare[i]);
             if ((fh = Open(alt, MODE_OLDFILE))) file = alt;            /* left by an interrupted save */
         }
+        if (!fh) d->cfgcreate = TRUE;                                   /* missing: made from the defaults */
         if (!fh) {
             opts_apply(d, NULL, file);
             config_default(d);
@@ -191,9 +191,9 @@ BOOL config_load(struct Dock *d, CONST_STRPTR path)
         while (n && (line[n - 1] == '\n' || line[n - 1] == '\r' || line[n - 1] == ' ')) line[--n] = 0;
         if (!n || line[0] == ';') continue;
         if (opts_is_setting(line)) {
-            if (line[0] != '(') {                /* the same keyword on an earlier line: this one counts */
+            {                                    /* the same keyword on an earlier line: this one counts */
                 LONG key = opts_key(line);       /* (ReadArgs refuses a keyword twice: all would be lost) */
-                for (i = 0; i < nset && (setv[i][0] == '(' || opts_key(setv[i]) != key); i++) ;
+                for (i = 0; i < nset && opts_key(setv[i]) != key; i++) ;
                 if (i < nset) {
                     sd_verbose(d, "%s: %s given again, the later line counts", (LONG)file, (LONG)setv[i]);
                     for (; i < nset - 1; i++) setv[i] = setv[i + 1];
@@ -323,6 +323,16 @@ BOOL config_reload(struct Dock *d, CONST_STRPTR path)
     }
     if (dock_open(d)) { ah_start(d); config_created(d); }
     return ok;
+}
+
+/* The file's settings lines the window does not set (FONT, LIMIT, ...),
+   for a drawer dock's icon (opts_save). */
+LONG config_other_lines(STRPTR *out, LONG max)
+{
+    LONG i, k = 0;
+    for (i = 0; setv[i] && k < max; i++)
+        if (!opts_saved(setv[i])) out[k++] = setv[i];
+    return k;
 }
 
 /* The settings in use as lines: those the settings window sets, from the

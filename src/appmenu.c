@@ -782,9 +782,12 @@ static BOOL put_lines(struct Dock *d, CONST_STRPTR lines)
         l = *e ? e + 1 : e;
         if (opts_key(one) <= 0 || n + len + 6 >= SNAPLEN) continue;   /* (CONFIG stays) */
         if (n) words[n++] = ' ';
-        if (one[0] != '(' && (eq = strchr(one, '='))) {   /* KEY="value" */
+        if (one[0] != '(' && (eq = strchr(one, '='))) {   /* KEY="value" (a file line may be quoted already) */
+            LONG vl = strlen(eq + 1);
+            CONST_STRPTR val = eq + 1;
+            if (vl >= 2 && val[0] == '"' && val[vl - 1] == '"') { val++; vl -= 2; }
             memcpy(words + n, one, eq - one + 1); n += eq - one + 1;
-            words[n++] = '"'; strcpy(words + n, eq + 1); n += strlen(eq + 1); words[n++] = '"';
+            words[n++] = '"'; memcpy(words + n, val, vl); n += vl; words[n++] = '"';
         } else if (one[0] == '(' && strchr(one, ' ')) {   /* "(KEY=a b)": quoted, one word */
             words[n++] = '"'; strcpy(words + n, one); n += len; words[n++] = '"';
         } else { strcpy(words + n, one); n += len; }
@@ -1196,12 +1199,10 @@ static void adv_apply(struct Dock *d, LONG i, UWORD code)
 static void hidden_remove(struct Dock *d)
 {
     static char line[600];
-    char name[64];
-    CONST_STRPTR p = d->o->ignore, q;
+    CONST_STRPTR name, p = d->o->ignore, q;
     LONG n = 0, len;
     if (hsel < 0 || hsel >= nhid) return;
-    strncpy(name, hnode[hsel].ln_Name, sizeof(name) - 1);
-    name[sizeof(name) - 1] = 0;
+    name = hnode[hsel].ln_Name;
     strcpy(line, "IGNORE=\"");
     while (p && *p) {                            /* IGNORE as it is now (a name hidden meanwhile, or */
         while (*p == ' ' || *p == ',' || *p == '"') p++;   /* more than the list holds), without it */
@@ -1220,6 +1221,7 @@ static void hidden_remove(struct Dock *d)
 
 /* A settings line from the window, into use. A value that is not valid, or
    one that would push icons off the dock, is refused with a beep. */
+static BOOL nosync;                     /* adv_pending: the fields are not reset between its lines */
 static void apply_line(struct Dock *d, CONST_STRPTR line)
 {
     char *before = AllocVec(SNAPLEN, MEMF_ANY);
@@ -1228,7 +1230,7 @@ static void apply_line(struct Dock *d, CONST_STRPTR line)
     if (!before || (config_get(d, NULL, before, SNAPLEN), !config_set(d, line))) {
         FreeVec(before);
         sd_beep(d);
-        sync(d);
+        if (!nosync) sync(d);
         return;
     }
     d->overtold = TRUE;                          /* no "do not fit" message for a try */
@@ -1242,7 +1244,7 @@ static void apply_line(struct Dock *d, CONST_STRPTR line)
     }
     FreeVec(before);
     d->overtold = told;
-    sync(d);
+    if (!nosync) sync(d);
     if (pw) WindowToFront(pw);                   /* a new dock window opens in front */
 }
 
@@ -1259,6 +1261,7 @@ static void adv_pending(struct Dock *d)
 {
     char v[SD_LINEMAX];
     LONG i, n, m;
+    nosync = TRUE;                               /* (a sync after the first would reset the others: lost) */
     for (i = 0; pw && i < NADV; i++) {
         struct StringInfo *si;
         if (ag[i] && adv[i].kind == K_KEY) {
@@ -1275,6 +1278,8 @@ static void adv_pending(struct Dock *d)
         StrToLong((STRPTR)si->Buffer, &m);
         if (m != n) adv_apply(d, i, 0);
     }
+    nosync = FALSE;
+    sync(d);
 }
 
 struct Window *am_prefs_win(void) { return pw; }

@@ -189,6 +189,7 @@ void crash_recover(void)
                   "github.com/renewable-intel/SimpleDock", v[0]);
         dock_close(d);
     }
+    run_shell_off();                             /* (the Shell windows' drop targets: before their port goes) */
     am_close();
     an_close();
     ah_close();
@@ -196,7 +197,10 @@ void crash_recover(void)
     if (d) config_free(d);
     if (cport) rexx_close(*cport);
     if (crd) opts_free(*crd);
-    crash_set(FALSE);
+    {                                            /* the trap off, but the spare stack kept: this runs on it */
+        struct Task *me = FindTask(NULL);
+        if (armed) { me->tc_TrapCode = oldtrap; armed = FALSE; }
+    }
     sd_close_libs();
     exit(RETURN_FAIL);
 }

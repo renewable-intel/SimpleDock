@@ -219,6 +219,7 @@ BOOL config_load(struct Dock *d, CONST_STRPTR path);         /* NULL = the dock'
 BOOL config_save(struct Dock *d, CONST_STRPTR path);
 BOOL config_reload(struct Dock *d, CONST_STRPTR path);
 BOOL config_set(struct Dock *d, CONST_STRPTR args);         /* ARexx SET: settings lines over those in use */
+LONG config_other_lines(STRPTR *out, LONG max);             /* the file's lines the window does not set */
 BOOL config_get(struct Dock *d, CONST_STRPTR key, char *out, LONG size);   /* ARexx GET */
 BOOL config_choose(struct Dock *d, BOOL save);               /* ASL requester, then load / save (TRUE: done) */
 void config_store(struct Dock *d);                          /* a change by hand: into the dock's own file */
@@ -257,7 +258,7 @@ ULONG in_set_keys(CONST_STRPTR *desc);                      /* the NKEYS keys; b
 BOOL in_key_off(CONST_STRPTR desc);                         /* "none" (or empty): a key switched off */
 BOOL in_key_valid(CONST_STRPTR desc);                       /* a valid MINKEY/MINALLKEY/AHKEY (or "none") */
 void ah_key(struct Dock *d);                                /* the auto-hide key: auto-hide on / off */
-BOOL ask_command(struct Dock *d, char *buf, LONG size);     /* ask.c: "Execute a file"; TRUE: Execute */
+LONG ask_command(struct Dock *d, char *buf, LONG size);     /* ask.c: "Execute a file"; 1 Execute, 0 Cancel, -1 could not ask */
 struct Window *run_shell_drop(struct Dock *d, struct AppMessage *am);   /* icons onto a Shell: the text */
 void run_shell_type(struct Dock *d, struct Window *w);      /* ... typed (after the drop is answered) */
 void run_shell_check(struct Dock *d);                       /* RUNNING=0: Shell windows looked at */

@@ -34,8 +34,9 @@ static __saveds ULONG esc_hook(__reg("a0") struct Hook *h, __reg("a2") struct SG
 }
 static struct Hook eschook = { { NULL, NULL }, (ULONG (*)())esc_hook, NULL, NULL };
 
-/* Ask for the command in buf (shown, then edited there). TRUE: Execute. */
-BOOL ask_command(struct Dock *d, char *buf, LONG size)
+/* Ask for the command in buf (shown, then edited there). 1: Execute, 0:
+   Cancel, -1: could not ask (the caller runs it unasked). */
+LONG ask_command(struct Dock *d, char *buf, LONG size)
 {
     static const char prompt[] = "Enter command and its arguments:";
     struct Screen *s, *own;
@@ -43,7 +44,7 @@ BOOL ask_command(struct Dock *d, char *buf, LONG size)
     struct Gadget *list = NULL, *g, *str = NULL;
     struct NewGadget ng;
     APTR vi = NULL;
-    LONG fh, iw, ih, bw, tw;
+    LONG fh, iw, ih, bw, tw, rc = -1;
     BOOL done = FALSE, ok = FALSE;
 
     if (!(s = d->scr) || (own = LockPubScreen(d->o->pubscreen)) != s) {   /* (its own lock on the dock's screen) */
@@ -87,6 +88,7 @@ BOOL ask_command(struct Dock *d, char *buf, LONG size)
                        WA_RMBTrap, TRUE, WA_IDCMP, IDCMP_GADGETUP | IDCMP_CLOSEWINDOW | IDCMP_VANILLAKEY |
                        IDCMP_REFRESHWINDOW, TAG_END);
     if (!w) goto out;
+    rc = 0;                                      /* (asked: the answer decides) */
     GT_RefreshWindow(w, NULL);
     SetAPen(w->RPort, 1);                        /* (the screen's text pen) */
     SetFont(w->RPort, w->WScreen->RastPort.Font);
@@ -116,11 +118,12 @@ BOOL ask_command(struct Dock *d, char *buf, LONG size)
     if (ok) {
         strncpy(buf, (char *)((struct StringInfo *)str->SpecialInfo)->Buffer, size - 1);
         buf[size - 1] = 0;
+        rc = buf[0] ? 1 : 0;
     }
 out:
     if (w) CloseWindow(w);
     if (list) FreeGadgets(list);
     if (vi) FreeVisualInfo(vi);
     UnlockPubScreen(NULL, own);                  /* (after FreeVisualInfo) */
-    return ok && buf[0];
+    return rc;
 }

@@ -460,13 +460,19 @@ BOOL opts_save(struct Dock *d)
     }
     old = (STRPTR *)dobj->do_ToolTypes;
     while (old && old[n]) n++;
-    if (!(nt = AllocVec((n + 21) * sizeof(STRPTR), MEMF_CLEAR))) { FreeDiskObject(dobj); return FALSE; }
-    for (n = 0; old && old[n]; n++) {
-        skip = FALSE;
-        for (i = 0; SAVED[i] && !skip; i++) skip = is_key_any(old[n], SAVED[i]);
-        if (!skip) nt[k++] = old[n];
+    if (!(nt = AllocVec((n + 21 + 48) * sizeof(STRPTR), MEMF_CLEAR))) { FreeDiskObject(dobj); return FALSE; }
+    {                                            /* its other tooltypes kept, unless a settings line replaces them */
+        STRPTR other[48];
+        LONG no = config_other_lines(other, 48), key;
+        for (n = 0; old && old[n]; n++) {
+            key = opts_key(old[n]);
+            skip = opts_saved(old[n]);
+            for (i = 0; i < no && !skip; i++) skip = key >= 0 && key == opts_key(other[i]);
+            if (!skip) nt[k++] = old[n];
+        }
+        k += opts_lines(d, nt + k);
+        for (i = 0; i < no; i++) nt[k++] = other[i];   /* (the settings the window does not set) */
     }
-    k += opts_lines(d, nt + k);
     dobj->do_ToolTypes = (STRPTR *)nt;
     ok = PutDiskObject(name, dobj);
     dobj->do_ToolTypes = (STRPTR *)old;
