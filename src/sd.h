@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.1"
-#define SD_BUILD   " T58"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T59"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "20.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -35,6 +35,8 @@ void sd_prof(LONG slot, struct timeval *t0);
 struct Opts {
     STRPTR config, pos, font, pubscreen, tint, hotkey, customtint, ignore;
     STRPTR minkey, minallkey, ahkey;  /* keys: minimise window / all, auto-hide on/off ("none": off) */
+    STRPTR unpackdir;                 /* UNPACKTO=2: archives dropped into a Shell unpack there */
+    LONG   shelldrop, unpackto;       /* icons dropped into a Shell typed (1); unpack: here, RAM:, UNPACKDIR */
     LONG   distance, offset, icondist, delay, limit, scalew, scaleh;
     LONG   autohide, ahspeed, radius, opacity;
     BOOL   notext, hovertext, noicon, noborder, ontop, transparent, quiet, verbose, crashlog;
@@ -248,6 +250,10 @@ BOOL in_key_off(CONST_STRPTR desc);                         /* "none" (or empty)
 BOOL in_key_valid(CONST_STRPTR desc);                       /* a valid MINKEY/MINALLKEY/AHKEY (or "none") */
 void ah_key(struct Dock *d);                                /* the auto-hide key: auto-hide on / off */
 BOOL ask_command(struct Dock *d, char *buf, LONG size);     /* ask.c: "Execute a file"; TRUE: Execute */
+struct Window *run_shell_drop(struct Dock *d, struct AppMessage *am);   /* icons onto a Shell: the text */
+void run_shell_type(struct Dock *d, struct Window *w);      /* ... typed (after the drop is answered) */
+void run_shell_check(struct Dock *d);                       /* RUNNING=0: Shell windows looked at */
+void run_shell_off(void);                                   /* no Shell window a drop target (quitting) */
 void run_key_min(struct Dock *d);                           /* the minimise key: the active window */
 void run_key_minall(struct Dock *d);                        /* minimise all: its program, drawers, or every window */
 void dock_show(struct Dock *d);                             /* blit img into the window */

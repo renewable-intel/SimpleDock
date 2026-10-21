@@ -134,6 +134,11 @@
   with the command before an icon set to start from a Shell starts, as a
   double-click does (Workbench skips it when the dock asks it); icons with
   DONOTPROMPT start at once (SHELLASK).
+- Icons dropped onto a Shell window have their paths typed at the cursor
+  (on 3.1/3.9-based systems such as CaffeineOS; 3.2's Shell does it
+  itself). A single archive gets the command to unpack it, if its tool
+  is there (lha, lzx, unzip, tar, gzip, bzip2, xz, 7z, unrar), into the
+  Shell's drawer, RAM: or a drawer of your choice (Advanced, Shell drops).
 - Smaller and lighter: the program is about 18 KB smaller on disk (small
   data model), and it uses about 40 KB less memory while idle: the
   settings window's buffers, the crash report's spare stack and ARexx
