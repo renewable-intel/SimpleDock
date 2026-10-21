@@ -120,6 +120,11 @@
   the first output.
 - With Messages set to Verbose, the dock says why icons could not be
   shrunk to the icon size, if that happens.
+- The hotkey toggles on what is seen: a dock that is out (and not
+  covered) hides and stays hidden until the pointer has left the edge;
+  otherwise it comes out in front. Before, a dock out because the pointer
+  was near, or out but covered, was only "pinned" by a press, and hidden
+  by the next, so presses looked lost.
 - Keys: Ctrl+Alt+M minimises the active window; Ctrl+Alt+Shift+M
   minimises all - with a drawer active all drawer windows, with a
   program's window all its windows (every copy; all Shells for a Shell),
