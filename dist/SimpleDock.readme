@@ -7,43 +7,37 @@ Architecture: m68k-amigaos >= 3.1.4
 Requires:     AmigaOS 3.1.4/3.5/3.9/3.2 (best on 3.2), 68030+ with fast RAM
 URL:          https://github.com/renewable-intel/SimpleDock
 
-SimpleDock is an app dock at the edge of your Workbench screen, in the
-style of the macOS dock.
+SimpleDock is a dock at the edge of your Workbench screen, in the manner
+of the macOS dock. Simple to use; there is a lot inside.
 
-  - click to start, drag to rearrange, drag off to remove
-  - shows running programs (a dot, and the number of copies); a click
-    brings all of a program's windows to the front, Shift+click starts
-    another copy
-  - long press: a list of a program's windows, to bring one to the
-    front or close it
-  - programs not on the dock show at its end behind a divider; drag
-    one in to keep it, or off the dock to hide it
-  - drop Workbench icons between dock icons to add them, onto a
-    program to open them with it, onto a drawer to copy them into it
-  - labels below the icons, on hover (with a small pointer, like
-    macOS), or labels only
-  - six colours or your own (colour picker), solid or transparent
-  - auto-hide with a smooth slide, a hotkey to bring the dock out,
-    optionally always in front of other windows
-  - a settings window with simple and advanced settings (Dock menu in
-    the Workbench menu bar); everything in one plain text file, the same
-    keywords as tooltypes
-  - ARexx port SIMPLEDOCK: show/hide, add/remove/move icons, change and
-    save any setting from scripts
+  - click to start, drag to rearrange, drag off to remove, drop icons
+    from Workbench to add them
+  - running programs: a dot and the number of copies; a click brings
+    all of a program's windows to the front, Shift+click starts another
+    copy, Del closes it; programs not on the dock show at its end
+  - long press: a list of a program's windows - bring one to the
+    front, minimise, show, close; Force Quit for a program that will
+    not close
+  - keys: minimise the active window, minimise all (by what is
+    active), auto-hide on/off; all changeable
+  - drop files onto a program to open them with it, into a drawer to
+    copy them, into a Shell window to type their paths - an archive
+    gets the command that unpacks it
+  - labels below the icons, on hover, or labels only; six colours or
+    your own; solid or transparent; auto-hide with a hotkey
+  - a settings window (simple side and Advanced), one plain text
+    settings file, the same keywords as tooltypes
+  - ARexx port SIMPLEDOCK: show/hide, icons, every setting
   - optional crash reports, to send with a bug report
 
 Minimum: AmigaOS 3.2, or 3.1.4, 3.5 or 3.9, and a 68030 with fast RAM.
-Recommended: a 68040/68060 accelerator or a PiStorm / Emu68 system, and
-a graphics card (Picasso96) with a 16- or 24-bit screen mode for the
-transparent dock. It also works on AGA (8-bit) screens, more slowly.
+Recommended: a 68040/68060 or a PiStorm / Emu68 system, and a graphics
+card (Picasso96) with a 16- or 24-bit screen mode. AGA screens work,
+more slowly.
 
 Nothing to install: put the drawer anywhere and double-click SimpleDock.
-Full documentation in the ReadMe.
+The guide (SimpleDock.guide, for MultiView) has everything, one short
+page per topic; the ReadMe is the same text in one file.
 
 Free software, GNU GPL version 3 or later. Source code:
 https://github.com/renewable-intel/SimpleDock (tag v1.1)
-
-New in 1.1: running programs (dot, number, click to front, Shift+click
-for a new copy), programs not on the dock shown at its end, the
-long-press window list (with Close / Close All), drops onto drawers,
-the Shell icon works like a program icon, seven new Advanced settings.

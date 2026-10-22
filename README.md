@@ -5,17 +5,19 @@ A simple, macOS-inspired application dock for **AmigaOS 3.x** (best on 3.2): sma
 A rounded bar of icons at a screen edge, solid or transparent, in the style of
 the macOS dock.
 
-> **Status: v1.1.** Icons with labels below, on hover or labels only, drag to
-> rearrange or remove, drop Workbench icons onto the dock (between icons to add
-> them, onto a program to open them with it, onto a drawer to copy them into
-> it), running programs shown with a dot and a count (a click brings their
-> windows to the front, Shift+click starts another copy, a long press lists the
-> windows to pick or close one), programs not on the dock shown at its end
-> behind a divider (drag one in to keep it), auto-hide with a smooth slide and
-> a hotkey (CTRL ALT SHIFT) to bring it out, a "Dock" menu in the Workbench menu
-> bar, a settings window with simple and advanced settings, colours of your
-> own, and crash reports on request.
-> Spec: [docs/SPEC.md](docs/SPEC.md). Changes: [CHANGELOG.md](CHANGELOG.md).
+> **Status: v1.1.** Running programs (a dot and the count; click to front,
+> Shift+click for a copy, Del to close), the long-press window list
+> (minimise, show, close, Force Quit), programs not on the dock shown at its
+> end, keys (minimise, minimise all, auto-hide), drops onto programs and
+> drawers and into Shell windows (archives get their unpack command), a
+> settings window with a simple side and Advanced, auto-hide with a hotkey,
+> ARexx, crash reports.
+>
+> **User guide:** [docs/SimpleDock.html](docs/SimpleDock.html) - the same
+> guide ships as `SimpleDock.guide` (AmigaGuide, for MultiView) and `ReadMe`
+> in the archive; all three come from [docs/guide.txt](docs/guide.txt) via
+> `scripts/mkguide.py`. Developers: [docs/SPEC.md](docs/SPEC.md),
+> [CHANGELOG.md](CHANGELOG.md).
 
 ## Goals
 
