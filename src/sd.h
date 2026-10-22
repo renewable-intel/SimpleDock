@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.1"
-#define SD_BUILD   " T76"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T77"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "20.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -220,6 +220,7 @@ BOOL config_save(struct Dock *d, CONST_STRPTR path);
 BOOL config_reload(struct Dock *d, CONST_STRPTR path);
 BOOL config_set(struct Dock *d, CONST_STRPTR args);         /* ARexx SET: settings lines over those in use */
 LONG config_other_lines(STRPTR *out, LONG max);             /* the file's lines the window does not set */
+BOOL config_choose_dir(struct Dock *d, char *buf, LONG size);   /* an ASL drawer requester into buf */
 BOOL config_get(struct Dock *d, CONST_STRPTR key, char *out, LONG size);   /* ARexx GET */
 BOOL config_choose(struct Dock *d, BOOL save);               /* ASL requester, then load / save (TRUE: done) */
 void config_store(struct Dock *d);                          /* a change by hand: into the dock's own file */

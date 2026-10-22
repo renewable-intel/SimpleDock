@@ -470,6 +470,24 @@ BOOL config_choose(struct Dock *d, BOOL save)
     FreeAslRequest(fr);
     return done;
 }
+/* The "..." button of a drawer field: an ASL drawer requester, starting at
+   the drawer in 'buf' (or SYS:). TRUE: a drawer chosen, in buf. */
+BOOL config_choose_dir(struct Dock *d, char *buf, LONG size)
+{
+    struct FileRequester *fr;
+    BOOL done = FALSE;
+    if (!AslBase) { sd_msg(d, "asl.library is needed to choose a drawer"); return FALSE; }
+    if (!(fr = AllocAslRequestTags(ASL_FileRequest, TAG_END))) return FALSE;
+    if (AslRequestTags(fr, ASLFR_Screen, d->scr, ASLFR_TitleText, "Unpack archives into",
+                       ASLFR_DrawersOnly, TRUE, ASLFR_InitialDrawer, buf[0] ? buf : "SYS:", TAG_END) &&
+        fr->fr_Drawer && fr->fr_Drawer[0] && (LONG)strlen(fr->fr_Drawer) < size) {
+        strcpy(buf, fr->fr_Drawer);
+        done = TRUE;
+    }
+    FreeAslRequest(fr);
+    return done;
+}
+
 void config_free(struct Dock *d)
 {
     run_free_all(d);

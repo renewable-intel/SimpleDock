@@ -254,7 +254,7 @@ void am_note_overflow(struct Dock *d, LONG n)
    changes goes back to how it opened. */
 #define NGROUP 11                       /* cycle gadgets; then the hotkey (a string gadget) */
 #define NROWS (NGROUP + 1)
-enum { G_KEY = NGROUP, G_ADV = 20, G_BRECALL = 100, G_BMORE, G_BLOAD, G_BSAVEAS, G_BPICK, G_BHREM };
+enum { G_KEY = NGROUP, G_ADV = 20, G_BRECALL = 100, G_BMORE, G_BLOAD, G_BSAVEAS, G_BPICK, G_BHREM, G_BDIR };
 static const char *const posname[] = { "Top", "Bottom", "Left", "Right" };
 static const char *const textname[] = { "Below icons", "On hover", "Off", "Labels only" };
 static const char *const frontname[] = { "Off", "On" };
@@ -1038,6 +1038,21 @@ static BOOL build(struct Dock *d)
         case K_ICON:
         case K_INT:    g = ag[i] = CreateGadget(INTEGER_KIND, g, &ng, GTIN_MaxChars, 6, TAG_END); break;
         case K_STR:
+            if (!strcmp(adv[i].key, "UNPACKDIR")) {   /* a drawer: a "..." button beside it opens a requester */
+                LONG dbw = TextLength(rp, "...", 3) + 16;
+                ng.ng_Width = gw - dbw - 4;
+                g = str_new(g, &ng, &ag[i]);
+                if (!g) break;
+                ng.ng_LeftEdge += gw - dbw;
+                ng.ng_Width = dbw;
+                ng.ng_GadgetText = (STRPTR)"...";
+                ng.ng_GadgetID = G_BDIR;
+                ng.ng_Flags = PLACETEXT_IN;
+                g = CreateGadget(BUTTON_KIND, g, &ng, TAG_END);
+                ng.ng_Flags = PLACETEXT_LEFT;
+                break;
+            }
+            /* fall through */
         case K_KEY:    g = str_new(g, &ng, &ag[i]); break;
         default:       g = ag[i] = CreateGadget(CHECKBOX_KIND, g, &ng, GTCB_Scaled, TRUE, TAG_END); break;
         }
@@ -1420,6 +1435,16 @@ void am_prefs_handle(struct Dock *d)
             }
             else if (id >= G_ADV && id < G_ADV + NADV) adv_apply(d, id - G_ADV, code);
             else if (id == G_BHREM) hidden_remove(d);
+            else if (id == G_BDIR) {             /* ...: a drawer for Unpack drawer */
+                char dir[SD_LINEMAX];
+                LONG k;
+                for (k = 0; k < NADV && strcmp(adv[k].key, "UNPACKDIR"); k++) ;
+                if (k < NADV && ag[k]) {
+                    strncpy(dir, (char *)str_get(ag[k]), sizeof(dir) - 1);
+                    dir[sizeof(dir) - 1] = 0;
+                    if (config_choose_dir(d, dir, sizeof(dir))) { str_set(ag[k], dir); adv_apply(d, k, 0); }
+                }
+            }
             else if (id == G_BPICK) {            /* Custom...: the colour picker */
                 ULONG start = d->o->customtint ? hexval(d->o->customtint) : d->tint;
                 if (!pick_open(d, start)) sd_beep(d);
