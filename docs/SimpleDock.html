@@ -363,9 +363,14 @@ With &quot;Shell icons: Ask first&quot; (<a href="#programs">Programs</a>), the 
 A <b>project&#x27;s default tool</b> is found as Workbench finds it: in the
 project&#x27;s drawer, then in Workbench&#x27;s path, then in C:.</pre>
 <h2 id="moredocks">More than one dock</h2>
-<pre>Give a settings file a project icon with SimpleDock as its default
-tool and double-click it: a second dock starts from that file, with the
-file&#x27;s name as its ARexx port.
+<pre>You can run two docks at once, each with its own icons and settings -
+say your programs along the bottom and your drawers along the right.
+
+Make a second settings file (Save as... in the settings window, then
+edit it), give it a project icon with SimpleDock as its default tool,
+and double-click it: a second SimpleDock starts from that file and
+opens its own dock. Its ARexx port is named after the file, so scripts
+can address each dock on its own.
 
 A dock can also be made from a <b>drawer of icons</b> (CONFIG set to the
 drawer): its settings live in its icon&#x27;s tooltypes.</pre>

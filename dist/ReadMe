@@ -418,9 +418,14 @@ project's drawer, then in Workbench's path, then in C:.
 
 MORE THAN ONE DOCK
 ==================
-Give a settings file a project icon with SimpleDock as its default
-tool and double-click it: a second dock starts from that file, with the
-file's name as its ARexx port.
+You can run two docks at once, each with its own icons and settings -
+say your programs along the bottom and your drawers along the right.
+
+Make a second settings file (Save as... in the settings window, then
+edit it), give it a project icon with SimpleDock as its default tool,
+and double-click it: a second SimpleDock starts from that file and
+opens its own dock. Its ARexx port is named after the file, so scripts
+can address each dock on its own.
 
 A dock can also be made from a drawer of icons (CONFIG set to the
 drawer): its settings live in its icon's tooltypes.
