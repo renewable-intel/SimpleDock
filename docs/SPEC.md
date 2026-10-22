@@ -45,6 +45,12 @@ icon and as settings lines in the config file (section 3).
 | DELAY/K/N | wait n/50 s before opening |
 | QUIET/S, VERBOSE/S | fewer / more messages |
 | HOTKEY/K | key to bring the dock out: a commodities description, or modifier names only (held together, then let go with nothing else between; default `ctrl alt shift`) |
+| MINKEY/K, MINALLKEY/K, AHKEY/K | the same form: minimise the active window (default `ctrl alt m`), minimise all - by what is active: a drawer, all drawer windows; a program's window, all its windows; nothing, every window; nothing showing, bring them back (default `ctrl alt shift m`), auto-hide on/off (default `ctrl alt h`); `none` switches one off |
+| SHELLASK/S | icons set to start from a Shell show the "Execute a file" requester first (DONOTPROMPT icons start at once) |
+| SHELLDROP/K/N | icons dropped into a Shell window (or onto the dock's Shell icon) have their paths typed at the cursor: 1 on (default), 0 off |
+| UNPACKTO/K/N | where the unpack command for a dropped archive points: 0 the Shell's current drawer (default), 1 RAM:, 2 UNPACKDIR |
+| UNPACKDIR/K | the drawer for UNPACKTO=2 |
+| NOBEEP/S | no beep (screen flash) on a refused action or a failure |
 | CUSTOMTINT/K | the settings window's custom colour `#rrggbb` (its Colour list) |
 | RUNNING/K/N | running programs: 0 off (no dots, no looks), 1 dot, 2 dot and number (default) |
 | CLICKNEW/S | a click on a running program starts a new copy; Shift+click brings it to the front |
@@ -117,10 +123,12 @@ IMAGE SYS:Icons/viewer.png       ; another icon's image for the previous entry
 | MOVE icon AT n \| AFTER icon \| BEFORE icon | move an icon (glides) |
 | SET line ... | settings lines (as in the config file, `(KEY)` = off, quotes for spaces) over the settings in use; kept as the file's settings lines; the dock reopens; closes an open settings window |
 | GET [key] | RESULT = a setting's value, `1`/`0` for a switch on/off, empty when not set; no key: every settings line, one per line |
-| SAVE [file] | settings and icons into the dock's own file (or file) |
+| SAVE [file] | settings and icons into the dock's own file, or into file |
 | RELOAD / LOAD file | read the dock's own file again / another file |
 | SETTINGS [ADVANCED] | open the settings window (or bring it to the front), folded out with ADVANCED |
 | BENCH | RESULT = CPU, time to open the dock, a full redraw, an animation frame (one icon's place), the background, and the screen (the dock flickers while it runs) |
+| DROPINFO | RESULT = what the dock sees of the Shell windows (console task, window, AppWindow) and the last drops, for bug reports |
+| HOTKEYINFO | RESULT = the hotkey's counters (presses seen, cancelled by a button, fired) and the dock's state, for bug reports |
 
 An icon is named by its label, file name or path (any case), or `#n` for
 its place (1 = first). Arguments are parsed with DOS templates, so quotes

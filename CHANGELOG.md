@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1 (16.10.2026)
+## 1.1 (21.10.2026)
 
 - Running programs: a dot under the icon, and the number of copies on it,
   from 2 up to 99 (or in the hover label with Running programs set to
@@ -173,6 +173,12 @@
   data model), and it uses about 40 KB less memory while idle: the
   settings window's buffers, the crash report's spare stack and ARexx
   SET's buffers are only taken while needed.
+- The long-press list is drawn off screen and put into its window with
+  one blit: the rows no longer flicker while the pointer moves over them.
+- The manual is an AmigaGuide, SimpleDock.guide (MultiView), one short
+  page per topic with a contents page and an Index; the ReadMe is the
+  same text in one file. Both come from docs/guide.txt (scripts/mkguide.py),
+  which also makes docs/SimpleDock.html for the GitHub page.
 
 ## 1.0 (15.10.2026)
 

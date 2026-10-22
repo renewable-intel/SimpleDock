@@ -191,7 +191,7 @@ static BOOL close_room(void)
     for (k = 0; k < MAXCLOSE && closing[k]; k++) ;
     return k < MAXCLOSE;
 }
-static struct BitMap *listbg;
+static struct BitMap *listbg, *listwk;   /* the list's glass, and the image it is drawn in (one blit a redraw) */
 static WORD lx, ly, lw, lh, rowh;
 /* After the windows (and a divider) the list ends with what can be done
    with the program: rows nlist .. nlist + nact - 1. */
@@ -1831,11 +1831,23 @@ void run_timer(struct Dock *d)
 
 /* ------------------------------------------------ the held list of windows */
 
+static void list_bm_free(void)
+{
+    if (listbg || listwk) WaitBlit();
+    if (listbg) FreeBitMap(listbg);
+    if (listwk) FreeBitMap(listwk);
+    listbg = listwk = NULL;
+}
+
+/* Drawn off screen, then one blit into the window: a redraw while the pointer
+   moves between rows shows no bare glass in between (it flickered). */
 static void list_draw(struct Dock *d)
 {
-    struct RastPort *rp = d->list->RPort;
+    struct RastPort rpb, *rp = &rpb;
     LONG i, n;
-    BltBitMapRastPort(listbg, 0, 0, rp, 0, 0, lw, lh, 0xC0);
+    InitRastPort(rp);
+    rp->BitMap = listwk;
+    BltBitMap(listbg, 0, 0, listwk, 0, 0, lw, lh, 0xC0, 0xFF, NULL);
     SetFont(rp, d->font);
     SetDrMd(rp, JAM1);
     if (lsel >= 0 && d->borderpen >= 0) {         /* the window under the pointer: a lighter bar */
@@ -1861,6 +1873,7 @@ static void list_draw(struct Dock *d)
         Move(rp, PADX, row_y(i) + 2 + rp->TxBaseline);
         Text(rp, t, n);
     }
+    BltBitMapRastPort(listwk, 0, 0, d->list->RPort, 0, 0, lw, lh, 0xC0);
 }
 
 /* The list window for the windows in list[], next to litem's icon. */
@@ -1898,11 +1911,14 @@ static BOOL list_open(struct Dock *d)
     if (ly < 0) ly = 0;
     render_arrow(0, 0, 0);
     if (!(listbg = render_glass(d, NULL, lx, ly, lw, lh, rad, opacity))) return FALSE;
+    if (!(listwk = AllocBitMap(lw, lh, GetBitMapAttr(listbg, BMA_DEPTH), BMF_MINPLANES, listbg))) {
+        list_bm_free(); return FALSE;
+    }
     d->lbx = lx; d->lby = ly; d->lbw = lw; d->lbh = lh;   /* for the input handler (before d->list is set) */
     d->list = OpenWindowTags(NULL, WA_PubScreen, d->scr, WA_Left, lx, WA_Top, ly, WA_Width, lw, WA_Height, lh,
                              WA_Borderless, TRUE, WA_Activate, FALSE, WA_SmartRefresh, TRUE,
                              WA_NoCareRefresh, TRUE, WA_BackFill, LAYERS_NOBACKFILL, TAG_END);
-    if (!d->list) { WaitBlit(); FreeBitMap(listbg); listbg = NULL; return FALSE; }
+    if (!d->list) { list_bm_free(); return FALSE; }
     list_draw(d);
     return TRUE;
 }
@@ -2071,7 +2087,7 @@ static void list_drop(struct Dock *d, LONG r)
     nlist--;
     memmove(&list[r], &list[r + 1], (nlist - r) * sizeof(list[0]));
     list_window_close(d);
-    if (listbg) { WaitBlit(); FreeBitMap(listbg); listbg = NULL; }
+    list_bm_free();
     lsel = -1;
     if (!nlist && lmode) nact = 0;               /* (asking which one: all done) */
     else if (!lmode) {                           /* (no window left: Close goes too; nothing */
@@ -3038,7 +3054,7 @@ static void pick_list(struct Dock *d, UBYTE mode)
     lmode = mode;
     lsel = -1;
     list_window_close(d);
-    if (listbg) { WaitBlit(); FreeBitMap(listbg); listbg = NULL; }
+    list_bm_free();
     d->liststicky = TRUE;                        /* (the button is up: a click picks) */
     if (!list_open(d)) run_list_close(d);
     else if ((lsel = list_row(d->scr->MouseX, d->scr->MouseY)) >= 0) list_draw(d);   /* (the row under it) */
@@ -3137,7 +3153,7 @@ void run_list_close(struct Dock *d)
 {
     d->liststicky = FALSE;
     list_window_close(d);
-    if (listbg) { WaitBlit(); FreeBitMap(listbg); listbg = NULL; }
+    list_bm_free();
     nlist = 0; lsel = -1; litem = NULL; nact = 0; lmode = 0;
 }
 
