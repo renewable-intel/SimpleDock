@@ -218,7 +218,8 @@ and slide along the dock.
 AUTO-HIDE
 =========
 With Auto-hide on in the settings, the dock hides when the pointer
-leaves it. Move the pointer to that screen edge to reveal it again.
+has moved an icon's size away from it. Move the pointer to that screen
+edge to reveal it again.
 
 The hotkey (Ctrl+Alt+Shift) shows it and keeps it shown until the
 pointer has visited it and left; pressed while the dock is shown, it

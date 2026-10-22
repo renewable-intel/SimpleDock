@@ -138,7 +138,6 @@ static struct Interrupt in_int;
 LONG in_calls, in_sigs, in_lastx, in_lasty;
 #endif
 
-#define MARGIN 6                        /* stay shown this close to the dock */
 
 /* The active window when the button went down: a click activates the dock
    (with its empty menu bar), and dock.c gives the focus back on release. */
@@ -383,9 +382,9 @@ void in_check(struct InputEvent *ev)
         }
         x = s->MouseX; y = s->MouseY; sw = s->Width; sh = s->Height;
         if (d->vis > 0) {               /* shown or sliding: dock box, gap to the edge */
-            /* along the dock an icon's width beyond its ends (easy to overshoot
-               the first or last icon), across it MARGIN */
-            WORD mx = d->horiz ? d->cw : MARGIN, my = d->horiz ? MARGIN : d->ch;
+            /* an icon's size beyond the dock on every side: easy to overshoot
+               the first or last icon, or to drift off the edge while using it */
+            WORD mx = d->cw, my = d->ch;
             WORD x0 = d->left - mx, x1 = d->left + d->w + mx;
             WORD y0 = d->top - my, y1 = d->top + d->h + my;
             switch (d->edge) {

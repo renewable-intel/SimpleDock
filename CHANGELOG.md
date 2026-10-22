@@ -173,6 +173,9 @@
   data model), and it uses about 40 KB less memory while idle: the
   settings window's buffers, the crash report's spare stack and ARexx
   SET's buffers are only taken while needed.
+- Auto-hide: the shown dock stays out while the pointer is within an
+  icon's size of it on every side (before: only along the dock; away
+  from the edge, a few pixels).
 - The long-press list is drawn off screen and put into its window with
   one blit: the rows no longer flicker while the pointer moves over them.
 - The manual is an AmigaGuide, SimpleDock.guide (MultiView), one short
