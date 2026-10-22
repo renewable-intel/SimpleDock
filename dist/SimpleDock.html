@@ -1,284 +1,260 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SimpleDock 1.1</title>
-<style>body{font-family:sans-serif;max-width:46em;margin:2em auto;padding:0 1em;line-height:1.45;color:#222}pre{white-space:pre-wrap;font-family:inherit;margin:0 0 .6em}h2{margin-top:2.2em;padding-bottom:.2em;border-bottom:1px solid #bbb}h3{margin:1.4em 0 .3em}.note{color:#666;font-style:italic}a{color:#1a5fb4}</style></head><body>
-<h2 id="main">SimpleDock 1.1</h2>
-<pre><b>SimpleDock 1.1</b>  (21.10.2026)
-A dock for AmigaOS 3.x, in the manner of macOS.
-
-<b>Start here</b>
-  <a href="#what">What it is</a> - in four sentences
-  <a href="#need">What you need</a> - AmigaOS 3.1.4 or later, a 68030, best with RTG
-  <a href="#install">Installing</a> - no installer: put it anywhere, double-click
-  <a href="#five">The five things</a> - click, drag on, drag off, drag along, the hotkey
-
-<b>Using it</b>
-  <a href="#running">Running programs</a> - the dot, click to front, Shift+click, Del
+<style>
+:root{color-scheme:light;scroll-behavior:smooth}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;max-width:54rem;
+margin:0 auto;padding:2.5rem 1.5rem 4rem;line-height:1.65;color:#252b30;
+background:#faf9f6}
+h1,h2,h3{line-height:1.25;color:#18232c}
+h1{font-size:2.3rem;margin:0 0 1rem}
+h2{font-size:1.65rem;margin:0 0 1.25rem}
+h3{font-size:1.05rem;margin:1.6rem 0 .6rem}
+section{border-top:1px solid #d9dcd9;margin-top:2.5rem;padding-top:2rem;
+scroll-margin-top:1.5rem}
+section:first-child{border:0;margin:0;padding:0}
+p{margin:.7rem 0 1rem}
+a{color:#235c85;text-underline-offset:.18em}
+a:hover{color:#153a55}
+pre{white-space:pre-wrap;font: .9rem/1.65 ui-monospace,Menlo,Consolas,monospace;
+background:#f0f1ed;border:1px solid #dfe2dc;border-radius:.35rem;
+padding:1rem;overflow-wrap:anywhere;margin:.75rem 0 1.25rem}
+.note{border-left:3px solid #a6b8bf;padding:.25rem 0 .25rem 1rem;
+color:#52616b;font-size:.94rem}
+nav{display:flex;flex-wrap:wrap;gap:.5rem 1.25rem;margin-top:1.5rem;
+font-size:.9rem}
+@media(max-width:600px){body{padding:1.5rem 1rem}pre{font-size:.8rem;padding:.6rem}}
+@media print{body{max-width:none;background:white;font-size:10pt}nav{display:none}
+section{break-before:auto}h2,h3{break-after:avoid}pre{break-inside:avoid}}
+</style></head><body><main>
+<section id="main">
+<h1>SimpleDock 1.1</h1>
+<p><b>SimpleDock 1.1</b>  (21.10.2026) A macOS-style dock for AmigaOS 3.x.</p>
+<p>Open a topic below. In MultiView, use Contents to return here and Index to find a topic alphabetically. The Browse buttons move between topics.</p>
+<h3>Start here</h3>
+<pre>  <a href="#what">What it is</a> - a quick introduction
+  <a href="#need">What you need</a> - supported systems and recommended hardware
+  <a href="#install">Installing</a> - install, start at boot, or remove
+  <a href="#five">Five essentials</a> - click, drag on, drag off, drag along, the hotkey</pre>
+<h3>Everyday use</h3>
+<pre>  <a href="#running">Running programs</a> - the dot, click to front, Shift+click, Del
   <a href="#longpress">Long press</a> - a program&#x27;s windows: front, minimise, close
   <a href="#autohide">Auto-hide</a> - the dock out of the way until you need it
   <a href="#drops">Dropping files</a> - onto a program, into a drawer, onto the dock
   <a href="#missing">Missing icons</a> - the dimmed &quot;?&quot; icon
-  <a href="#keys">Keys</a> - minimise, minimise all, auto-hide on/off
+  <a href="#keys">Keyboard shortcuts</a> - minimise, minimise all, auto-hide on/off
   <a href="#shelldrops">Shell drops</a> - paths typed into a Shell; archives unpacked
-  <a href="#forcequit">Force Quit</a> - for a program that will not close
-
-<b>The settings window</b>
-  <a href="#simple">The simple side</a> - Place, Icons, Look
+  <a href="#forcequit">Force Quit</a> - for a program that will not close</pre>
+<h3>Settings</h3>
+<pre>  <a href="#simple">Basic settings</a> - Place, Icons, Look
   <a href="#finetune">Fine-tune</a> - pixels and numbers
   <a href="#programs">Programs</a> - running programs, how they start, hidden ones
   <a href="#advshell">Shell drops and Keys</a> - the two groups for the features above
   <a href="#system">System</a> - font, screen, messages, beep, crash reports
-  <a href="#buttons">The buttons</a> - Undo changes, Load..., Save as...
-
-<b>Reference</b>
-  <a href="#shellicons">Shell icons and projects</a>
+  <a href="#buttons">Settings buttons</a> - Undo changes, Load..., Save as...</pre>
+<h3>Reference</h3>
+<pre>  <a href="#shellicons">Shell icons and projects</a>
   <a href="#moredocks">More than one dock</a>
   <a href="#configfile">The settings file</a> - keywords, tooltypes, the command line
-  <a href="#keywords">Keywords</a> - all 42, one line each
-  <a href="#arexx">ARexx</a> - the port and every command
-
-<b>When something is wrong</b>
-  <a href="#limits">Known limitations</a>
+  <a href="#keywords">Keywords</a> - the complete settings reference
+  <a href="#arexx">ARexx</a> - the port and every command</pre>
+<h3>Help and history</h3>
+<pre>  <a href="#limits">Known limitations</a>
   <a href="#crash">Crash reports</a>
   <a href="#bugs">Bug reports</a>
-  <a href="#history">History</a>
-
-<span class="note">You can stop after Start here and have a working dock.</span>
-
-Copyright (C) 2026 renewable-intel. Free software under the GNU General
-Public License, version 3 or later (see LICENSE); it comes with
-ABSOLUTELY NO WARRANTY.  Source: https://github.com/renewable-intel/SimpleDock
-AmigaOS is a trademark of its owner; macOS is a trademark of Apple Inc.
-No AmigaOS artwork is included; SimpleDock&#x27;s icons are its own.</pre>
-<h2 id="what">What it is</h2>
-<pre>A dock along one edge of your Workbench screen.
-
-Click an icon to start its program; drag icons on from Workbench to
-add them. The dock shows which programs are running, brings their
-windows to the front, and can hide itself until you need it.
-
-<span class="note">Next: <a href="#need">What you need</a></span></pre>
-<h2 id="need">What you need</h2>
-<pre><b>Minimum</b>
-  AmigaOS 3.2, or 3.1.4, 3.5, 3.9, or a 3.1-based system that has
+  <a href="#history">History</a></pre>
+<p class="note">You can stop after Start here and have a working dock.</p>
+<p>Copyright (C) 2026 renewable-intel. Free software under the GNU General Public License, version 3 or later (see LICENSE); it comes with ABSOLUTELY NO WARRANTY.</p>
+<p>Source: https://github.com/renewable-intel/SimpleDock</p>
+<p>AmigaOS is a trademark of its owner; macOS is a trademark of Apple Inc. No AmigaOS artwork is included; SimpleDock&#x27;s icons are its own.</p>
+</section>
+<section id="what">
+<h2>What it is</h2>
+<p>A dock along one edge of your Workbench screen.</p>
+<p>Click an icon to start its program; drag icons on from Workbench to add them. The dock shows which programs are running, brings their windows to the front, and can hide itself until you need it.</p>
+<p class="note">Next: <a href="#need">What you need</a></p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#main">Previous</a> <a href="#need">Next</a></nav>
+</section>
+<section id="need">
+<h2>What you need</h2>
+<h3>Minimum</h3>
+<pre>  AmigaOS 3.2, or 3.1.4, 3.5, 3.9, or a 3.1-based system that has
   workbench.library and icon.library 44 or newer.
-  A 68030 or better, with Fast RAM. A stock 68020 A1200 works, slowly.
-
-<b>Best</b>
-  A 68040 or 68060, or a PiStorm, and a graphics card with a 16- or
-  24-bit screen (Picasso96). AGA screens work, more slowly.
-
-<span class="note">Without ReAction&#x27;s chooser.gadget (before 3.2) the lists in the</span>
-<span class="note">settings window are cycle gadgets: a click steps to the next choice.</span></pre>
-<h2 id="install">Installing</h2>
-<pre>Put the SimpleDock drawer anywhere and double-click <b>SimpleDock</b>. There
-is no installer.
-
-To start it with Workbench, put a copy of its icon in <b>SYS:WBStartup</b>.
-
-The first start creates <b>ENVARC:SimpleDock.config</b> and fills the dock
-with the standard icons it finds - the Workbench disk, Shell, MultiView,
-Clock, the Prefs, Tools and Utilities drawers, Ram Disk - as many as fit.
-
-<b>To remove it</b>, delete the drawer, ENVARC:SimpleDock.config, and the
-copy in WBStartup if you made one.</pre>
-<h2 id="five">The five things</h2>
-<pre>  <b>Click an icon</b>        starts the program (or opens the drawer, disk
-                         or document). Already running: its windows
-                         come to the front instead.
-  <b>Drag an icon on</b>      from Workbench, between two dock icons: it is
-                         added there.
-  <b>Drag an icon off</b>     the dock, anywhere: it is removed from the
-                         dock (not from the disk).
-  <b>Drag an icon along</b>   the dock: it moves; the others make way.
-  <b>Ctrl+Alt+Shift</b>       pressed together and let go: shows the dock
-                         when it is hidden, or brings it to the front.
-
-Everything you do with the mouse is saved as you do it.
-
-The settings window is in the <b>Dock</b> menu of the Workbench menu bar,
-with About and Quit: see <a href="#simple">The simple side</a>.
-
-<span class="note">That is all you need. The rest of this guide is for when you want more.</span></pre>
-<h2 id="running">Running programs</h2>
-<pre>A <b>dot</b> under an icon means its program is running; two copies or more
-show their number on the icon.
-
-A program that is <b>not on the dock</b> shows up too, at the end behind a
-thin line, with its own icon, for as long as it runs. Open Shells are
-one Shell icon.
-
-  <b>Click</b>            all the program&#x27;s windows to the front; click
+  A 68030 or better, with Fast RAM. A stock 68020 A1200 works, slowly.</pre>
+<h3>Best</h3>
+<pre>  A 68040 or 68060, or a PiStorm, and a graphics card with a 16- or
+  24-bit screen (Picasso96). AGA screens work, more slowly.</pre>
+<p class="note">Without ReAction&#x27;s chooser.gadget (before 3.2) the lists in the settings window are cycle gadgets: a click steps to the next choice.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#what">Previous</a> <a href="#install">Next</a></nav>
+</section>
+<section id="install">
+<h2>Installing</h2>
+<h3>Install and start</h3>
+<p>Put the SimpleDock drawer anywhere and double-click <b>SimpleDock</b>. There is no installer. Double-click <b>SimpleDock.guide</b> to read this manual in MultiView.</p>
+<p>The first start creates <b>ENVARC:SimpleDock.config</b> and fills the dock with the standard icons it finds: the Workbench disk, Shell, MultiView, Clock, the Prefs, Tools and Utilities drawers, and Ram Disk. It adds as many as fit.</p>
+<h3>Start with Workbench</h3>
+<p>Copy the <b>SimpleDock program and its icon</b> to <b>SYS:WBStartup</b>.</p>
+<h3>Remove SimpleDock</h3>
+<p>Quit SimpleDock, then delete its drawer and ENVARC:SimpleDock.config. If you put a copy in WBStartup, delete that program and its icon too.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#need">Previous</a> <a href="#five">Next</a></nav>
+</section>
+<section id="five">
+<h2>Five essentials</h2>
+<h3>1. Click an icon</h3>
+<p>Start a program, or open a drawer, disk or document. If the program is already running, its windows come to the front instead.</p>
+<h3>2. Drag an icon onto the dock</h3>
+<p>Drag it from Workbench to a gap between two dock icons to add it there.</p>
+<h3>3. Drag an icon off the dock</h3>
+<p>Remove it from the dock. The file on disk is kept.</p>
+<h3>4. Drag an icon along the dock</h3>
+<p>Move it to a new position; the other icons make way.</p>
+<h3>5. Show the dock with the hotkey</h3>
+<p>Press <b>Ctrl+Alt+Shift</b> together, then release them. This reveals the hidden dock or brings it to the front. With auto-hide on, the same hotkey hides the dock when it is already visible.</p>
+<p>Changes to the dock&#x27;s icons are saved as you make them.</p>
+<p>Open <b>Dock &gt; Settings...</b> in the Workbench menu bar to change its appearance and behaviour: see <a href="#simple">Basic settings</a>. The Dock menu also contains About and Quit.</p>
+<p class="note">These five actions are enough to get started. Read on when you need more detail.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#install">Previous</a> <a href="#running">Next</a></nav>
+</section>
+<section id="running">
+<h2>Running programs</h2>
+<p>A <b>dot</b> under an icon means its program is running; two copies or more show a count on the icon.</p>
+<p>A program that is <b>not on the dock</b> shows up too, at the end behind a thin line, with its own icon, for as long as it runs. Open Shells are grouped under one Shell icon.</p>
+<pre>  <b>Click</b>              all the program&#x27;s windows to the front; click
                      again to go through them one at a time
-  <b>Shift+click</b>      another copy of the program
-  <b>Del</b>              with the pointer over the icon: closes the program
+  <b>Shift+click</b>        another copy of the program
+  <b>Del</b>                with the pointer over the icon: closes the program
                      (its windows are asked to close, as their close
-                     gadget would; a program may ask you first)
-
-To <b>keep</b> a running program on the dock, drag its icon in front of the
-line. To <b>never see</b> one there, drag it off: the dock asks, then leaves
-it out. Hidden programs in the settings window (<a href="#programs">Programs</a>)
-lists them and brings one back.
-
-While Workbench has drawer windows open, a <b>Workbench icon</b> sits right
-after the line and counts them; a click brings them all to the front.
-A docked drawer that is open gets a dot of its own.
-
-<span class="note">See also: <a href="#longpress">Long press</a>, <a href="#forcequit">Force Quit</a></span></pre>
-<h2 id="longpress">Long press</h2>
-<pre>Hold the button on a running program&#x27;s icon for a moment and a list of
-its windows opens. Let go over a window to bring it to the front. Let
-go anywhere else and the list stays open:
-
-  <b>click a window</b>       brings it to the front
-  <b>point, press Del</b>     closes that window
-  <b>below the line</b>       what can be done with the program:
-
-    <b>Keep in Dock</b> / <b>Remove from Dock</b>
-    <b>Show in Workbench</b>    opens its drawer
-    <b>Minimise</b>             hides its windows; the dot pulses.
+                     gadget would; a program may ask you first)</pre>
+<p>To <b>keep</b> a running program on the dock, drag its icon in front of the line. To <b>never see</b> one there, drag it off: the dock asks, then leaves it out. To show it again, select it in <b>Hidden programs</b> in the settings window and click <b>Remove</b> (<a href="#programs">Programs</a>).</p>
+<p>While Workbench has drawer windows open, a <b>Workbench icon</b> sits right after the line and counts them; a click brings them all to the front. A docked drawer that is open gets a dot of its own.</p>
+<p class="note">See also: <a href="#longpress">Long press</a>, <a href="#forcequit">Force Quit</a></p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#five">Previous</a> <a href="#longpress">Next</a></nav>
+</section>
+<section id="longpress">
+<h2>Long press</h2>
+<p>Hold the left mouse button on a running program&#x27;s icon until a list of its windows opens. Let go over a window to bring it to the front. Let go anywhere else and the list stays open:</p>
+<pre>  <b>click a window</b>         brings it to the front
+  <b>point, press Del</b>       closes that window
+  <b>below the line</b>         what can be done with the program:</pre>
+<pre>    <b>Keep in Dock</b> / <b>Remove from Dock</b>
+    <b>Show in Workbench</b>      opens its drawer
+    <b>Minimise</b>               hides its windows; the dot pulses.
                            <b>Show (n)</b> brings them back - so does a
                            click on the icon.
-    <b>Close</b>                closes it
-    <b>Force Quit...</b>        appears once Close did not work:
-                           see <a href="#forcequit">Force Quit</a>
-
-  <b>Esc</b>, or a click elsewhere, closes the list.
-
-With several windows, Minimise, Show and Close end in &quot;...&quot; and the
-list asks which one, or All.
-
-<span class="note">To drag the icon instead of opening the list, keep the button down</span>
-<span class="note">and slide along the dock.</span></pre>
-<h2 id="autohide">Auto-hide</h2>
-<pre>With auto-hide on (settings: Auto-hide), the dock hides itself and
-shows again when the pointer touches that edge of the screen.
-
-The <b>hotkey</b> (Ctrl+Alt+Shift) shows it and keeps it shown until the
-pointer has visited it and left; pressed while the dock is shown, it
-hides it. <b>Ctrl+Alt+H</b> switches auto-hide on or off (<a href="#keys">Keys</a>).
-
-<span class="note">With auto-hide, icons cannot be dropped onto the hidden dock, because</span>
-<span class="note">Workbench locks the screen during a drag. Press the hotkey first.</span></pre>
-<h2 id="drops">Dropping files</h2>
-<pre>Drag icons from Workbench:
-
-  <b>onto a program icon</b>     they are opened with it - a text file onto
+    <b>Close</b>                  closes it
+    <b>Force Quit...</b>          appears after Close fails:
+                           see <a href="#forcequit">Force Quit</a></pre>
+<pre>  <b>Esc</b>, or a click elsewhere, closes the list.</pre>
+<p>With several windows, Minimise, Show and Close end in &quot;...&quot; and the list asks which one, or All.</p>
+<p class="note">To drag the icon instead of opening the list, keep the button down and slide along the dock.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#running">Previous</a> <a href="#autohide">Next</a></nav>
+</section>
+<section id="autohide">
+<h2>Auto-hide</h2>
+<p>With <b>Auto-hide</b> on in the settings, the dock hides when the pointer leaves it. Move the pointer to that screen edge to reveal it again.</p>
+<p>The <b>hotkey</b> (Ctrl+Alt+Shift) shows it and keeps it shown until the pointer has visited it and left; pressed while the dock is shown, it hides it. <b>Ctrl+Alt+H</b> switches auto-hide on or off (<a href="#keys">Keyboard shortcuts</a>).</p>
+<p class="note">With auto-hide, icons cannot be dropped onto the hidden dock, because Workbench locks the screen during a drag. Press the hotkey first.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#longpress">Previous</a> <a href="#drops">Next</a></nav>
+</section>
+<section id="drops">
+<h2>Dropping files</h2>
+<p>Drag icons from Workbench:</p>
+<pre>  <b>onto a program icon</b>       they are opened with it - a text file onto
                             your editor
-  <b>onto a drawer or disk</b>   they are copied into it, with their icons,
+  <b>onto a drawer or disk</b>     they are copied into it, with their icons,
                             dates and comments. A file already there:
                             Replace or Skip. Drawers are never merged.
-  <b>between two icons</b>       they join the dock
-  <b>into a Shell window</b>     their paths are typed: see <a href="#shelldrops">Shell drops</a>
-
-A <b>beep</b> means a drop was refused: a drawer into itself, a whole disk,
-the Trash, or a full dock.
-
-<span class="note">&quot;Drop on a drawer&quot; in the settings (<a href="#programs">Programs</a>) can make</span>
-<span class="note">drops move the files instead, when they are on the same disk.</span></pre>
-<h2 id="missing">Missing icons</h2>
-<pre>An icon is dimmed and marked <b>?</b> when its file or disk is not there.
-Click it to be asked whether to remove it.
-
-The dock never removes it by itself: a disk may just not be inserted.</pre>
-<h2 id="keys">Keys</h2>
-<pre>  <b>Ctrl+Alt+Shift</b>      shows the dock (<a href="#five">The five things</a>)
-  <b>Ctrl+Alt+M</b>          minimises the active window, like Minimise in
-                        the long-press list
-  <b>Ctrl+Alt+Shift+M</b>    minimises all, by what is active:
-                          a drawer window      all drawer windows
-                          a program&#x27;s window   all its windows (every
-                                               copy; a Shell: all Shells)
-                          nothing, or the      every window
-                          Workbench backdrop
-                        With nothing left showing, the same key brings
-                        them all back.
-  <b>Ctrl+Alt+H</b>          auto-hide on or off (kept in the settings)
-
-Change any of them under Keys (<a href="#advshell">Shell drops and Keys</a>); NONE
-switches one off.
-
-<span class="note">A program that used one of these combinations no longer gets it</span>
-<span class="note">while the dock runs.</span></pre>
-<h2 id="shelldrops">Shell drops</h2>
-<pre>Drag icons from Workbench into a Shell window and their *paths are
-typed* at the cursor, in quotes where a name has a space:
-
-    &quot;Ram Disk:&quot; Work:Music
-
-Nothing is run; add to the line or press Return yourself.
-
-Dropped <b>onto the dock&#x27;s Shell icon</b>, they go into the Shell window in
-front, which is brought to the front; with no Shell open, a new one
-starts and gets them.
-
-A single <b>archive</b> gets the command that unpacks it, if its tool is in
-C: or in Workbench&#x27;s path:
-
-    lha x &quot;Work:Downloads/Game.lha&quot;
-
-    .lha .lzh   lha       .zip        unzip      .tar     tar
+  <b>between two icons</b>         they join the dock
+  <b>into a Shell window</b>       their paths are typed (<a href="#shelldrops">Shell drops</a>)</pre>
+<p>A <b>beep</b> means a drop was refused: a drawer into itself, a whole disk, the Trash, or a full dock.</p>
+<p class="note">&quot;Drop on a drawer&quot; in the settings (<a href="#programs">Programs</a>) can make drops move the files instead, when they are on the same disk.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#autohide">Previous</a> <a href="#missing">Next</a></nav>
+</section>
+<section id="missing">
+<h2>Missing icons</h2>
+<p>An icon is dimmed and marked <b>?</b> when its file or disk is not there. Click it to be asked whether to remove it.</p>
+<p>The dock never removes it by itself: a disk may just not be inserted.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#drops">Previous</a> <a href="#keys">Next</a></nav>
+</section>
+<section id="keys">
+<h2>Keyboard shortcuts</h2>
+<h3>Show the dock: Ctrl+Alt+Shift</h3>
+<p>Press together, then release: see <a href="#autohide">Auto-hide</a> for how this hotkey behaves when auto-hide is on.</p>
+<h3>Minimise a window: Ctrl+Alt+M</h3>
+<p>Minimise the active window, just like Minimise in the long-press list.</p>
+<h3>Minimise a group: Ctrl+Alt+Shift+M</h3>
+<p>Which windows are minimised depends on what is active:</p>
+<pre>  Drawer window        all Workbench drawer windows
+  Program window       all windows of that program, across every copy
+  Shell window         all Shell windows
+  Workbench backdrop   every window
+  No active window     every window</pre>
+<p>When no windows are left showing, press the same shortcut to restore them all.</p>
+<h3>Toggle auto-hide: Ctrl+Alt+H</h3>
+<p>Switch auto-hide on or off. The choice is saved in the settings.</p>
+<p>Change these combinations under Keys (<a href="#advshell">Shell drops and Keys</a>). Enter <b>NONE</b> to disable a shortcut.</p>
+<p class="note">While SimpleDock is running, these combinations are reserved for it. Other programs will not receive them.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#missing">Previous</a> <a href="#shelldrops">Next</a></nav>
+</section>
+<section id="shelldrops">
+<h2>Shell drops</h2>
+<p>Drag icons from Workbench into a Shell window to <b>type their paths</b> at the cursor. Names containing spaces are put in quotes:</p>
+<pre>    &quot;Ram Disk:&quot; Work:Music</pre>
+<p>Nothing is run; add to the line or press Return yourself.</p>
+<p>Drop them <b>onto the dock&#x27;s Shell icon</b> to send their paths to the frontmost Shell window and bring it to the front. If no Shell is open, SimpleDock starts one and types the paths there.</p>
+<p>A single <b>archive</b> gets the command that unpacks it, if its tool is in C: or in Workbench&#x27;s path:</p>
+<pre>    lha x &quot;Work:Downloads/Game.lha&quot;</pre>
+<pre>    .lha .lzh   lha       .zip        unzip      .tar     tar
     .lzx        lzx       .tgz .tar.gz tar       .gz      gzip
-    .7z         7z        .rar        unrar      .bz2 .xz bzip2, xz
-
-Where it unpacks is &quot;Unpack archives to&quot; (<a href="#advshell">Shell drops and Keys</a>):
-the Shell&#x27;s drawer, RAM:, or a drawer of your choice.
-
-<span class="note">Works in the standard console and in others such as KingCON. OS 3.2&#x27;s</span>
-<span class="note">own Shell types paths itself, so there the dock leaves Shell windows</span>
-<span class="note">alone. A console that types paths itself would show them twice: set</span>
-<span class="note">&quot;Icons into a Shell&quot; to Off.</span></pre>
-<h2 id="forcequit">Force Quit</h2>
-<pre>A program that ignores Close keeps its long-press list; the second time
-you open it, the list offers <b>Force Quit...</b> It works in two steps:
-
-  1. The <b>break signals</b> (Ctrl+C, D, E, F) are sent. Shell programs and
-     ports usually stop on those and clean up after themselves.
-  2. Still there after two seconds, a requester asks. <b>End it</b> removes
+    .7z         7z        .rar        unrar      .bz2 .xz bzip2, xz</pre>
+<p>Choose the destination with <b>Unpack archives to</b> (<a href="#advshell">Shell drops and Keys</a>): the Shell&#x27;s current drawer, RAM:, or a drawer of your choice.</p>
+<p class="note">Works in the standard console and in others such as KingCON. OS 3.2&#x27;s own Shell types paths itself, so there the dock leaves Shell windows alone. A console that types paths itself would show them twice: set &quot;Icons into a Shell&quot; to Off.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#keys">Previous</a> <a href="#forcequit">Next</a></nav>
+</section>
+<section id="forcequit">
+<h2>Force Quit</h2>
+<p>A program that ignores Close keeps its long-press list; the second time you open it, the list offers <b>Force Quit...</b> It works in two steps:</p>
+<pre>  1. SimpleDock sends the <b>break signals</b> (Ctrl+C, Ctrl+D, Ctrl+E and
+     Ctrl+F), giving the program a chance to stop and clean up.</pre>
+<pre>  2. If it is still running after two seconds, a requester asks for
+     confirmation. <b>End it</b> removes
      the program&#x27;s tasks (every copy, also one without a window) and
-     closes its windows and its own screen.
-
-Step 2 is the same as Scout&#x27;s Remove, with the same risks: AmigaOS
-tracks nothing a program holds, so its memory, files and locks stay in
-use until a reboot, and a program ended inside a system call can take
-the machine down. <b>Save your work first.</b>
-
-<span class="note">A Shell program ended this way no longer appears in Status.</span></pre>
-<h2 id="simple">The simple side</h2>
-<pre><b>Dock</b> menu &gt; <b>Settings...</b> (on 3.5: Tools &gt; SimpleDock Settings...).
-Changes show on the dock at once and are saved when you close the
-window. The dock stays shown while the window is open.
-
-<b>Place</b>
-  Position         Top, Bottom, Left or Right
+     closes its windows and its own screen.</pre>
+<p>Step 2 is the same as Scout&#x27;s Remove, with the same risks: AmigaOS cannot reliably reclaim everything the program holds. Memory, files and locks can remain in use until a reboot. Ending a program inside a system call can crash the machine. <b>Save your work first.</b></p>
+<p class="note">A Shell program ended this way no longer appears in Status.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#shelldrops">Previous</a> <a href="#simple">Next</a></nav>
+</section>
+<section id="simple">
+<h2>Basic settings</h2>
+<p><b>Dock</b> menu &gt; <b>Settings...</b> (on 3.5: Tools &gt; SimpleDock Settings...). Changes show on the dock at once and are saved when you close the window. The dock stays shown while the window is open.</p>
+<h3>Place</h3>
+<pre>  Position         Top, Bottom, Left or Right
   Gap to edge      space between the dock and the screen edge
   Auto-hide        off, or how fast the dock hides
   In front         keep the dock in front of other windows
   Hotkey           the keys that show the dock: CTRL ALT SHIFT
                    (modifiers only: pressed together, let go), or a
-                   combination with a key, such as CTRL ALT D
-
-<b>Icons</b>
-  Icon size        own size, or shrunk to Small / Medium / Large
+                   combination with a key, such as CTRL ALT D</pre>
+<h3>Icons</h3>
+<pre>  Icon size        own size, or shrunk to Small / Medium / Large
   Icon spacing     space between the icons
   Text             labels below the icons, on hover, off, or labels
-                   only (no icons)
-
-<b>Look</b>
-  Colour           six colours, or <b>Custom...</b> for your own (a picker
+                   only (no icons)</pre>
+<h3>Look</h3>
+<pre>  Colour           six colours, or <b>Custom...</b> for your own (a picker
                    with red, green and blue sliders)
   Transparent      Off: a solid dock. On: the screen shows through,
                    tinted with the colour
   Opacity          how dark the transparent dock is
-  Corners          square to round
-
-Click <b>Advanced &gt;&gt;</b> for the rest, beside these (on a small screen, in
-their place): <a href="#finetune">Fine-tune</a>, <a href="#programs">Programs</a>,
-<a href="#advshell">Shell drops and Keys</a>, <a href="#system">System</a>.
-
-<span class="note">The keyword each setting has in the settings file is given in</span>
-<span class="note">parentheses on those pages; you only need it for <a href="#keywords">Keywords</a>.</span></pre>
-<h2 id="finetune">Fine-tune</h2>
+  Corners          square to round</pre>
+<p>Click <b>Advanced &gt;&gt;</b> to show the remaining settings alongside the basic ones. On a small screen, they replace the basic settings: <a href="#finetune">Fine-tune</a>, <a href="#programs">Programs</a>, <a href="#advshell">Shell drops and Keys</a>, <a href="#system">System</a>.</p>
+<p class="note">The keyword each setting has in the settings file is given in parentheses on those pages; you only need it for <a href="#keywords">Keywords</a>.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#forcequit">Previous</a> <a href="#finetune">Next</a></nav>
+</section>
+<section id="finetune">
+<h2>Fine-tune</h2>
 <pre>  Alignment        Centre, Start or End along the edge (POS)
   Offset           shift along the edge, pixels (OFFSET)
   Gap to edge      pixels (DISTANCE)
@@ -288,12 +264,14 @@ their place): <a href="#finetune">Fine-tune</a>, <a href="#programs">Programs</a
   Most icons       at most this many; 0 = as many as fit (LIMIT)
   Corner radius    pixels, 0-32 (RADIUS)
   Opacity          0-100 (OPACITY)
-  Auto-hide speed  0 = off; a slide takes this x 70 ms (AUTOHIDE)
-  Colour           #rrggbb (TINT)
-
-<span class="note">The simple side and this one stay in step: Corners &quot;Large&quot; sets the</span>
-<span class="note">radius to 18; a radius with no preset shows as &quot;Other&quot; there.</span></pre>
-<h2 id="programs">Programs</h2>
+  Auto-hide speed  0 = off, 1 = instant; otherwise n x 70 ms per slide
+                   (AUTOHIDE)
+  Colour           #rrggbb (TINT)</pre>
+<p class="note">Basic settings and this one stay in step: Corners &quot;Large&quot; sets the radius to 18; a radius with no preset shows as &quot;Other&quot; there.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#simple">Previous</a> <a href="#programs">Next</a></nav>
+</section>
+<section id="programs">
+<h2>Programs</h2>
 <pre>  Running programs Off, Dot, or Dot and number (RUNNING)
   Click when       Bring to front, or New copy - then Shift+click brings
   running          to the front instead (CLICKNEW)
@@ -311,27 +289,28 @@ their place): <a href="#finetune">Fine-tune</a>, <a href="#programs">Programs</a
   Workbench icon   Show or Hide the icon for the open drawer windows
                    (WBHIDE)
   Hidden programs  the programs you dragged off the dock, by name; pick
-                   one and <b>Remove</b> to see it again (IGNORE)
-
-<span class="note">Programs get into Hidden programs by being dragged off the dock while</span>
-<span class="note">they run (<a href="#running">Running programs</a>); you never type a name there.</span></pre>
-<h2 id="advshell">Shell drops and Keys</h2>
-<pre><b>Shell drops</b> - see <a href="#shelldrops">Shell drops</a>
-  Icons into a     Type paths, or Off (SHELLDROP)
+                   one and <b>Remove</b> to see it again (IGNORE)</pre>
+<p class="note">Programs get into Hidden programs by being dragged off the dock while they run (<a href="#running">Running programs</a>); you never type a name there.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#finetune">Previous</a> <a href="#advshell">Next</a></nav>
+</section>
+<section id="advshell">
+<h2>Shell drops and Keys</h2>
+<p><b>Shell drops</b> - see <a href="#shelldrops">Shell drops</a></p>
+<pre>  Icons into a     Type paths, or Off (SHELLDROP)
   Shell
   Unpack archives  the Shell&#x27;s drawer, RAM:, or the Unpack drawer
   to               (UNPACKTO)
   Unpack drawer    that drawer; the <b>...</b> button beside it opens a
-                   drawer requester (UNPACKDIR)
-
-<b>Keys</b> - see <a href="#keys">Keys</a>
-  Minimise window  CTRL ALT M by default (MINKEY)
+                   drawer requester (UNPACKDIR)</pre>
+<p><b>Keys</b> - see <a href="#keys">Keyboard shortcuts</a></p>
+<pre>  Minimise window  CTRL ALT M by default (MINKEY)
   Minimise all     CTRL ALT SHIFT M (MINALLKEY)
-  Auto-hide on/off CTRL ALT H (AHKEY)
-
-<span class="note">Type a key combination, or NONE to switch one off. Modifiers alone</span>
-<span class="note">(CTRL ALT) are only allowed for the Hotkey.</span></pre>
-<h2 id="system">System</h2>
+  Auto-hide on/off CTRL ALT H (AHKEY)</pre>
+<p class="note">Type a key combination, or NONE to switch one off. Modifiers alone (CTRL ALT) are only allowed for the Hotkey.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#programs">Previous</a> <a href="#system">Next</a></nav>
+</section>
+<section id="system">
+<h2>System</h2>
 <pre>  Font             name/size for the labels; empty = the screen&#x27;s (FONT)
   Screen           a public screen; empty = Workbench (PUBSCREEN)
   Start delay      wait this many 1/50 s before opening (DELAY)
@@ -340,63 +319,51 @@ their place): <a href="#finetune">Fine-tune</a>, <a href="#programs">Programs</a
   Beep             On or Off: the beep on a refused action (NOBEEP)
   Crash reports    off by default; see <a href="#crash">Crash reports</a> (CRASHLOG)
   No border        no thin border around the dock (NOBORDER)</pre>
-<h2 id="buttons">The buttons</h2>
-<pre>  <b>Undo changes</b>   back to the settings the window opened with
-  <b>Load...</b>        another settings file&#x27;s settings and icons
-  <b>Save as...</b>     a copy of yours to another file
-  <b>Advanced &gt;&gt;</b>    the rest of the settings; <b>&lt;&lt; Simple</b> hides them
-
-Numbers and text take effect on <b>Return</b> or <b>Tab</b>. A value that is not
-valid, or one that would push icons off the dock, is refused with a
-beep and the old value comes back.
-
-<span class="note">SimpleDock always starts from its own file, ENVARC:SimpleDock.config,</span>
-<span class="note">whatever you loaded or saved elsewhere.</span></pre>
-<h2 id="shellicons">Shell icons and projects</h2>
-<pre>Icons set to <b>start from a Shell</b> (the CLI tooltype), <b>ARexx icons</b>
-(REXX) and programs with <b>no icon of their own</b> are handed to
-Workbench, so they start as a double-click does.
-
-With &quot;Shell icons: Ask first&quot; (<a href="#programs">Programs</a>), the dock shows an
-&quot;Execute a file&quot; requester first - not for icons with DONOTPROMPT.
-
-A <b>project&#x27;s default tool</b> is found as Workbench finds it: in the
-project&#x27;s drawer, then in Workbench&#x27;s path, then in C:.</pre>
-<h2 id="moredocks">More than one dock</h2>
-<pre>You can run two docks at once, each with its own icons and settings -
-say your programs along the bottom and your drawers along the right.
-
-Make a second settings file (Save as... in the settings window, then
-edit it), give it a project icon with SimpleDock as its default tool,
-and double-click it: a second SimpleDock starts from that file and
-opens its own dock. Its ARexx port is named after the file, so scripts
-can address each dock on its own.
-
-A dock can also be made from a <b>drawer of icons</b> (CONFIG set to the
-drawer): its settings live in its icon&#x27;s tooltypes.</pre>
-<h2 id="configfile">The settings file</h2>
-<pre><b>ENVARC:SimpleDock.config</b> is plain text: settings lines, then one line
-per icon. A keyword in parentheses is disabled.
-
-    ; SimpleDock settings
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#advshell">Previous</a> <a href="#buttons">Next</a></nav>
+</section>
+<section id="buttons">
+<h2>Settings buttons</h2>
+<pre>  <b>Undo changes</b>     Restore the settings from when the window opened.
+  <b>Load...</b>          Load settings and icons from another file.
+  <b>Save as...</b>       Save a copy of your settings and icons to a file.
+  <b>Advanced &gt;&gt;</b>      Show more settings; <b>&lt;&lt; Simple</b> hides them.</pre>
+<p>Numbers and text take effect on <b>Return</b> or <b>Tab</b>. A value that is not valid, or one that would push icons off the dock, is refused with a beep and the old value comes back.</p>
+<p class="note">Load and Save as do not change the dock&#x27;s startup settings file. The default is ENVARC:SimpleDock.config; see <a href="#moredocks">More than one dock</a> to start a dock with a different file.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#system">Previous</a> <a href="#shellicons">Next</a></nav>
+</section>
+<section id="shellicons">
+<h2>Shell icons and projects</h2>
+<p>Icons set to <b>start from a Shell</b> (the CLI tooltype), <b>ARexx icons</b> (REXX) and programs with <b>no icon of their own</b> are handed to Workbench, so they start as a double-click does.</p>
+<p>With &quot;Shell icons: Ask first&quot; (<a href="#programs">Programs</a>), the dock shows an &quot;Execute a file&quot; requester first - not for icons with DONOTPROMPT.</p>
+<p>A <b>project&#x27;s default tool</b> is found as Workbench finds it: in the project&#x27;s drawer, then in Workbench&#x27;s path, then in C:.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#buttons">Previous</a> <a href="#moredocks">Next</a></nav>
+</section>
+<section id="moredocks">
+<h2>More than one dock</h2>
+<p>You can run two docks at once, each with its own icons and settings - say your programs along the bottom and your drawers along the right.</p>
+<p>Make a second settings file (Save as... in the settings window, then edit it), give it a project icon with SimpleDock as its default tool, and double-click it: a second SimpleDock starts from that file and opens its own dock. Its ARexx port is named after the file, so scripts can address each dock on its own.</p>
+<p>A dock can also be made from a <b>drawer of icons</b> (CONFIG set to the drawer): its settings live in its icon&#x27;s tooltypes.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#shellicons">Previous</a> <a href="#configfile">Next</a></nav>
+</section>
+<section id="configfile">
+<h2>The settings file</h2>
+<p><b>ENVARC:SimpleDock.config</b> is plain text: settings lines, then one line per icon. A keyword in parentheses is disabled.</p>
+<pre>    ; SimpleDock settings
     POS=B
     HOVERTEXT
     (AUTOHIDE=3)
     ; icons
     SYS:Utilities/MultiView
     LABEL Viewer
-    SYS:System/Shell
-
-<b>LABEL</b> renames the icon before it; <b>IMAGE</b> &lt;path&gt; borrows another
-icon&#x27;s picture.
-
-The same keywords work as <b>tooltypes</b> of the SimpleDock icon and on
-the <b>command line</b>: tooltypes, then the file, then the command line,
-each overriding the one before. The keywords: <a href="#keywords">Keywords</a>.</pre>
-<h2 id="keywords">Keywords</h2>
-<pre>Settings file, tooltypes and command line alike.
-
-  CONFIG=&lt;file&gt;       settings file (default ENVARC:SimpleDock.config)
+    SYS:System/Shell</pre>
+<p><b>LABEL</b> renames the icon before it; <b>IMAGE</b> &lt;path&gt; borrows another icon&#x27;s picture.</p>
+<p>The same keywords work as <b>tooltypes</b> of the SimpleDock icon and on the <b>command line</b>: tooltypes, then the file, then the command line, each overriding the one before. The keywords: <a href="#keywords">Keywords</a>.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#moredocks">Previous</a> <a href="#keywords">Next</a></nav>
+</section>
+<section id="keywords">
+<h2>Keywords</h2>
+<p>Settings file, tooltypes and command line alike.</p>
+<pre>  CONFIG=&lt;file&gt;       settings file (default ENVARC:SimpleDock.config)
   POS=&lt;edge&gt;&lt;align&gt;   T, B, L or R, then C, S or E to align (POS=BS)
   DISTANCE=&lt;n&gt;        gap to the screen edge, pixels (default 4)
   OFFSET=&lt;n&gt;          shift along the edge, pixels
@@ -414,20 +381,20 @@ each overriding the one before. The keywords: <a href="#keywords">Keywords</a>.<
   TRANSPARENT         tinted, see-through background
   OPACITY=&lt;n&gt;         its darkness, 0-100
   CUSTOMTINT=#rrggbb  the custom colour in the settings window&#x27;s list
-  AUTOHIDE=&lt;n&gt;        auto-hide; a slide takes n x 70 ms
+  AUTOHIDE=&lt;n&gt;        0 off, 1 instant; otherwise n x 70 ms per slide
   ONTOP               stay in front of other windows
   HOTKEY=&lt;keys&gt;       the hotkey (default ctrl alt shift)
   MINKEY=&lt;keys&gt;       minimise the active window (default ctrl alt m)
   MINALLKEY=&lt;keys&gt;    minimise all (default ctrl alt shift m)
   AHKEY=&lt;keys&gt;        auto-hide on/off (default ctrl alt h); none = off
-  RUNNING=&lt;n&gt;         0 no dots, 1 dot, 2 dot and number (default 2)
+  RUNNING=&lt;n&gt;         0 off, 1 dot, 2 dot and number (default 2)
   CLICKNEW            a click starts a new copy; Shift+click: to front
   WBSTART             Workbench starts the programs
   SHELLASK            Shell icons ask first
   DROPMOVE            drops onto a drawer move on the same disk
   HOLDTIME=&lt;n&gt;        long press, tenths of a second (default 3)
   RUNHIDE             programs not on the dock are not shown
-  IGNORE=&lt;names&gt;      nor these (&quot;Name,Name&quot;)
+  IGNORE=&lt;names&gt;      hide these running programs (&quot;Name,Name&quot;)
   WBHIDE              no Workbench icon
   SHELLDROP=&lt;n&gt;       1 icons dropped onto a Shell are typed (default),
                       0 off
@@ -436,54 +403,54 @@ each overriding the one before. The keywords: <a href="#keywords">Keywords</a>.<
   UNPACKDIR=&lt;drawer&gt;  the drawer for UNPACKTO=2
   PUBSCREEN=&lt;name&gt;    the public screen to open on
   DELAY=&lt;n&gt;           wait n/50 s before opening
-  QUIET / VERBOSE     fewer / more messages
+  QUIET / VERBOSE     suppress requesters / show extra messages
   NOBEEP              no beep on a refused action
   CRASHLOG            crash reports (<a href="#crash">Crash reports</a>)</pre>
-<h2 id="arexx">ARexx</h2>
-<pre>The port is <b>SIMPLEDOCK</b> (a second dock: its file&#x27;s name). Every
-command returns 0 = done, 5 = busy (an icon is being dragged: try
-again), 10 = failed. -&gt; marks a RESULT (OPTIONS RESULTS). An icon is
-named by its label, file name or path, or #n for the nth.
-
-<b>The dock</b>
-  SHOW / HIDE             open the dock again / close it (the dock
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#configfile">Previous</a> <a href="#arexx">Next</a></nav>
+</section>
+<section id="arexx">
+<h2>ARexx</h2>
+<p>The port is <b>SIMPLEDOCK</b> (a second dock: its file&#x27;s name). Every command returns 0 = success, 5 = busy, or 10 = failure. While a dock icon is being dragged, most commands that change the dock return 5; retry after the drag. GETPOS, LIST and GET remain available.</p>
+<p>-&gt; marks a RESULT (enable with OPTIONS RESULTS). Identify an icon by its label, file name or path, or #n for its position (#1 is first). Quote arguments that contain spaces.</p>
+<h3>The dock</h3>
+<pre>  SHOW / HIDE             open the dock again / close it (the dock
                           keeps running)
   REVEAL                  as the hotkey
   REFRESH                 reopen the dock
   GETPOS               -&gt; &quot;x y w h&quot; of the dock, then of the icon
                           clicked last
-  QUIT
-
-<b>Icons</b>
-  LIST [NAMES]         -&gt; the icons&#x27; paths (or labels), one per line
+  QUIT                    close the dock and exit</pre>
+<h3>Icons</h3>
+<pre>  LIST [NAMES]         -&gt; the icons&#x27; paths (or labels), one per line
   ADD &lt;path&gt; [AT n | AFTER icon | BEFORE icon] [LABEL text]
   REMOVE &lt;icon&gt;
-  MOVE &lt;icon&gt; AT n | AFTER icon | BEFORE icon
-
-<b>Settings</b>
-  SET &lt;keyword&gt; ...       as the settings file; parentheses disable;
+  MOVE &lt;icon&gt; AT n | AFTER icon | BEFORE icon</pre>
+<h3>Settings</h3>
+<pre>  SET &lt;keyword&gt; ...       as the settings file; parentheses disable;
                           quote values with spaces
   GET [&lt;keyword&gt;]      -&gt; its value (1 / 0 for a switch; empty: not
                           set); without a keyword: every setting
-  SAVE [&lt;file&gt;]           settings and icons (to the dock&#x27;s own file)
+  SAVE [&lt;file&gt;]           save settings and icons to &lt;file&gt;, or to the
+                          dock&#x27;s own file if no file is given
   RELOAD                  the dock&#x27;s own file again
   LOAD &lt;file&gt;             another file&#x27;s settings and icons
-  SETTINGS [ADVANCED]     the settings window
-
-<b>For bug reports</b>
-  DROPINFO / HOTKEYINFO -&gt; what the dock sees of Shell windows / the
+  SETTINGS [ADVANCED]     the settings window</pre>
+<h3>For bug reports</h3>
+<pre>  DROPINFO / HOTKEYINFO -&gt; what the dock sees of Shell windows / the
                           hotkey
-  BENCH                -&gt; drawing times on this machine
-
-<b>Examples</b>
-    address SIMPLEDOCK &#x27;ADD &quot;RAM:&quot; AFTER Shell LABEL &quot;Ram Disk&quot;&#x27;
+  BENCH                -&gt; drawing times on this machine</pre>
+<h3>Examples</h3>
+<pre>    address SIMPLEDOCK &#x27;ADD &quot;RAM:&quot; AFTER Shell LABEL &quot;Ram Disk&quot;&#x27;
     address SIMPLEDOCK &#x27;SET AUTOHIDE=3 RADIUS=0&#x27;
     address SIMPLEDOCK &#x27;SAVE&#x27;
     options results
     address SIMPLEDOCK &#x27;GET AUTOHIDE&#x27;; say result</pre>
-<h2 id="limits">Known limitations</h2>
-<pre><b>Running programs</b>
-  AmigaOS keeps no list of running programs: the dock knows them by
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#keywords">Previous</a> <a href="#limits">Next</a></nav>
+</section>
+<section id="limits">
+<h2>Known limitations</h2>
+<h3>Running programs</h3>
+<pre>  AmigaOS keeps no list of running programs: the dock knows them by
   their windows and names. A program with no window, a renamed task or
   one started by a script is not seen; a click then starts a copy.
   A program the dock did not start is noticed when one of its windows
@@ -499,10 +466,9 @@ named by its label, file name or path, or #n for the nth.
   Programs the dock started keep running when it quits; a few hundred
   bytes for each stay in memory until a reboot.
   Icons dropped straight into a KingCON window may not reach the dock
-  (KingCON handles them itself); the dock&#x27;s Shell icon does the job.
-
-<b>The dock</b>
-  One row of icons. When it is full, the last place lists the rest.
+  (KingCON handles them itself); the dock&#x27;s Shell icon does the job.</pre>
+<h3>The dock</h3>
+<pre>  One row of icons. When it is full, the last place lists the rest.
   Windows cannot be round or see-through, so the corners and the
   transparent look use a picture of what is behind the dock. When that
   changes, the dock steps aside for a moment to take a new one.
@@ -512,42 +478,42 @@ named by its label, file name or path, or #n for the nth.
   In front gives up after three tries in a row with nothing pressed in
   between (another window that keeps itself in front would fight it
   for ever) and rests while the settings window is open.
-  A new screen mode needs every window closed: quit the dock first (or
-  ARexx HIDE) and start it again after.
-
-<b>Older systems</b>
-  Without ReAction&#x27;s chooser.gadget (before 3.2) the settings lists
+  Before changing screen mode, quit the dock (or close its window with
+  ARexx HIDE) and start it again afterwards (or ARexx SHOW).</pre>
+<h3>Older systems</h3>
+<pre>  Without ReAction&#x27;s chooser.gadget (before 3.2) the settings lists
   are cycle gadgets: a click steps to the next choice.
   Marking a whole text field with a double-click needs 3.2.
-  On 3.5 the Dock menu is in the Tools menu.
-
-<b>Settings</b>
-  Version 1.0 does not know the settings new in 1.1 and shows them as
+  On 3.5 the Dock menu is in the Tools menu.</pre>
+<h3>Settings</h3>
+<pre>  Version 1.0 does not know the settings new in 1.1 and shows them as
   icons marked &quot;?&quot;. Remove those lines if you go back.</pre>
-<h2 id="crash">Crash reports</h2>
-<pre>If SimpleDock crashes, switch <b>Crash reports</b> on (<a href="#system">System</a>) and
-repeat what you did. The next crash writes
-<b>ENVARC:SimpleDock-crash.txt</b> - the error, where in the program, your
-system and settings - shows a message and closes. Attach the file to
-your report (<a href="#bugs">Bug reports</a>).
-
-<span class="note">Crash reports cost nothing while nothing goes wrong, and catch only</span>
-<span class="note">errors in the dock&#x27;s own task; if the whole system is unstable, reboot.</span></pre>
-<h2 id="bugs">Bug reports</h2>
-<pre>https://github.com/renewable-intel/SimpleDock/issues
-
-Say what you did, step by step, and what happened; your CPU, graphics
-card or AGA, and screen mode; and attach the crash report if there is
-one (<a href="#crash">Crash reports</a>).
-
-For a Shell-drop or hotkey problem, the output of this helps:
-
-    rx &quot;options results; address SIMPLEDOCK &#x27;DROPINFO&#x27;; say result&quot;
-
-(or HOTKEYINFO in place of DROPINFO).</pre>
-<h2 id="history">History</h2>
-<pre><b>1.1</b> (21.10.2026)
-  Running programs: the dot and the count, click to front, Shift+click
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#arexx">Previous</a> <a href="#crash">Next</a></nav>
+</section>
+<section id="crash">
+<h2>Crash reports</h2>
+<p>If SimpleDock crashes, switch <b>Crash reports</b> on (<a href="#system">System</a>) and repeat what you did. On the next crash, SimpleDock writes <b>ENVARC:SimpleDock-crash.txt</b>, shows a message and closes. The report records the error, its location in the program, and your system and settings. Attach it to your <a href="#bugs">bug report</a>.</p>
+<p class="note">Crash reports cost nothing while nothing goes wrong, and catch only errors in the dock&#x27;s own task; if the whole system is unstable, reboot.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#limits">Previous</a> <a href="#bugs">Next</a></nav>
+</section>
+<section id="bugs">
+<h2>Bug reports</h2>
+<p>Report bugs at: https://github.com/renewable-intel/SimpleDock/issues</p>
+<p>Include:</p>
+<pre>  - Steps to reproduce the problem.
+  - What you expected and what actually happened.
+  - Your SimpleDock and AmigaOS versions, CPU, graphics card or AGA,
+    and screen mode.
+  - A <a href="#crash">crash report</a>, if one was created.</pre>
+<p>For a Shell-drop problem, include the output of:</p>
+<pre>    rx &quot;options results; address SIMPLEDOCK &#x27;DROPINFO&#x27;; say result&quot;</pre>
+<p>For a hotkey problem, replace DROPINFO with HOTKEYINFO.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#crash">Previous</a> <a href="#history">Next</a></nav>
+</section>
+<section id="history">
+<h2>History</h2>
+<p><b>1.1</b> (21.10.2026)</p>
+<pre>  Running programs: the dot and the count, click to front, Shift+click
   for a copy, Del to close; the long-press window list with Minimise,
   Show and Close; programs not on the dock shown behind a line; the
   Shell icon; the Workbench icon for open drawers; files dropped onto a
@@ -556,7 +522,8 @@ For a Shell-drop or hotkey problem, the output of this helps:
   drops and archive unpacking; Shell icons started as Workbench does,
   with an optional requester; Force Quit; Beep on/off; crash reports;
   the program a third smaller and lighter in memory; a code audit with
-  18 fixes.
-
-<b>1.0</b> (15.10.2026)  First release.</pre>
-</body></html>
+  18 fixes.</pre>
+<p><b>1.0</b> (15.10.2026)  First release.</p>
+<nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#bugs">Previous</a></nav>
+</section>
+</main></body></html>
