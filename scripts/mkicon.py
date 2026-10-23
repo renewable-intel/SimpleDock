@@ -134,7 +134,7 @@ def colour_icon(images):
         maxpal = max(maxpal, len(pdata))
         imags.append(struct.pack('>BBBBBBHH', 0, len(pal) - 1, 1 | 2, 1, 1, depth, len(data) - 1, len(pdata) - 1)
                      + data + pdata)
-    face = struct.pack('>BBBBH', W - 1, H - 1, 0, 0, maxpal - 1)
+    face = struct.pack('>BBBBH', W - 1, H - 1, 1, 0, maxpal - 1)   # flags 1: frameless (the shape, no box)
     body = b'ICON' + chunk(b'FACE', face) + b''.join(chunk(b'IMAG', m) for m in imags)
     return b'FORM' + struct.pack('>I', len(body)) + body
 
