@@ -288,8 +288,8 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
             struct Item *before, *it;
             BPTR lock = 0;
             if (!(ra = rargs(cmd, "PATH/A,AT/K/N,AFTER/K,BEFORE/K,LABEL/K", a, 5)) ||
-                !*(STRPTR)a[0] || !(lock = Lock((STRPTR)a[0], ACCESS_READ)) ||   /* no such file ("" would be the */
-                (!d->hidden && d->nkept + d->pushed + 1 > d->fit)) rc = RC_ERROR;            /* the dock is full */
+                !*(STRPTR)a[0] || !(lock = Lock((STRPTR)a[0], ACCESS_READ)) ||   /* no such file ("" would lock the */
+                (!d->hidden && d->nkept + d->pushed + 1 > d->fit)) rc = RC_ERROR;   /* current drawer); the dock is full */
             else if (changing(d), !where(d, (LONG *)a[1], (STRPTR)a[2], (STRPTR)a[3], &before)) {
                 rc = RC_ERROR;
                 changed(d, NULL);

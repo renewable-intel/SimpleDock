@@ -13,6 +13,12 @@ the macOS dock.
 > settings window with a simple side and Advanced, auto-hide with a hotkey,
 > ARexx, crash reports.
 >
+> **1.2 (in progress):** menu in Tools or as a Dock title, the hotkey on
+> the middle mouse button (alone or with a key), a second dock from Save
+> as... with its own icon, placed beside the first and reached from the
+> main dock's Other docks list, the SimpleDock icon as a settings button
+> on the dock, centred requesters.
+>
 > **User guide:** [docs/SimpleDock.html](docs/SimpleDock.html) - the same
 > guide ships as `SimpleDock.guide` (AmigaGuide, for MultiView) and `ReadMe`
 > in the archive; all three come from [docs/guide.txt](docs/guide.txt) via

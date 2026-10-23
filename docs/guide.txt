@@ -250,6 +250,9 @@ them all.
 == Toggle auto-hide: Ctrl+Alt+H
 Switch auto-hide on or off. The choice is saved in the settings.
 
+-- Left Amiga with N or M belongs to the system (screen to back and
+-- front) and is refused for any of these.
+
 Change these combinations under Keys ({Shell drops and Keys|advshell}).
 Enter *NONE* to disable a shortcut.
 
@@ -698,6 +701,16 @@ Bug reports, ideas and a word on the forums are just as welcome.
 @end
 
 @node history "History"
+*1.2* (in progress)
+  Menu in Tools or as a Dock title; the hotkey on the middle mouse
+  button, alone or with a key (MBUTTON 2); a dock shown by the hotkey
+  stays until the hotkey hides it; the SimpleDock icon on the dock
+  opens the settings, a long press offers Quit; Save as... makes a
+  second dock with its own icon, placed beside the first, a launcher
+  by default, reached from the main dock's Other docks list; requesters
+  and the settings window centred; the long-press list without
+  flicker; a code audit of the new parts.
+
 *1.1* (21.10.2026)
   Running programs: the dot and the count, click to front, Shift+click
   for a copy, Del to close; the long-press window list with Minimise,

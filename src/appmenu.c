@@ -1557,11 +1557,8 @@ void am_prefs_handle(struct Dock *d)
                 if (dquitg) GT_SetGadgetAttrs(dquitg, pw, NULL, GA_Disabled, dsel < 0, TAG_END);
             }
             else if (id == G_BDSET || id == G_BDQUIT) {   /* that dock's settings window / its end */
-                if (dsel >= 0 && dsel < ndocks) {
-                    LONG k;
-                    if (!rexx_send(dnode[dsel].ln_Name, id == G_BDSET ? "SETTINGS" : "QUIT")) sd_beep(d);
-                    (void)k;                     /* (the list follows the dock's end: am_docks_refresh) */
-                }
+                if (dsel >= 0 && dsel < ndocks &&   /* (after Quit the list follows: am_docks_refresh) */
+                    !rexx_send(dnode[dsel].ln_Name, id == G_BDSET ? "SETTINGS" : "QUIT")) sd_beep(d);
             }
             else if (id >= G_ADV && id < G_ADV + NADV) adv_apply(d, id - G_ADV, code);
             else if (id == G_BHREM) hidden_remove(d);
