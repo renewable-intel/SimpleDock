@@ -16,6 +16,10 @@
   "More than one dock" page is now three steps. SimpleDock CONFIG=<file>
   from a Shell while a dock is running starts a second one too (its port
   named after the file; before: "already running").
+- Two docks: the first (port SIMPLEDOCK) is the overview; every further
+  dock starts as a launcher (Other programs and Workbench icon Hide, both
+  changeable in its Advanced window). A dock opening where another dock
+  already is moves beside it or to a free edge and keeps that place.
 
 ## 1.1 (21.10.2026)
 

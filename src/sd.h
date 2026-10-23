@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.2"
-#define SD_BUILD   " T83"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T84"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "22.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -114,7 +114,9 @@ struct Dock {
     BOOL              cfgdrawer;      /* CONFIG is a drawer: cannot be saved */
     BOOL              cfgfailed;      /* the dock's own file could not be read: never saved over */
     BOOL              cfgcreate;      /* missing: write it once the dock is open (POS, colour known) */
-    char              posbuf[4];      /* POS changed in the settings window */
+    char              posbuf[4];      /* POS changed in the settings window, or by yielding to another dock */
+    UBYTE             yield;          /* edges tried while opening where another dock is (dock.c) */
+    BOOL              yielded;        /* moved out of another dock's way: saved once open */
     char              keybuf[64];     /* HOTKEY changed in the settings window */
     char              custbuf[8];     /* CUSTOMTINT (and TINT) from the colour picker: "#rrggbb" */
     char              cfgbuf[SD_LINEMAX]; /* the dock's own config file (o->config) */

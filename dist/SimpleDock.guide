@@ -566,6 +566,16 @@ edge and icons in its own settings window; they are saved to its file.
 Its ARexx port is the file's name as spelled, Drawers.config, so scripts
 can address each dock on its own (in quotes: address 'Drawers.config').
 
+The first dock (the one named SIMPLEDOCK) is the overview: it shows the
+programs that are not docked and the Workbench icon. Every further dock
+starts as a plain launcher for its own icons - Other programs and
+Workbench icon are set to Hide in its Advanced window, where you can
+change them.
+
+A dock that opens where another dock already is moves beside it on the
+same edge, or to a free edge, and keeps that place. The dock that was
+there first never moves.
+
 To start it with Workbench, move the file and its icon to SYS:WBStartup.
 From a Shell or a script: SimpleDock CONFIG=<file> - while a dock is
 already running, this one takes the file's name as its port.

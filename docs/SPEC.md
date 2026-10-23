@@ -69,7 +69,11 @@ if the icon has it), then a Shell command line over both.
 
 Several docks: a config file with a project icon whose default tool is
 SimpleDock starts a dock with that file; the file name is then its ARexx port
-name. Save as... writes such an icon next to the new file (default tool: this
+name. A dock whose port is not SIMPLEDOCK gets the lines RUNHIDE and WBHIDE
+added when its file has neither (a launcher; "(RUNHIDE)" in the file turns it
+back on). Opening where another dock is (window UserData 0x5D, edge, full
+extent): the same edge at Start or End if clear, else the next free edge in the
+order B T R L; the new POS is saved. Save as... writes such an icon next to the new file (default tool: this
 program's full path; an existing icon is kept), so a copy made there is a dock
 on double-click. CONFIG=file from a Shell does the same: when the port
 SIMPLEDOCK is taken and the file is not the default one, the port is the file's

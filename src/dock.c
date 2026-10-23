@@ -174,10 +174,80 @@ static void load_icons(struct Dock *d, WORD *cw, WORD *ch)
     if (*ch < 8) *ch = 8;
 }
 
+/* Every dock window's UserData says what it is: 0x5D, the edge letter, then
+   d->full (the dock's extent from the screen edge when out). Another dock
+   opening on the same screen reads them and keeps clear; the window itself
+   may be a 1-pixel strip while hidden, so its size says nothing. */
+static APTR dock_mark(struct Dock *d)
+{
+    return (APTR)(0x5D000000UL | ((ULONG)(UBYTE)d->edge << 16) | (UWORD)d->full);
+}
+
+struct DockRect { WORD x0, y0, x1, y1; };
+
+/* The other docks on this screen, as the rectangles they fill when out. */
+static LONG other_docks(struct Dock *d, struct DockRect *r, LONG max)
+{
+    struct Window *w;
+    WORD sw = d->scr->Width, sh = d->scr->Height;
+    LONG n = 0;
+    Forbid();
+    for (w = d->scr->FirstWindow; w && n < max; w = w->NextWindow) {
+        ULONG ud = (ULONG)w->UserData;
+        WORD full = (WORD)(ud & 0xFFFF);
+        UBYTE edge = (ud >> 16) & 0xFF;
+        if (w == d->win || (ud >> 24) != 0x5D || !(w->Flags & WFLG_BORDERLESS) || full <= 0 ||
+            (edge != 'T' && edge != 'B' && edge != 'L' && edge != 'R')) continue;
+        r[n].x0 = w->LeftEdge; r[n].x1 = w->LeftEdge + w->Width - 1;
+        r[n].y0 = w->TopEdge;  r[n].y1 = w->TopEdge + w->Height - 1;
+        switch (edge) {
+        case 'T': r[n].y0 = 0; r[n].y1 = full - 1; break;
+        case 'B': r[n].y0 = sh - full; r[n].y1 = sh - 1; break;
+        case 'L': r[n].x0 = 0; r[n].x1 = full - 1; break;
+        default:  r[n].x0 = sw - full; r[n].x1 = sw - 1; break;
+        }
+        n++;
+    }
+    Permit();
+    return n;
+}
+
+static BOOL dock_clear(struct Dock *d, const struct DockRect *r, LONG n)   /* overlaps none of them */
+{
+    LONG i;
+    for (i = 0; i < n; i++)
+        if (d->left <= r[i].x1 && d->left + d->w - 1 >= r[i].x0 && d->top <= r[i].y1 && d->top + d->h - 1 >= r[i].y0)
+            return FALSE;
+    return TRUE;
+}
+
+/* The dock's place on the screen from its edge, alignment and offset. */
+static void place_on_edge(struct Dock *d, WORD sw, WORD sh)
+{
+    WORD gap = d->o->distance;                   /* to the screen edge (DISTANCE, default 4) */
+    switch (d->edge) {
+    case 'T': d->top = gap; break;
+    case 'B': d->top = sh - d->h - gap; break;
+    case 'L': d->left = gap; break;
+    default:  d->left = sw - d->w - gap; break;
+    }
+    if (d->horiz) {
+        d->left = d->align == 'L' ? d->o->offset : d->align == 'R' ? sw - d->w - d->o->offset
+                                                  : (sw - d->w) / 2 + d->o->offset;
+    } else {
+        d->top = d->align == 'T' ? d->o->offset : d->align == 'B' ? sh - d->h - d->o->offset
+                                                 : (sh - d->h) / 2 + d->o->offset;
+    }
+    if (d->left < 0) d->left = 0;
+    if (d->top < 0) d->top = 0;
+    if (d->left + d->w > sw) d->left = sw - d->w;
+    if (d->top + d->h > sh) d->top = sh - d->h;
+}
+
 /* Grid of uniform cells (an empty dock: three free places). */
 static void layout(struct Dock *d)
 {
-    WORD cw, ch, per, lines, n = 0, gap, keep, sw = d->scr->Width, sh = d->scr->Height;
+    WORD cw, ch, per, lines, n = 0, keep, sw = d->scr->Width, sh = d->scr->Height;
     BOOL horiz;
     WORD gaps;                                   /* the dividers: 0, 1 or 2 */
     struct Item *it;
@@ -243,31 +313,45 @@ static void layout(struct Dock *d)
 
     d->cw = cw; d->ch = ch; d->per = per; d->horiz = horiz;
     dock_place(d);
-
-    gap = d->o->distance;                        /* to the screen edge (DISTANCE, default 4) */
-    switch (d->edge) {
-    case 'T': d->top = gap; break;
-    case 'B': d->top = sh - d->h - gap; break;
-    case 'L': d->left = gap; break;
-    default:  d->left = sw - d->w - gap; break;
+    place_on_edge(d, sw, sh);
+    if (!d->win && d->yield < 4) {               /* opening where another dock is: beside it, else a free edge */
+        struct DockRect r[8];
+        LONG n = other_docks(d, r, 8);
+        if (n && !dock_clear(d, r, n)) {
+            static const char al[2][2] = { { 'L', 'R' }, { 'T', 'B' } }, edges[] = "BTRL";
+            char was = d->align;
+            LONG k;
+            for (k = 0; k < 2; k++) {            /* the same edge, at its start or end */
+                d->align = al[horiz ? 0 : 1][k];
+                place_on_edge(d, sw, sh);
+                if (dock_clear(d, r, n)) break;
+            }
+            if (k < 2) {
+                d->posbuf[0] = d->edge; d->posbuf[1] = d->align; d->posbuf[2] = 0;
+                d->o->pos = d->posbuf;
+                d->yielded = TRUE;
+            } else {                             /* another edge: laid out again for it */
+                d->align = was;
+                while (d->yield < 4 && edges[d->yield] == d->edge) d->yield++;
+                if (d->yield < 4) {
+                    d->posbuf[0] = edges[d->yield++]; d->posbuf[1] = 0;
+                    d->o->pos = d->posbuf;
+                    d->yielded = TRUE;
+                    layout(d);
+                    return;
+                }
+                place_on_edge(d, sw, sh);        /* every edge taken: where it was */
+                d->yielded = FALSE;
+            }
+        }
     }
-    if (horiz) {
-        d->left = d->align == 'L' ? d->o->offset : d->align == 'R' ? sw - d->w - d->o->offset
-                                                  : (sw - d->w) / 2 + d->o->offset;
-    } else {
-        d->top = d->align == 'T' ? d->o->offset : d->align == 'B' ? sh - d->h - d->o->offset
-                                                 : (sh - d->h) / 2 + d->o->offset;
-    }
-    if (d->left < 0) d->left = 0;
-    if (d->top < 0) d->top = 0;
-    if (d->left + d->w > sw) d->left = sw - d->w;
-    if (d->top + d->h > sh) d->top = sh - d->h;
     switch (d->edge) {                           /* from the edge to the far side of the dock */
     case 'T': d->full = d->top + d->h; break;
     case 'B': d->full = sh - d->top; break;
     case 'L': d->full = d->left + d->w; break;
     default:  d->full = sw - d->left; break;
     }
+    if (d->win) d->win->UserData = dock_mark(d);
 }
 
 /* Targets in list order, without 'skip' and leaving cell 'gap' free (-1: none).
@@ -451,6 +535,7 @@ BOOL dock_open(struct Dock *d)
     d->opacity = d->o->transparent ? d->o->opacity : 100;
     pens(d, TRUE);                             /* before the icons: scale.c uses them */
     TRACE("layout");
+    d->yield = 0;
     scale_why = 0;
     layout(d);
     if (scale_why) sd_verbose(d, "Some icons are shown at their own size (reason %ld: 1 pens, 2 Picasso96, "
@@ -470,6 +555,7 @@ BOOL dock_open(struct Dock *d)
                   IDCMP_CHANGEWINDOW,
         TAG_END);
     if (!d->win) { sd_msg(d, "Cannot open the dock window"); goto fail; }
+    d->win->UserData = dock_mark(d);           /* (another dock keeps clear of this one) */
     d->gen++;                                  /* drops still queued for the old window are ignored */
     if (am_port())                             /* icons dropped from Workbench */
         d->appwin = AddAppWindow(0, d->gen, d->win, am_port(), TAG_END);
@@ -482,6 +568,11 @@ BOOL dock_open(struct Dock *d)
         am_note_overflow(d, dock_extra(d) - d->pushed);
     }
     d->hidden = FALSE;
+    if (d->yielded) {                          /* moved out of another dock's way: its place from now on */
+        d->yielded = FALSE;
+        sd_verbose(d, "Another dock was in the way: this one is at POS=%s now", (LONG)d->posbuf);
+        if (!d->cfgdrawer && !d->cfgfailed && !d->cfgcreate) config_save(d, NULL);
+    }
     if (TimerBase) {
         struct timeval now;
         GetSysTime(&now);

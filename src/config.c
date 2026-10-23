@@ -214,6 +214,17 @@ BOOL config_load(struct Dock *d, CONST_STRPTR path)
         }
     }
     Close(fh);
+    if (Stricmp((STRPTR)d->portname, (STRPTR)SD_PORTNAME)) {   /* a dock after the first: a launcher - the */
+        static const char *const key[2] = { "RUNHIDE", "WBHIDE" };   /* other programs and the Workbench icon */
+        LONG k;                                  /* off unless its file says (the lines are added, so the */
+        for (k = 0; k < 2; k++) {                /* settings window shows them and Show is saved as "(KEY)") */
+            LONG want = opts_key(key[k]), n = strlen(key[k]);
+            for (i = 0; i < nset && opts_key(setv[i]) != want; i++) ;
+            if (i < nset || nset >= 48 || used + n + 1 > (LONG)sizeof(setbuf)) continue;
+            setv[nset++] = strcpy(setbuf + used, key[k]);
+            used += n + 1;
+        }
+    }
     setv[nset] = NULL;
     if (nset && !opts_check(setv)) {             /* lines that are not valid are dropped (said once, */
         LONG k = 0;                              /* below); else every change would fail */
