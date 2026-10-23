@@ -222,6 +222,8 @@
   refused; a settings value too long to load again is refused when set.
 - The Other docks list in an open settings window follows docks that
   start or quit (checked every 2 s).
+- The SimpleDock icon on the dock is drawn with Icons/Settings from the
+  program's drawer (a settings gear), if that file is there.
 - The SimpleDock icon on the dock: a click opens the settings window, a
   long press offers Quit SimpleDock... (asked first). Before, a click
   started a second copy, which stopped with "already running".

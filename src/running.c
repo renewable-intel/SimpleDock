@@ -661,26 +661,31 @@ static BOOL is_it(struct Own *o, struct Item *it)
    Workbench's drawers. */
 /* Is the item this very program (its icon on the dock)? A click then opens
    the settings and a long press offers Quit, instead of a second copy. */
-BOOL run_is_self(struct Item *it)
+BOOL run_path_is_self(CONST_STRPTR p)
 {
     static char mine[512];
     static BOOL known;
     char path[512];
     BPTR lk;
     BOOL same = FALSE;
+    struct Process *me = (struct Process *)FindTask(NULL);
+    APTR wp;
     if (!known) { known = TRUE; sd_prog_path(mine, sizeof(mine)); }
-    if (!mine[0] || it->temp || it->nofile || !it->dobj || it->dobj->do_Type != WBTOOL) return FALSE;
-    {
-        struct Process *me = (struct Process *)FindTask(NULL);
-        APTR wp = me->pr_WindowPtr;
-        me->pr_WindowPtr = (APTR)-1;             /* (a disk not inserted: no "please insert" requester) */
-        if ((lk = Lock(it->path, SHARED_LOCK))) {
-            if (NameFromLock(lk, path, sizeof(path))) same = !Stricmp((STRPTR)path, (STRPTR)mine);
-            UnLock(lk);
-        }
-        me->pr_WindowPtr = wp;
+    if (!mine[0] || !p || Stricmp(FilePart((STRPTR)p), FilePart(mine))) return FALSE;   /* (most: by the name alone) */
+    wp = me->pr_WindowPtr;
+    me->pr_WindowPtr = (APTR)-1;                 /* (a disk not inserted: no "please insert" requester) */
+    if ((lk = Lock((STRPTR)p, SHARED_LOCK))) {
+        if (NameFromLock(lk, path, sizeof(path))) same = !Stricmp((STRPTR)path, (STRPTR)mine);
+        UnLock(lk);
     }
+    me->pr_WindowPtr = wp;
     return same;
+}
+
+BOOL run_is_self(struct Item *it)
+{
+    if (it->temp || it->nofile || !it->dobj || it->dobj->do_Type != WBTOOL) return FALSE;
+    return run_path_is_self(it->path);
 }
 
 BOOL run_trackable(struct Item *it)

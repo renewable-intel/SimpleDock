@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.2"
-#define SD_BUILD   "99"              /* build number: +1 for every build, test or release (version stays x.y) */
+#define SD_BUILD   "100"              /* build number: +1 for every build, test or release (version stays x.y) */
 #define SD_DATE    "22.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -31,6 +31,7 @@ void sd_prof(LONG slot, struct timeval *t0);
 #define SD_PORTNAME "SIMPLEDOCK"      /* ARexx port; a project config file uses its name */
 #define SD_LINEMAX  256               /* config file line, incl. NUL */
 #define SD_CONFIG   "ENVARC:SimpleDock.config"   /* settings + icons, when CONFIG is not given */
+#define SD_GEARICON "Icons/Settings"     /* the dock's own icon on the dock: drawn with this, beside it (if there) */
 
 struct Opts {
     STRPTR config, pos, font, pubscreen, tint, hotkey, customtint, ignore;
@@ -260,6 +261,7 @@ LONG dock_other_names(struct Dock *d, STRPTR *names, char *buf, LONG size, LONG 
 BOOL dock_marked(struct Window *w);                         /* a dock window (any dock's) */
 LONG dock_tasks(struct Task **out, LONG max);               /* the tasks of every dock window, all screens (caller Forbids) */
 BOOL run_is_self(struct Item *it);                          /* the item is this program */
+BOOL run_path_is_self(CONST_STRPTR path);                   /* the file is this program */
 BOOL rexx_send(CONST_STRPTR port, CONST_STRPTR cmd);          /* one command to another dock (no wait) */
 ULONG rexx_outbox_sig(void);                                 /* its replies: signal for the main loop */
 void rexx_reap(void);                                         /* free the replies that came back */
