@@ -51,6 +51,7 @@ icon and as settings lines in the config file (section 3).
 | UNPACKTO/K/N | where the unpack command for a dropped archive points: 0 the Shell's current drawer (default), 1 RAM:, 2 UNPACKDIR |
 | UNPACKDIR/K | the drawer for UNPACKTO=2 |
 | NOBEEP/S | no beep (screen flash) on a refused action or a failure |
+| TOOLSMENU/S | the Dock menu's four items in the Tools menu, no Dock title (always so on workbench.library < 45); the menu is rebuilt when the setting changes |
 | CUSTOMTINT/K | the settings window's custom colour `#rrggbb` (its Colour list) |
 | RUNNING/K/N | running programs: 0 off (no dots, no looks), 1 dot, 2 dot and number (default) |
 | CLICKNEW/S | a click on a running program starts a new copy; Shift+click brings it to the front |

@@ -9,9 +9,9 @@
 #include <graphics/rastport.h>
 
 #define SD_NAME    "SimpleDock"
-#define SD_VERSION "1.1"
-#define SD_BUILD   ""                /* test build ("" for a release): shown with the version */
-#define SD_DATE    "21.10.2026"
+#define SD_VERSION "1.2"
+#define SD_BUILD   " T81"            /* test build ("" for a release): shown with the version */
+#define SD_DATE    "22.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
 void sd_trace(CONST_STRPTR s);
@@ -41,7 +41,7 @@ struct Opts {
     LONG   autohide, ahspeed, radius, opacity;
     BOOL   notext, hovertext, noicon, noborder, ontop, transparent, quiet, verbose, crashlog;
     LONG   running, holdtime;         /* RUNNING 0-2, HOLDTIME tenths of a second */
-    BOOL   clicknew, wbstart, dropmove, runhide, wbhide, shellask, nobeep;
+    BOOL   clicknew, wbstart, dropmove, runhide, wbhide, shellask, nobeep, toolsmenu;
 };
 
 /* A box in dock image coordinates, x1 / y1 exclusive; empty if x1 <= x0. */

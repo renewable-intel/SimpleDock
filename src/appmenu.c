@@ -58,6 +58,7 @@ static const char *const radname[4] = { "Square", "Small", "Medium", "Large" };
 static struct MsgPort *amport;
 static struct AppMenuItem *ami[MAXITEMS];
 static LONG nami;
+static BOOL am_tools;                     /* the items are in the Tools menu */
 
 static void add(CONST_STRPTR text, ULONG id, ULONG usekey)
 {
@@ -71,14 +72,18 @@ static void remove_all(void)
     while (nami > 0) RemoveAppMenuItem(ami[--nami]);
 }
 
-/* The Dock menu - added once (see above). */
+/* The Dock menu (see above); again after a settings change, if its place
+   changed (TOOLSMENU). */
 void am_build(struct Dock *d)
 {
     ULONG title = 0;
     struct AppMenuItem *t;
+    BOOL tools = WorkbenchBase->lib_Version < 45 || d->o->toolsmenu;
 
-    if (!amport || nami) return;
-    if (WorkbenchBase->lib_Version < 45) {           /* menu titles need workbench.library V45 (3.9): */
+    if (!amport) return;
+    if (nami) { if (tools == am_tools) return; remove_all(); }
+    am_tools = tools;
+    if (tools) {                                     /* menu titles need workbench.library V45 (3.9): */
         static const struct { const char *text; ULONG id; } tool[4] = {   /* in the Tools menu instead */
             { "SimpleDock Show/Hide", AM_TOGGLE }, { "SimpleDock Settings...", AM_SETTINGS },
             { "SimpleDock About...", AM_ABOUT }, { "Quit SimpleDock", AM_QUIT } };
@@ -286,6 +291,7 @@ static const char *const holdname[] = { "Normal (0.3 s)", "Long (0.4 s)", "Longe
 static const LONG holdval[] = { 3, 4, 5 };
 static const char *const othername[] = { "Show", "Hide", NULL };
 static const char *const beepname[] = { "On", "Off", NULL };
+static const char *const menuname[] = { "Dock menu", "In Tools menu", NULL };
 /* K_LIST: a list of choices for a keyword, with values (KEY=n; the one at
    'def' when it is not set), or without (a switch: first choice = off).
    K_HIDE: the IGNORE names as a list, with Remove. K_KEY: a key (commodities
@@ -323,6 +329,7 @@ static const struct { const char *label, *key; UBYTE kind; const char *const *na
     { "Start delay, 1/50 s", "DELAY", K_INT },
     { "Messages", "QUIET", K_MSG },
     { "Beep", "NOBEEP", K_LIST, beepname, NULL, 0 },
+    { "Menu", "TOOLSMENU", K_LIST, menuname, NULL, 0 },
     { "Crash reports", "CRASHLOG", K_SWITCH },
     { "No border", "NOBORDER", K_SWITCH } };
 #define HIDEROWS 6                      /* the Hidden programs list: rows high */

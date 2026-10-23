@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2 (in progress)
+
+- Advanced, System: Menu - Dock menu (a Dock title in the Workbench menu
+  bar, as before) or In Tools menu (the four SimpleDock items under Tools,
+  as on 3.1.4), for people whose ARexx scripts manage Workbench's menus
+  and are upset by an extra title (TOOLSMENU).
+
 ## 1.1 (21.10.2026)
 
 - Running programs: a dot under the icon, and the number of copies on it,

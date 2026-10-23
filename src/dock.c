@@ -790,7 +790,7 @@ void dock_reopen(struct Dock *d)
 {
     dock_close(d);
     if (!dock_open(d)) sd_msg(d, "Cannot reopen the dock");
-    else { ah_start(d); run_check(d); }
+    else { am_build(d); ah_start(d); run_check(d); }
 }
 
 

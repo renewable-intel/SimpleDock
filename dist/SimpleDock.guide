@@ -497,6 +497,10 @@ ones. On a small screen, they replace the basic settings:
   Messages         Normal; Quiet (no requesters at all); Verbose (also
                    what is normally silent) (QUIET, VERBOSE)
   Beep             On or Off: the beep on a refused action (NOBEEP)
+  Menu             Dock menu: a Dock title in the Workbench menu bar;
+                   In Tools menu: four SimpleDock items under Tools
+                   instead, as on 3.1.4 - for scripts that manage
+                   Workbench menus by ARexx (TOOLSMENU)
   Crash reports    off by default; see @{"Crash reports" link crash} (CRASHLOG)
   No border        no thin border around the dock (NOBORDER)
 @endnode
@@ -633,6 +637,7 @@ Settings file, tooltypes and command line alike.
   DELAY=<n>           wait n/50 s before opening
   QUIET / VERBOSE     suppress requesters / show extra messages
   NOBEEP              no beep on a refused action
+  TOOLSMENU           the Dock menu's items under Tools, no Dock title
   CRASHLOG            crash reports (@{"Crash reports" link crash})
 @endnode
 
