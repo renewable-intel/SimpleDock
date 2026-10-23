@@ -5,6 +5,10 @@ A simple, macOS-inspired application dock for **AmigaOS 3.x** (best on 3.2): sma
 A rounded bar of icons at a screen edge, solid or transparent, in the style of
 the macOS dock.
 
+**Download:** [latest release](https://github.com/renewable-intel/SimpleDock/releases/latest)
+(also on Aminet as `util/wb/SimpleDock.lha`) &nbsp;·&nbsp;
+**Support:** [![Buy me a coffee on Ko-fi](https://img.shields.io/badge/Ko--fi-buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/re_intel_soft/donate)
+
 > **Status: v1.2.** Running programs (a dot and the count; click to front,
 > Shift+click for a copy, Del to close), the long-press window list
 > (minimise, show, close, Force Quit), programs not on the dock shown at its
@@ -21,9 +25,6 @@ the macOS dock.
 > in the archive; all three come from [docs/guide.txt](docs/guide.txt) via
 > `scripts/mkguide.py`. Developers: [docs/SPEC.md](docs/SPEC.md),
 > [CHANGELOG.md](CHANGELOG.md).
->
-> SimpleDock is free software (GPL-3). If it earns a coffee:
-> https://ko-fi.com/re_intel_soft/donate
 
 ## Goals
 
@@ -115,6 +116,14 @@ The program icon is the pixel map in `scripts/icon.txt`.
 | `dist/` | the ReadMe and the Aminet `.readme` that go with a release |
 
 Builds with `-DSD_DEBUG` add a trace and test commands to the ARexx port.
+
+## Support
+
+SimpleDock is free software and will stay so. If it has earned its place on
+your screen and you feel like buying me a coffee:
+[ko-fi.com/re_intel_soft](https://ko-fi.com/re_intel_soft/donate).
+Bug reports and ideas are just as welcome:
+[issues](https://github.com/renewable-intel/SimpleDock/issues).
 
 ## Licence
 
