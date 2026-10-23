@@ -793,7 +793,7 @@ Bug reports, ideas and a word on the forums are just as welcome.
 
 HISTORY
 =======
-1.2 (in progress)
+1.2 (22.10.2026)
   Menu in Tools or as a Dock title; the hotkey on the middle mouse
   button, alone or with a key (MBUTTON 2); a dock shown by the hotkey
   stays until the hotkey hides it; the SimpleDock icon on the dock
@@ -801,7 +801,7 @@ HISTORY
   second dock with its own icon, placed beside the first, a launcher
   by default, reached from the main dock's Other docks list; requesters
   and the settings window centred; the long-press list without
-  flicker; a code audit of the new parts.
+  flicker; a code audit of the new parts; a new icon.
 
 1.1 (21.10.2026)
   Running programs: the dot and the count, click to front, Shift+click

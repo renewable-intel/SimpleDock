@@ -1,6 +1,9 @@
 # Changelog
 
-## 1.2 (in progress)
+## 1.2 (22.10.2026)
+
+- New program icon: SD on a dark disc. The SimpleDock icon on the dock
+  shows as a settings gear (Icons/Settings in the drawer).
 
 - Advanced, System: Menu - Dock menu (a Dock title in the Workbench menu
   bar, as before) or In Tools menu (the four SimpleDock items under Tools,
