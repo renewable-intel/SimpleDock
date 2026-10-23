@@ -9,7 +9,7 @@ the macOS dock.
 (also on Aminet as `util/wb/SimpleDock.lha`) &nbsp;·&nbsp;
 **Support:** [![Buy me a coffee on Ko-fi](https://img.shields.io/badge/Ko--fi-buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/re_intel_soft/donate)
 
-> **Status: v1.2.** Running programs (a dot and the count; click to front,
+> **Status: v1.3.** Running programs (a dot and the count; click to front,
 > Shift+click for a copy, Del to close), the long-press window list
 > (minimise, show, close, Force Quit), programs not on the dock shown at its
 > end, keys (minimise, minimise all, auto-hide), drops onto programs and
@@ -18,7 +18,9 @@ the macOS dock.
 > ARexx, crash reports. New in 1.2: menu in Tools or as a Dock title, the
 > hotkey on the middle mouse button (alone or with a key), more docks from
 > Save as... (placed beside the first, reached from its Other docks list),
-> the SimpleDock icon as a settings button on the dock, a new icon.
+> the SimpleDock icon as a settings button on the dock, a new icon. 1.3: the
+> middle-button hotkey works every time, a started program's number shows at
+> the click, the long-press list holds up to 32 windows.
 >
 > **User guide:** [docs/SimpleDock.html](docs/SimpleDock.html) - the same
 > guide ships as `SimpleDock.guide` (AmigaGuide, for MultiView) and `ReadMe`

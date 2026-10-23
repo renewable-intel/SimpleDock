@@ -278,7 +278,8 @@ void am_note_overflow(struct Dock *d, LONG n)
    changes goes back to how it opened. */
 #define NGROUP 11                       /* cycle gadgets; then the hotkey (a string gadget) */
 #define NROWS (NGROUP + 1)
-enum { G_KEY = NGROUP, G_ADV = 20, G_BRECALL = 100, G_BMORE, G_BLOAD, G_BSAVEAS, G_BPICK, G_BHREM, G_BDIR, G_BDSET, G_BDQUIT };
+enum { G_KEY = NGROUP, G_ADV = 20, G_BRECALL = 100, G_BMORE, G_BLOAD, G_BSAVEAS, G_BPICK, G_BHREM, G_BDIR, G_BDSET, G_BDQUIT,
+       G_BQUIT };
 static const char *const posname[] = { "Top", "Bottom", "Left", "Right" };
 static const char *const textname[] = { "Below icons", "On hover", "Off", "Labels only" };
 static const char *const frontname[] = { "Off", "On" };
@@ -1195,6 +1196,10 @@ static BOOL build(struct Dock *d)
             ng.ng_Width = bw;
             ng.ng_GadgetText = (STRPTR)(but[k].name ? but[k].name : wide ? "<< Simple" : "Advanced >>");
             ng.ng_GadgetID = but[k].id;
+            if (but[k].id == G_BSAVEAS && !docks_row) {   /* a further dock: Quit in its place (copies */
+                ng.ng_GadgetText = (STRPTR)"Quit";         /*  are made from the main dock) */
+                ng.ng_GadgetID = G_BQUIT;
+            }
             ng.ng_Flags = PLACETEXT_IN;
             g = CreateGadget(BUTTON_KIND, g, &ng, TAG_END);
             if (but[k].id == G_BRECALL) recallg = g;
@@ -1546,6 +1551,7 @@ void am_prefs_handle(struct Dock *d)
             else if (id == G_BMORE) fold = TRUE;
             else if (id == G_BLOAD) load = TRUE;
             else if (id == G_BSAVEAS) { if (keyg) key_apply(d); adv_pending(d); config_choose(d, TRUE); }
+            else if (id == G_BQUIT) { if (keyg) key_apply(d); adv_pending(d); d->quitreq = TRUE; }   /* (changes kept) */
             else if (id == G_KEY) key_apply(d);
             else if (id >= G_ADV && id < G_ADV + NADV && adv[id - G_ADV].kind == K_HIDE) {   /* a name picked */
                 hsel = code < nhid ? code : -1;

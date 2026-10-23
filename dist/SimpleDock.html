@@ -341,7 +341,9 @@ section{break-before:auto}h2,h3{break-after:avoid}pre{break-inside:avoid}}
   <b>Load...</b>          Load settings and icons from another file.
   <b>Save as...</b>       Save a copy of your settings and icons to a file,
                      with an icon that starts a dock from it
-                     (<a href="#moredocks">More than one dock</a>).
+                     (<a href="#moredocks">More than one dock</a>). In a further
+                     dock, <b>Quit</b> is here instead: it closes that dock,
+                     keeping its settings.
   <b>Advanced &gt;&gt;</b>      Show more settings; <b>&lt;&lt; Simple</b> hides them.</pre>
 <p>Numbers and text take effect on <b>Return</b> or <b>Tab</b>. A value that is not valid, or one that would push icons off the dock, is refused with a beep and the old value comes back.</p>
 <p class="note">Load and Save as do not change the dock&#x27;s startup settings file. The default is ENVARC:SimpleDock.config; see <a href="#moredocks">More than one dock</a> to start a dock with a different file.</p>
@@ -359,7 +361,7 @@ section{break-before:auto}h2,h3{break-after:avoid}pre{break-inside:avoid}}
 <p>You can run two docks at once, each with its own icons and settings - say your programs along the bottom and your drawers along the right.</p>
 <p>Open the settings window and choose <b>Save as...</b>, giving the new file a name of your own, say Drawers.config. The file is written with a project icon whose default tool is SimpleDock. Double-click that icon: a second SimpleDock starts from the file and opens its own dock. Set its edge and icons in its own settings window; they are saved to its file. Its ARexx port is the file&#x27;s name as spelled, Drawers.config, so scripts can address each dock on its own (in quotes: address &#x27;Drawers.config&#x27;).</p>
 <p>The first dock (the one named SIMPLEDOCK) is the overview: it shows the programs that are not docked and the Workbench icon. Every further dock starts as a plain launcher for its own icons - Other programs and Workbench icon are set to Hide in its Advanced window, where you can change them.</p>
-<p>A further dock adds nothing to the Workbench menus. To reach it, open the main dock&#x27;s settings window: Advanced, Programs, <b>Other docks</b> lists the docks running. Pick one, then <b>Settings...</b> opens that dock&#x27;s own settings window and <b>Quit</b> closes it. While no main dock is running, a further dock shows a Dock menu of its own.</p>
+<p>A further dock adds nothing to the Workbench menus. To reach it, open the main dock&#x27;s settings window: Advanced, Programs, <b>Other docks</b> lists the docks running. Pick one, then <b>Settings...</b> opens that dock&#x27;s own settings window and <b>Quit</b> closes it - as does the <b>Quit</b> button in that dock&#x27;s own settings window. While no main dock is running, a further dock shows a Dock menu of its own.</p>
 <p>A dock that opens where another dock already is moves beside it on the same edge, or to a free edge, and keeps that place. The dock that was there first never moves.</p>
 <p>To start it with Workbench, move the file and its icon to SYS:WBStartup. From a Shell or a script: SimpleDock CONFIG=&lt;file&gt; - while a dock is already running, this one takes the file&#x27;s name as its port.</p>
 <p>A dock can also be made from a <b>drawer of icons</b> (CONFIG set to the drawer): its settings live in its icon&#x27;s tooltypes.</p>
@@ -542,6 +544,12 @@ section{break-before:auto}h2,h3{break-after:avoid}pre{break-inside:avoid}}
 </section>
 <section id="history">
 <h2>History</h2>
+<p><b>1.3</b> (23.10.2026)</p>
+<pre>  The middle-button hotkey works every time, also while the mouse
+  moves, and can be held as long as you like for MBUTTON + key; a
+  click that starts a program shows its dot and number at once; the
+  long-press list shows up to 32 windows; a further dock&#x27;s settings
+  window has Quit in place of Save as....</pre>
 <p><b>1.2</b> (22.10.2026)</p>
 <pre>  Menu in Tools or as a Dock title; the hotkey on the middle mouse
   button, alone or with a key (MBUTTON 2); a dock shown by the hotkey

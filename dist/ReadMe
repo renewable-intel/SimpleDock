@@ -226,7 +226,8 @@ has moved an icon's size away from it. Move the pointer to that screen
 edge to reveal it again.
 
 The hotkey (Ctrl+Alt+Shift) shows it and keeps it shown, so you can
-use it and drag to it, until you press the hotkey again: that hides it. Ctrl+Alt+H switches auto-hide on or off
+use it and drag to it, until you press the hotkey again: that hides it.
+Ctrl+Alt+H switches auto-hide on or off
 (Keyboard shortcuts).
 
 With auto-hide, icons cannot be dropped onto the hidden dock, because
@@ -499,7 +500,9 @@ SETTINGS BUTTONS
   Load...          Load settings and icons from another file.
   Save as...       Save a copy of your settings and icons to a file,
                      with an icon that starts a dock from it
-                     (More than one dock).
+                     (More than one dock). In a further
+                     dock, Quit is here instead: it closes that dock,
+                     keeping its settings.
   Advanced >>      Show more settings; << Simple hides them.
 
 Numbers and text take effect on Return or Tab. A value that is not
@@ -546,7 +549,8 @@ change them.
 A further dock adds nothing to the Workbench menus. To reach it, open
 the main dock's settings window: Advanced, Programs, Other docks lists
 the docks running. Pick one, then Settings... opens that dock's own
-settings window and Quit closes it. While no main dock is running, a
+settings window and Quit closes it - as does the Quit button in that
+dock's own settings window. While no main dock is running, a
 further dock shows a Dock menu of its own.
 
 A dock that opens where another dock already is moves beside it on the
@@ -792,6 +796,13 @@ Bug reports, ideas and a word on the forums are just as welcome.
 
 HISTORY
 =======
+1.3 (23.10.2026)
+  The middle-button hotkey works every time, also while the mouse
+  moves, and can be held as long as you like for MBUTTON + key; a
+  click that starts a program shows its dot and number at once; the
+  long-press list shows up to 32 windows; a further dock's settings
+  window has Quit in place of Save as....
+
 1.2 (22.10.2026)
   Menu in Tools or as a Dock title; the hotkey on the middle mouse
   button, alone or with a key (MBUTTON 2); a dock shown by the hotkey

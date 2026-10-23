@@ -1,6 +1,6 @@
 # Changelog
 
-## Next
+## 1.3 (23.10.2026)
 
 - The middle-button hotkey works every time: a click no longer fails when
   the mouse moves a little between press and release (on systems whose
@@ -9,6 +9,9 @@
 - A click or Shift+click that starts a program shows its dot and number
   at once (before: when the next look at the windows found it, which for
   a program Workbench starts is when its window opens).
+- In a further dock's settings window, Quit takes the place of Save as...
+  (copies are made from the main dock); it closes that dock, keeping its
+  settings.
 - The long-press list shows up to 32 windows (was 12), as many as fit on
   the screen - the Workbench icon with many drawers open, for one.
 

@@ -233,7 +233,8 @@ has moved an icon's size away from it. Move the pointer to that screen
 edge to reveal it again.
 
 The @{b}hotkey@{ub} (Ctrl+Alt+Shift) shows it and keeps it shown, so you can
-use it and drag to it, until you press the hotkey again: that hides it. @{b}Ctrl+Alt+H@{ub} switches auto-hide on or off
+use it and drag to it, until you press the hotkey again: that hides it.
+@{b}Ctrl+Alt+H@{ub} switches auto-hide on or off
 (@{"Keyboard shortcuts" link keys}).
 
 @{i}With auto-hide, icons cannot be dropped onto the hidden dock, because@{ui}
@@ -534,7 +535,9 @@ ones. On a small screen, they replace the basic settings:
   @{b}Load...@{ub}          Load settings and icons from another file.
   @{b}Save as...@{ub}       Save a copy of your settings and icons to a file,
                      with an icon that starts a dock from it
-                     (@{"More than one dock" link moredocks}).
+                     (@{"More than one dock" link moredocks}). In a further
+                     dock, @{b}Quit@{ub} is here instead: it closes that dock,
+                     keeping its settings.
   @{b}Advanced >>@{ub}      Show more settings; @{b}<< Simple@{ub} hides them.
 
 Numbers and text take effect on @{b}Return@{ub} or @{b}Tab@{ub}. A value that is not
@@ -589,7 +592,8 @@ change them.
 A further dock adds nothing to the Workbench menus. To reach it, open
 the main dock's settings window: Advanced, Programs, @{b}Other docks@{ub} lists
 the docks running. Pick one, then @{b}Settings...@{ub} opens that dock's own
-settings window and @{b}Quit@{ub} closes it. While no main dock is running, a
+settings window and @{b}Quit@{ub} closes it - as does the @{b}Quit@{ub} button in that
+dock's own settings window. While no main dock is running, a
 further dock shows a Dock menu of its own.
 
 A dock that opens where another dock already is moves beside it on the
@@ -848,6 +852,13 @@ Bug reports, ideas and a word on the forums are just as welcome.
 @prev support
 @next index
 @{b}@{u}History@{uu}@{ub}
+
+@{b}1.3@{ub} (23.10.2026)
+  The middle-button hotkey works every time, also while the mouse
+  moves, and can be held as long as you like for MBUTTON + key; a
+  click that starts a program shows its dot and number at once; the
+  long-press list shows up to 32 windows; a further dock's settings
+  window has Quit in place of Save as....
 
 @{b}1.2@{ub} (22.10.2026)
   Menu in Tools or as a Dock title; the hotkey on the middle mouse
