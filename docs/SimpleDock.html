@@ -182,7 +182,7 @@ section{break-before:auto}h2,h3{break-after:avoid}pre{break-inside:avoid}}
 <section id="keys">
 <h2>Keyboard shortcuts</h2>
 <h3>Show the dock: Ctrl+Alt+Shift</h3>
-<p>Press together, then release: see <a href="#autohide">Auto-hide</a> for how this hotkey behaves when auto-hide is on. With several docks, the hotkey works all of them. Another program using the same keys (Directory Opus does): change it under Keys (<a href="#advshell">Shell drops and Keys</a>) - other modifiers, a key, or the middle mouse button (MBUTTON, or CTRL MBUTTON and the like).</p>
+<p>Press together, then release: see <a href="#autohide">Auto-hide</a> for how this hotkey behaves when auto-hide is on. With several docks, the hotkey works all of them; give each dock MBUTTON plus a key of its own (MBUTTON 1, MBUTTON 2) to show one at a time. Another program using the same keys (Directory Opus does): change it under Keys (<a href="#advshell">Shell drops and Keys</a>) - other modifiers, a key, or the middle mouse button (MBUTTON, or CTRL MBUTTON and the like).</p>
 <h3>Minimise a window: Ctrl+Alt+M</h3>
 <p>Minimise the active window, just like Minimise in the long-press list.</p>
 <h3>Minimise a group: Ctrl+Alt+Shift+M</h3>
@@ -236,8 +236,10 @@ section{break-before:auto}h2,h3{break-after:avoid}pre{break-inside:avoid}}
   Auto-hide        off, or how fast the dock hides
   In front         keep the dock in front of other windows
   Hotkey           the keys that show the dock: CTRL ALT SHIFT; or the
-                   middle mouse button: MBUTTON, CTRL MBUTTON, ALT
-                   SHIFT MBUTTON... (HOTKEY)
+                   middle mouse button: MBUTTON (pressed and let go),
+                   CTRL MBUTTON; or MBUTTON 1, MBUTTON F1 (the button
+                   held while that key is pressed: this dock alone,
+                   a bare middle click still shows every dock) (HOTKEY)
                    (modifiers only: pressed together, let go), or a
                    combination with a key, such as CTRL ALT D</pre>
 <h3>Icons</h3>
@@ -399,8 +401,9 @@ section{break-before:auto}h2,h3{break-after:avoid}pre{break-inside:avoid}}
   CUSTOMTINT=#rrggbb  the custom colour in the settings window&#x27;s list
   AUTOHIDE=&lt;n&gt;        0 off, 1 instant; otherwise n x 70 ms per slide
   ONTOP               stay in front of other windows
-  HOTKEY=&lt;keys&gt;       the hotkey (default ctrl alt shift); mbutton or
-                      ctrl mbutton...: the middle mouse button
+  HOTKEY=&lt;keys&gt;       the hotkey (default ctrl alt shift); mbutton,
+                      ctrl mbutton: the middle mouse button; mbutton 1,
+                      mbutton f1: held while that key is pressed
   MINKEY=&lt;keys&gt;       minimise the active window (default ctrl alt m)
   MINALLKEY=&lt;keys&gt;    minimise all (default ctrl alt shift m)
   AHKEY=&lt;keys&gt;        auto-hide on/off (default ctrl alt h); none = off

@@ -265,7 +265,8 @@ Show the dock: Ctrl+Alt+Shift
 -----------------------------
 Press together, then release: see Auto-hide for how this
 hotkey behaves when auto-hide is on. With several docks, the hotkey
-works all of them. Another program using the same
+works all of them; give each dock MBUTTON plus a key of its own
+(MBUTTON 1, MBUTTON 2) to show one at a time. Another program using the same
 keys (Directory Opus does): change it under Keys ({Shell drops and
 Keys|advshell}) - other modifiers, a key, or the middle mouse button
 (MBUTTON, or CTRL MBUTTON and the like).
@@ -368,8 +369,10 @@ Place
   Auto-hide        off, or how fast the dock hides
   In front         keep the dock in front of other windows
   Hotkey           the keys that show the dock: CTRL ALT SHIFT; or the
-                   middle mouse button: MBUTTON, CTRL MBUTTON, ALT
-                   SHIFT MBUTTON... (HOTKEY)
+                   middle mouse button: MBUTTON (pressed and let go),
+                   CTRL MBUTTON; or MBUTTON 1, MBUTTON F1 (the button
+                   held while that key is pressed: this dock alone,
+                   a bare middle click still shows every dock) (HOTKEY)
                    (modifiers only: pressed together, let go), or a
                    combination with a key, such as CTRL ALT D
 
@@ -596,8 +599,9 @@ Settings file, tooltypes and command line alike.
   CUSTOMTINT=#rrggbb  the custom colour in the settings window's list
   AUTOHIDE=<n>        0 off, 1 instant; otherwise n x 70 ms per slide
   ONTOP               stay in front of other windows
-  HOTKEY=<keys>       the hotkey (default ctrl alt shift); mbutton or
-                      ctrl mbutton...: the middle mouse button
+  HOTKEY=<keys>       the hotkey (default ctrl alt shift); mbutton,
+                      ctrl mbutton: the middle mouse button; mbutton 1,
+                      mbutton f1: held while that key is pressed
   MINKEY=<keys>       minimise the active window (default ctrl alt m)
   MINALLKEY=<keys>    minimise all (default ctrl alt shift m)
   AHKEY=<keys>        auto-hide on/off (default ctrl alt h); none = off

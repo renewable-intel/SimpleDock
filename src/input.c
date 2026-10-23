@@ -66,25 +66,38 @@ static UWORD tap_parse(CONST_STRPTR desc)
     return g;
 }
 
-/* "mbutton", or modifier names then "mbutton" ("ctrl mbutton"): the middle
-   mouse button, pressed with exactly those modifiers held. Returns 0x8000 +
-   the tap groups required (0: not this form). */
-static UWORD mb_parse(CONST_STRPTR desc)
+static BOOL ix_parse(CONST_STRPTR desc, IX *ix);
+
+/* The middle-button forms: "mbutton" (pressed and let go, with nothing else:
+   every dock that has the form answers), "ctrl mbutton" (the same with those
+   modifiers held), or "mbutton 1" / "mbutton f1" / "mbutton ctrl 1": the
+   middle button held while that key is pressed - this dock alone. Returns
+   0x8000 + the modifier groups (0: not this form); *keyix and *haskey say
+   whether a key belongs to it. */
+static UWORD mb_parse(CONST_STRPTR desc, IX *keyix, BOOL *haskey)
 {
-    char mods[48];
-    LONG n, m;
+    char rest[48];
+    LONG n, m, i, k = 0;
     UWORD g = 0;
+    *haskey = FALSE;
     if (!desc) return 0;
     n = strlen((char *)desc);
-    while (n && desc[n - 1] == ' ') n--;
-    if (n < 7 || Strnicmp((STRPTR)desc + n - 7, (STRPTR)"mbutton", 7) || (n > 7 && desc[n - 8] != ' ')) return 0;
-    for (m = n - 7; m && desc[m - 1] == ' '; m--) ;
-    if (m >= (LONG)sizeof(mods)) return 0;
-    if (m) {
-        memcpy(mods, desc, m); mods[m] = 0;
-        if (!(g = tap_parse(mods))) return 0;    /* (something that is not a modifier) */
+    for (i = 0; i + 7 <= n; i++) {               /* the word "mbutton" anywhere; the rest around it */
+        if (!Strnicmp((STRPTR)desc + i, (STRPTR)"mbutton", 7) && (i == 0 || desc[i - 1] == ' ') &&
+            (i + 7 == n || desc[i + 7] == ' ')) break;
     }
-    return 0x8000 | g;
+    if (i + 7 > n) return 0;
+    for (m = 0; m < n; m++) {
+        if (m == i) { m += 6; continue; }
+        if (k < (LONG)sizeof(rest) - 1) rest[k++] = desc[m];
+    }
+    rest[k] = 0;
+    for (m = 0; rest[m] == ' '; m++) ;           /* (only spaces left: the button alone) */
+    while (k > m && rest[k - 1] == ' ') rest[--k] = 0;
+    if (k == m) return 0x8000;
+    if ((g = tap_parse(rest + m))) return 0x8000 | g;
+    if (ix_parse(rest + m, keyix) && keyix->ix_Class == IECLASS_RAWKEY) { *haskey = TRUE; return 0x8000; }
+    return 0;
 }
 
 /* A commodities key description into *ix. FALSE: not one (or no commodities),
@@ -102,7 +115,10 @@ static BOOL ix_parse(CONST_STRPTR desc, IX *ix)
 }
 
 static UWORD in_mbneed;                 /* the hotkey is the middle button: 0x8000 + its modifier groups */
-static BOOL in_mbdown;                  /* ... and it is down: its release is swallowed too */
+static IX in_mbix;                      /* ... with this key pressed while it is held (in_mbkey) */
+static BOOL in_mbkey;
+static BOOL in_mbheld, in_mbused;       /* the button is down; a key was pressed meanwhile */
+static UWORD in_mbqual;                 /* the modifier groups held when it went down */
 
 /* The hotkey from its description ("ctrl alt d", "ctrl alt shift", or
    "mbutton" / "ctrl mbutton"); matched in in_watch. */
@@ -110,9 +126,9 @@ BOOL in_set_hotkey(CONST_STRPTR desc)
 {
     in_ixok = FALSE;
     in_taparmed = FALSE;
-    in_mbneed = 0;
+    in_mbneed = 0; in_mbheld = FALSE;
     if ((in_tapneed = tap_parse(desc))) return TRUE;
-    if ((in_mbneed = mb_parse(desc))) return TRUE;
+    if ((in_mbneed = mb_parse(desc, &in_mbix, &in_mbkey))) return TRUE;
     in_ixok = ix_parse(desc, &in_ix);
     return in_ixok;
 }
@@ -149,17 +165,20 @@ ULONG in_set_keys(CONST_STRPTR *desc)
     return bad;
 }
 
-/* Is the hotkey in use a modifier tap? (A key or the middle button is taken
-   out of the input stream by the first dock that matches it; a tap is not.) */
-BOOL in_hotkey_tap(void)
+/* Does the hotkey in use reach every dock by itself? A modifier tap is only
+   watched; the middle-button forms are a chord every dock's handler follows
+   (nulled events keep their codes). A plain key is taken by the first dock
+   that matches it, so that dock passes it on (main.c). */
+BOOL in_hotkey_shared(void)
 {
-    return in_tapneed != 0;
+    return in_tapneed != 0 || in_mbneed != 0;
 }
 
 BOOL in_hotkey_valid(CONST_STRPTR desc)
 {
     IX ix;
-    return tap_parse(desc) || mb_parse(desc) || ix_parse(desc, &ix);
+    BOOL k;
+    return tap_parse(desc) || mb_parse(desc, &ix, &k) || ix_parse(desc, &ix);
 }
 
 
@@ -358,18 +377,39 @@ void in_watch(struct InputEvent *ev)
                 continue;
             }
         }
-        if (in_mbneed && in_dock && in_task && ev->ie_Class == IECLASS_RAWMOUSE) {   /* the middle-button hotkey */
-            if (ev->ie_Code == IECODE_MBUTTON && tap_groups(ev->ie_Qualifier) == (in_mbneed & 0x1F)) {
-                in_dock->hotkey = TRUE;
-                hk_stat[HK_FIRED]++;
-                Signal(in_task, in_sigmask);
-                in_mbdown = TRUE;
-                ev->ie_Class = IECLASS_NULL;     /* nobody else gets the press, nor its release */
+        if (in_mbneed && in_dock && in_task) {   /* the middle-button chord (another dock may have nulled */
+            UWORD code = ev->ie_Code;            /* the event already: its code still says what it was) */
+            BOOL raw = ev->ie_Class == IECLASS_RAWMOUSE || ev->ie_Class == IECLASS_NULL;
+            if (raw && code == IECODE_MBUTTON) { /* down: held from now; what follows decides */
+                in_mbheld = TRUE; in_mbused = FALSE;
+                in_mbqual = tap_groups(ev->ie_Qualifier);
+                ev->ie_Class = IECLASS_NULL;
                 continue;
             }
-            if (ev->ie_Code == (IECODE_MBUTTON | IECODE_UP_PREFIX) && in_mbdown) {
-                in_mbdown = FALSE;
+            if (raw && code == (IECODE_MBUTTON | IECODE_UP_PREFIX) && in_mbheld) {   /* up: alone = the hotkey */
+                in_mbheld = FALSE;
+                if (!in_mbused && in_mbqual == (in_mbneed & 0x1F)) {
+                    in_dock->hotkey = TRUE;
+                    hk_stat[HK_FIRED]++;
+                    Signal(in_task, in_sigmask);
+                }
                 ev->ie_Class = IECLASS_NULL;
+                continue;
+            }
+            if (in_mbheld && (ev->ie_Class == IECLASS_RAWKEY || ev->ie_Class == IECLASS_NULL) && code < 0x60) {
+                struct InputEvent e = *ev;       /* a key while held: this dock's, if it names it; every key */
+                e.ie_Class = IECLASS_RAWKEY;     /* is kept from the active window while the button is held */
+                in_mbused = TRUE;
+                if (in_mbkey && !(ev->ie_Qualifier & IEQUALIFIER_REPEAT) && MatchIX(&e, &in_mbix)) {
+                    in_dock->hotkey = TRUE;
+                    hk_stat[HK_FIRED]++;
+                    Signal(in_task, in_sigmask);
+                }
+                ev->ie_Class = IECLASS_NULL;
+                continue;
+            }
+            if (in_mbheld && ev->ie_Class == IECLASS_RAWKEY && (code & ~IECODE_UP_PREFIX) < 0x60) {
+                ev->ie_Class = IECLASS_NULL;     /* (its release too) */
                 continue;
             }
         }

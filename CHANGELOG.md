@@ -6,9 +6,12 @@
   bar, as before) or In Tools menu (the four SimpleDock items under Tools,
   as on 3.1.4), for people whose ARexx scripts manage Workbench's menus
   and are upset by an extra title (TOOLSMENU).
-- The hotkey can be the middle mouse button: HOTKEY=mbutton, or with
-  modifiers (ctrl mbutton, alt shift mbutton); the press is not passed on.
-  For systems where another program (Directory Opus) has Ctrl+Alt+Shift.
+- The hotkey can be the middle mouse button: HOTKEY=mbutton (pressed and
+  let go), or with modifiers (ctrl mbutton); with several docks every dock
+  that has it answers. MBUTTON plus a key (mbutton 1, mbutton f1) is the
+  button held while that key is pressed: that dock alone. The button and
+  the keys pressed while it is held do not reach the active window. For
+  systems where another program (Directory Opus) has Ctrl+Alt+Shift.
 - Left Amiga + N or M (Intuition's screen keys) are refused as a hotkey or
   key, with a beep, since the dock would otherwise take them from Intuition.
 - Save as... gives the new file a project icon with SimpleDock as its

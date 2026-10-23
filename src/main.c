@@ -225,9 +225,9 @@ int main(void)
             if (d->hotkey) {
                 d->hotkey = FALSE;
                 ah_hotkey(d);
-                if (!in_hotkey_tap()) {          /* a key or the middle button: this dock took it out of the */
-                    STRPTR names[8];             /* input stream, so the other docks get it from here (a tap */
-                    char buf[8 * 40];            /* reaches every dock's handler by itself) */
+                if (!in_hotkey_shared()) {       /* a plain key: this dock took it out of the input stream, */
+                    STRPTR names[8];             /* so the other docks get it from here (a tap and the */
+                    char buf[8 * 40];            /* middle-button forms reach every dock's handler) */
                     LONG n = dock_other_names(d, names, buf, sizeof(buf), 8), k;
                     for (k = 0; k < n; k++) rexx_send(names[k], "REVEAL");
                 }
