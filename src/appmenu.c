@@ -213,7 +213,7 @@ static void about_open(struct Dock *d)
         "Copyright \251 2026 renewable-intel\n"
         "https://github.com/renewable-intel/SimpleDock\n\n"
         "Free software under the GNU General Public License,\n"
-        "version 3 or later. It comes with ABSOLUTELY NO WARRANTY.\n"
+        "version 3 or later. It comes with ABSOLUTELY NO WARRANTY.\n\n"
         "If it earns a coffee: ko-fi.com/re_intel_soft\n\n"
         "Hotkey to show the dock: %s", "Ok" };
     static char shown[64];
