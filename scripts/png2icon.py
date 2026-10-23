@@ -5,13 +5,17 @@ area, so edges stay crisp even when the drawing's own pixel grid is uneven.
 The icon has a 4-colour image for any Workbench and an OS 3.5+ colour image
 (see mkicon.py, which writes both).
 
-usage: png2icon.py SRC.png OUT.info --height N [--crop X0,Y0,X1,Y1]
+usage: png2icon.py SRC.png OUT.info --height N [--crop X0,Y0,X1,Y1] [--smooth]
                    [--kind tool|project] [--tooltypes] [--colours K] [--preview P.png]
 
 --crop    the part of SRC to use (source pixels, inclusive); default: all
           pixels that are not transparent
 --height  the icon's height; the width follows the crop's shape
 --tooltypes  the program icon's tooltypes (mkicon.TOOLTYPES)
+--smooth  for smooth (not pixel) art: each icon pixel is the average of its
+          whole area, so edges inside the picture are anti-aliased; up to 255
+          colours. The outline against the transparent outside stays hard
+          (a colour icon has one transparent colour, no partial ones).
 SimpleDock - Copyright (C) 2026 renewable-intel, GPL-3.0-or-later"""
 import argparse, os, random, struct, sys, zlib
 
@@ -129,6 +133,36 @@ def resample(w, px, box, tw, th, pal):
     return out
 
 
+def average(w, px, box, tw, th):
+    """Each icon pixel: the exact area average of its source rectangle
+    (colour weighted by alpha; alpha = how much of it is covered)."""
+    x0, y0, x1, y1 = box
+    sw, sh = (x1 - x0 + 1) / tw, (y1 - y0 + 1) / th
+    out = []
+    for ty in range(th):
+        ya, yb = y0 + ty * sh, y0 + (ty + 1) * sh
+        for tx in range(tw):
+            xa, xb = x0 + tx * sw, x0 + (tx + 1) * sw
+            r = g = b = a = area = 0.0
+            for y in range(int(ya), min(int(yb) + 1, y1 + 1)):
+                fy = min(yb, y + 1) - max(ya, y)
+                if fy <= 0: continue
+                for x in range(int(xa), min(int(xb) + 1, x1 + 1)):
+                    fx = min(xb, x + 1) - max(xa, x)
+                    if fx <= 0: continue
+                    f = fx * fy
+                    i = (y * w + x) * 4
+                    al = px[i + 3] / 255.0
+                    r += px[i] * al * f; g += px[i + 1] * al * f; b += px[i + 2] * al * f
+                    a += al * f; area += f
+            cov = a / area if area else 0.0
+            if a > 0:
+                out.append((int(r / a + 0.5), int(g / a + 0.5), int(b / a + 0.5), cov))
+            else:
+                out.append((0, 0, 0, 0.0))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('src'); ap.add_argument('out')
@@ -138,6 +172,7 @@ def main():
     ap.add_argument('--tooltypes', action='store_true')
     ap.add_argument('--colours', type=int, default=20)
     ap.add_argument('--preview')
+    ap.add_argument('--smooth', action='store_true')
     a = ap.parse_args()
     w, h, px = read_png(a.src)
     box = tuple(int(v) for v in a.crop.split(',')) if a.crop else opaque_box(w, h, px)
@@ -145,22 +180,27 @@ def main():
     tw = round((box[2] - box[0] + 1) / (box[3] - box[1] + 1) * th)
     if not (1 <= tw <= 256 and 1 <= th <= 256):
         raise SystemExit(f'{tw} x {th}: colour icons are at most 256 x 256')
-    pal = palette(w, px, box, a.colours)
-    normal = resample(w, px, box, tw, th, pal)
+    if a.smooth:
+        normal = average(w, px, box, tw, th)
+        pal = []
+    else:
+        pal = palette(w, px, box, a.colours)
+        normal = resample(w, px, box, tw, th, pal)
     selected = [tuple(int(v * 0.7) for v in p[:3]) + (p[3],) for p in normal]   # as Workbench shows a click
     mk.W, mk.H = tw, th
     kind = mk.WBTOOL if a.kind == 'tool' else mk.WBPROJECT
-    data = mk.diskobject(normal, selected, mk.TOOLTYPES if a.tooltypes else [], kind, None) + \
-        mk.colour_icon([mk.quantise(normal), mk.quantise(selected)])
+    maxc = 255 if a.smooth else 63
+    qn, qs = mk.quantise(normal, maxc), mk.quantise(selected, maxc)
+    data = mk.diskobject(normal, selected, mk.TOOLTYPES if a.tooltypes else [], kind, None) + mk.colour_icon([qn, qs])
     open(a.out, 'wb').write(data)
-    print(f'{a.out}: {tw} x {th}, {len(pal)} colours, {len(data)} bytes')
+    print(f'{a.out}: {tw} x {th}, {len(qn[0]) - 1} colours, {len(data)} bytes')
     if a.preview:                                # 6x, normal and selected side by side
         z, rgba = 6, []
         for y in range(th * z):
             for img in (normal, selected):
                 for x in range(tw * z):
                     r, g, b, al = img[(y // z) * tw + x // z]
-                    rgba += [r, g, b, int(al * 255)]
+                    rgba += [r, g, b, 255] if al >= 0.5 else [200, 200, 200, 255]   # (as Workbench draws it)
         mk.png(a.preview, 2 * tw * z, th * z, rgba)
 
 
