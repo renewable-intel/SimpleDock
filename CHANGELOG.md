@@ -208,6 +208,11 @@
 - Auto-hide: the shown dock stays out while the pointer is within an
   icon's size of it on every side (before: only along the dock; away
   from the edge, a few pixels).
+- The SimpleDock icon on the dock: a click opens the settings window, a
+  long press offers Quit SimpleDock... (asked first). Before, a click
+  started a second copy, which stopped with "already running".
+- Other docks are not shown as running programs (their settings window
+  made one appear at the end of the main dock).
 - Requesters (messages, Remove / Keep, Replace / Skip, About) open in the
   middle of the screen instead of the top left.
 - A further dock shows a Dock menu of its own whenever no main dock is

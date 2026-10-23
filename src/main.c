@@ -71,6 +71,23 @@ char *sd_strdup(CONST_STRPTR s)
     return p;
 }
 
+/* The full path of this program (FALSE: unknown): its home drawer, then its
+   name; a Workbench start knows it from its start-up message. */
+BOOL sd_prog_path(char *out, LONG size)
+{
+    struct Process *me = (struct Process *)FindTask(NULL);
+    char nm[108];
+    out[0] = 0;
+    if (me->pr_HomeDir && GetProgramName(nm, sizeof(nm)) && NameFromLock(me->pr_HomeDir, out, size) &&
+        AddPart(out, FilePart(nm), size)) return TRUE;
+    out[0] = 0;
+    if (WBenchMsg && WBenchMsg->sm_NumArgs > 0 && WBenchMsg->sm_ArgList[0].wa_Name &&
+        NameFromLock(WBenchMsg->sm_ArgList[0].wa_Lock, out, size) &&
+        AddPart(out, WBenchMsg->sm_ArgList[0].wa_Name, size)) return TRUE;
+    out[0] = 0;
+    return FALSE;
+}
+
 /* A requester in the middle of the screen (Intuition puts them at the top
    left). Returns what EasyRequest would: 1 for the leftmost button ... 0 for
    the rightmost. */
@@ -221,6 +238,7 @@ int main(void)
     rc = RETURN_OK;
 
     while (run) {
+        if (d->quitreq) break;               /* (Quit from the dock's own icon: asked and confirmed) */
         ULONG wsig = d->win ? 1UL << d->win->UserPort->mp_SigBit : 0;
         ULONG psig = am_prefs_sig();             /* the settings window, while open */
         ULONG sigs = Wait(wsig | 1UL << rexx->mp_SigBit | ptrsig | timersig | menusig | animsig | runsig | psig |

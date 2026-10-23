@@ -212,20 +212,32 @@ static LONG other_docks(struct Dock *d, struct DockRect *r, LONG max)
     return n;
 }
 
-/* The other docks on this screen by name (their ARexx ports), copied into buf. */
+/* Is w a dock window (this dock's or another's)? Only its fields are read. */
+BOOL dock_marked(struct Window *w)
+{
+    ULONG ud = (ULONG)w->UserData;
+    return (ud >> 24) == 0x5D && (w->Flags & WFLG_BORDERLESS) && w->UserPort != NULL;
+}
+
+/* The other docks on this screen by name: the public port of the task that
+   owns each marked window (a dock's only public port is its ARexx port). */
 LONG dock_other_names(struct Dock *d, STRPTR *names, char *buf, LONG size, LONG max)
 {
     struct Window *w;
+    struct Node *nd;
     LONG n = 0, used = 0, l;
     if (!d->scr) return 0;
     Forbid();
     for (w = d->scr->FirstWindow; w && n < max; w = w->NextWindow) {
-        ULONG ud = (ULONG)w->UserData;
-        if (w == d->win || (ud >> 24) != 0x5D || !(w->Flags & WFLG_BORDERLESS) || !w->Title) continue;
-        l = strlen((char *)w->Title);
-        if (!l || used + l + 1 > size) continue;
-        names[n++] = strcpy(buf + used, (char *)w->Title);
-        used += l + 1;
+        struct Task *t;
+        if (w == d->win || !dock_marked(w) || !(t = (struct Task *)w->UserPort->mp_SigTask)) continue;
+        for (nd = SysBase->PortList.lh_Head; nd->ln_Succ; nd = nd->ln_Succ) {
+            struct MsgPort *p = (struct MsgPort *)nd;
+            if (p->mp_SigTask != t || !nd->ln_Name) continue;
+            l = strlen(nd->ln_Name);
+            if (l && used + l + 1 <= size) { names[n++] = strcpy(buf + used, nd->ln_Name); used += l + 1; }
+            break;
+        }
     }
     Permit();
     return n;
@@ -567,7 +579,6 @@ BOOL dock_open(struct Dock *d)
     d->win = OpenWindowTags(NULL,
         WA_PubScreen, d->scr, WA_Left, d->left, WA_Top, d->top, WA_Width, d->w, WA_Height, d->h,
         WA_MinWidth, 1, WA_MinHeight, 1, WA_MaxWidth, ~0, WA_MaxHeight, ~0,
-        WA_Title, d->portname,             /* (never drawn: the main dock's Other docks list reads it) */
         WA_Borderless, TRUE, WA_Activate, FALSE, WA_ReportMouse, TRUE,
         WA_SmartRefresh, TRUE,             /* keeps its contents while auto-hide slides it */
         WA_BackFill, LAYERS_NOBACKFILL,    /* a part uncovered while it grows is not cleared to grey first */

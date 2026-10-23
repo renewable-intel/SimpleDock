@@ -28,6 +28,7 @@ BOOL launch_item(struct Dock *d, struct Item *it)
     }
     if ((it->missing = !dock_exists(it->path)) == FALSE) {
         if (was) dock_show_item(d, it, FALSE);   /* back (a disk inserted): unmarked */
+        if (run_is_self(it)) { am_settings(d, FALSE); return TRUE; }   /* SimpleDock itself: its settings */
         if (run_launch(d, it, NULL) || OpenWorkbenchObject(it->path, TAG_END)) return TRUE;   /* (programs: the dock starts them) */
         sd_beep(d);
         sd_msg(d, "Cannot open %s", (LONG)it->path);

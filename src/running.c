@@ -100,6 +100,15 @@ struct Launch {                         /* a program the dock started */
 };
 static struct Launch *lt[MAXLAUNCH];
 static struct MsgPort *rport;           /* where the start-up messages come back */
+#define MAXDTASK 8
+static struct Task *dtask[MAXDTASK];    /* the other docks' tasks (dock windows seen in the scan) */
+static LONG ndtask;
+static BOOL is_dtask(struct Task *t)
+{
+    LONG i;
+    for (i = 0; i < ndtask; i++) if (dtask[i] == t) return TRUE;
+    return FALSE;
+}
 static LONG nshells;                    /* interactive Shells (collect) */
 static struct Task *contask[MAXWIN];    /* their console handlers */
 static LONG ncon;
@@ -195,7 +204,7 @@ static struct BitMap *listbg, *listwk;   /* the list's glass, and the image it i
 static WORD lx, ly, lw, lh, rowh;
 /* After the windows (and a divider) the list ends with what can be done
    with the program: rows nlist .. nlist + nact - 1. */
-enum { ACT_KEEP = 1, ACT_REMOVE, ACT_SHOWWB, ACT_MINI, ACT_SHOW, ACT_CLOSE, ACT_ALL, ACT_FORCE };
+enum { ACT_KEEP = 1, ACT_REMOVE, ACT_SHOWWB, ACT_MINI, ACT_SHOW, ACT_CLOSE, ACT_ALL, ACT_FORCE, ACT_QUITDOCK };
 static UBYTE act[6];
 static LONG nact;
 static UBYTE lmode;                     /* the list asks which window: LM_MINI / LM_SHOW / LM_CLOSE (0: no) */
@@ -223,6 +232,7 @@ static CONST_STRPTR act_text(LONG a)
     }
     case ACT_ALL:    return lmode == LM_CLOSE ? "Close All" : lmode == LM_MINI ? "Minimise All" : "Show All";
     case ACT_FORCE:  return "Force Quit...";
+    case ACT_QUITDOCK: return "Quit SimpleDock...";
     default:         return nlist > 1 ? "Close..." : "Close";
     }
 }
@@ -495,6 +505,14 @@ static LONG collect(BOOL titles)
     Forbid();                                    /* (the windows' tasks can't end meanwhile) */
     held_ibase = TRUE;                           /* (crash recovery: undone there) */
     snap_tasks();                                /* the tasks there now */
+    {                                            /* the other docks' tasks: not programs to show */
+        struct Screen *ds;
+        struct Window *dw;
+        ndtask = 0;
+        for (ds = IntuitionBase->FirstScreen; ds && ndtask < MAXDTASK; ds = ds->NextScreen)
+            for (dw = ds->FirstWindow; dw && ndtask < MAXDTASK; dw = dw->NextWindow)
+                if (dock_marked(dw) && dw->UserPort->mp_SigTask) dtask[ndtask++] = (struct Task *)dw->UserPort->mp_SigTask;
+    }
     if (!wb || tasksmore || !alive(wb) || !wb->tc_Node.ln_Name || strcmp(wb->tc_Node.ln_Name, "Workbench"))
         wb = FindTask("Workbench");
     for (s = IntuitionBase->FirstScreen, ns = 0; s && n < MAXWIN && ns < 32; s = s->NextScreen, ns++) {
@@ -508,8 +526,8 @@ static LONG collect(BOOL titles)
                 if (!(t = con_task(w)) || !alive(t)) continue;
             } else if ((w->UserPort->mp_Flags & PF_ACTION) == PA_SOFTINT ||
                        !(t = (struct Task *)w->UserPort->mp_SigTask) || t == me || !alive(t) ||
-                       (t == wb && (w->Flags & WFLG_BACKDROP)))
-                continue;                        /* (a soft interrupt port has no task) */
+                       (t == wb && (w->Flags & WFLG_BACKDROP)) || is_dtask(t))
+                continue;                        /* (a soft interrupt port has no task; other docks: not programs) */
             for (i = 0; i < n && own[i].win != w; i++) ;
             if (i < n) continue;                 /* a window's second layer (GZZ border) */
             own[n].win = w;
@@ -648,6 +666,24 @@ static BOOL is_it(struct Own *o, struct Item *it)
 
 /* An icon the dock follows: a program, the Shell, a docked drawer, or
    Workbench's drawers. */
+/* Is the item this very program (its icon on the dock)? A click then opens
+   the settings and a long press offers Quit, instead of a second copy. */
+BOOL run_is_self(struct Item *it)
+{
+    static char mine[512];
+    static BOOL known;
+    char path[512];
+    BPTR lk;
+    BOOL same = FALSE;
+    if (!known) { known = TRUE; sd_prog_path(mine, sizeof(mine)); }
+    if (!mine[0] || it->temp || it->nofile || !it->dobj || it->dobj->do_Type != WBTOOL) return FALSE;
+    if ((lk = Lock(it->path, SHARED_LOCK))) {
+        if (NameFromLock(lk, path, sizeof(path))) same = !Stricmp((STRPTR)path, (STRPTR)mine);
+        UnLock(lk);
+    }
+    return same;
+}
+
 BOOL run_trackable(struct Item *it)
 {
     return run_is_tool(it) || is_shell(it) || it->temp == RUN_WB || run_is_drawer(it);
@@ -3039,6 +3075,7 @@ static void list_actions(struct Item *it)
     if (hidden && can_hide()) act[nact++] = ACT_SHOW;
     if (nlist) act[nact++] = ACT_CLOSE;
     if (nlist && it->asked) act[nact++] = ACT_FORCE;   /* (Close was tried: the next step) */
+    if (run_is_self(it)) act[nact++] = ACT_QUITDOCK;   /* (the dock's own icon: this dock) */
 }
 
 /* Minimise... / Show... / Close... with several windows: the list asks which
@@ -3103,6 +3140,12 @@ static void do_act(struct Dock *d, LONG a)
                      else if (unminimise(it)) front(it, TRUE);
                      break;
     case ACT_FORCE:  end_program(d, it); break;
+    case ACT_QUITDOCK: {
+        static struct EasyStruct es = { sizeof(struct EasyStruct), 0, SD_NAME,
+            "Quit SimpleDock?\nThis closes this dock.", "Quit|Cancel" };
+        if (sd_request(d, &es, NULL) == 1) d->quitreq = TRUE;
+        break;
+    }
     default:         close_program(d, it); break;
     }
 }

@@ -81,7 +81,7 @@ name.
 
 A dock whose port is not SIMPLEDOCK adds no AppMenu while a port SIMPLEDOCK
 exists. The main dock's Advanced window lists the other docks (window UserData
-mark + the port name as the window title) with Settings... and Quit, sent as
+mark; the port name is the public port of the window's task) with Settings... and Quit, sent as
 ARexx commands to that dock's port. Save as... writes the program's own icon
 image as the project icon.
 

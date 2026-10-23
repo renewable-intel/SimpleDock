@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.2"
-#define SD_BUILD   " T93"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T94"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "22.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -117,6 +117,7 @@ struct Dock {
     char              posbuf[4];      /* POS changed in the settings window, or by yielding to another dock */
     UBYTE             yield;          /* edges tried while opening where another dock is (dock.c) */
     BOOL              yielded;        /* moved out of another dock's way: saved once open */
+    BOOL              quitreq;        /* Quit chosen on the dock's own icon (running.c): the main loop ends */
     char              keybuf[64];     /* HOTKEY changed in the settings window */
     char              custbuf[8];     /* CUSTOMTINT (and TINT) from the colour picker: "#rrggbb" */
     char              cfgbuf[SD_LINEMAX]; /* the dock's own config file (o->config) */
@@ -195,6 +196,7 @@ struct Dock {
 /* main.c */
 void sd_putch(void);                                        /* rawfmt.s, for RawDoFmt */
 LONG sd_request(struct Dock *d, struct EasyStruct *es, APTR args);   /* a requester, centred; as EasyRequest */
+BOOL sd_prog_path(char *out, LONG size);                    /* this program's full path */
 void sd_beep(struct Dock *d);                               /* DisplayBeep on the dock's screen, unless NOBEEP */
 #define SD_FMT(buf, fmt, args) RawDoFmt((STRPTR)(fmt), (APTR)(args), (void (*)())sd_putch, (APTR)(buf))
 void sd_msg(struct Dock *d, CONST_STRPTR fmt, ...);
@@ -253,6 +255,8 @@ extern LONG hk_stat[HK_N];
 void ah_show(struct Dock *d, BOOL on);                      /* held out (the settings window) or not */
 BOOL in_set_hotkey(CONST_STRPTR desc);                      /* commodities description; FALSE: not valid */
 LONG dock_other_names(struct Dock *d, STRPTR *names, char *buf, LONG size, LONG max);   /* the other docks' ports */
+BOOL dock_marked(struct Window *w);                         /* a dock window (any dock's) */
+BOOL run_is_self(struct Item *it);                          /* the item is this program */
 BOOL rexx_send(CONST_STRPTR port, CONST_STRPTR cmd);          /* one command to another dock */
 BOOL in_hotkey_shared(void);                                /* the hotkey reaches every dock by itself */
 BOOL in_hotkey_valid(CONST_STRPTR desc);                    /* the same check, the hotkey in use unchanged */

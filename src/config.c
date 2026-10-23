@@ -262,23 +262,6 @@ void config_created(struct Dock *d)
 
 /* Settings and icons into 'path' (NULL: the dock's own config file), via a
    temporary file. A dock made from a drawer keeps its settings in the icon. */
-/* The full path of this program (0: unknown): its home drawer, then its name. */
-static BOOL prog_path(char *out, LONG size)
-{
-    extern struct WBStartup *WBenchMsg;
-    struct Process *me = (struct Process *)FindTask(NULL);
-    char nm[108];
-    out[0] = 0;
-    if (me->pr_HomeDir && GetProgramName(nm, sizeof(nm)) && NameFromLock(me->pr_HomeDir, out, size) &&
-        AddPart(out, FilePart(nm), size)) return TRUE;
-    out[0] = 0;
-    if (WBenchMsg && WBenchMsg->sm_NumArgs > 0 && WBenchMsg->sm_ArgList[0].wa_Name &&
-        NameFromLock(WBenchMsg->sm_ArgList[0].wa_Lock, out, size) &&
-        AddPart(out, WBenchMsg->sm_ArgList[0].wa_Name, size)) return TRUE;
-    out[0] = 0;
-    return FALSE;
-}
-
 /* Save as...: the new file gets a project icon whose default tool is this
    program, so a double-click starts a dock from it (another dock, with its
    own settings). An icon that is already there is left alone. */
@@ -290,7 +273,7 @@ static void save_icon(struct Dock *d, CONST_STRPTR path)
     struct DrawerData *dd;
     UBYTE type;
     if ((dobj = GetDiskObject(path))) { FreeDiskObject(dobj); return; }
-    if (!prog_path(prog, sizeof(prog))) return;
+    if (!sd_prog_path(prog, sizeof(prog))) return;
     if (!(dobj = GetDiskObject(prog)) && !(dobj = GetDefDiskObject(WBPROJECT))) return;   /* the program's own image */
     tool = dobj->do_DefaultTool; tt = dobj->do_ToolTypes; dd = dobj->do_DrawerData; type = dobj->do_Type;
     dobj->do_Type = WBPROJECT;
