@@ -9,6 +9,13 @@
 - The hotkey can be the middle mouse button: HOTKEY=mbutton, or with
   modifiers (ctrl mbutton, alt shift mbutton); the press is not passed on.
   For systems where another program (Directory Opus) has Ctrl+Alt+Shift.
+- Left Amiga + N or M (Intuition's screen keys) are refused as a hotkey or
+  key, with a beep, since the dock would otherwise take them from Intuition.
+- Save as... gives the new file a project icon with SimpleDock as its
+  default tool: a double-click starts another dock from it. The guide's
+  "More than one dock" page is now three steps. SimpleDock CONFIG=<file>
+  from a Shell while a dock is running starts a second one too (its port
+  named after the file; before: "already running").
 
 ## 1.1 (21.10.2026)
 

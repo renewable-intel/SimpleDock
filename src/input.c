@@ -87,13 +87,18 @@ static UWORD mb_parse(CONST_STRPTR desc)
     return 0x8000 | g;
 }
 
-/* A commodities key description into *ix. FALSE: not one (or no commodities). */
+/* A commodities key description into *ix. FALSE: not one (or no commodities),
+   or one of Intuition's own: Left Amiga + N / M (screen to back / front),
+   which the handler would take away from it. */
 static BOOL ix_parse(CONST_STRPTR desc, IX *ix)
 {
     extern struct Library *CxBase;
     if (!CxBase || !desc || !*desc) return FALSE;
     ix->ix_Version = IX_VERSION;
-    return ParseIX((STRPTR)desc, ix) == 0;
+    if (ParseIX((STRPTR)desc, ix) != 0) return FALSE;
+    if (ix->ix_Class == IECLASS_RAWKEY && (ix->ix_Code == 0x36 || ix->ix_Code == 0x37) &&
+        (ix->ix_Qualifier & IEQUALIFIER_LCOMMAND)) return FALSE;
+    return TRUE;
 }
 
 static UWORD in_mbneed;                 /* the hotkey is the middle button: 0x8000 + its modifier groups */

@@ -177,10 +177,16 @@ int main(void)
     strcpy(d->cfgbuf, o.config);                 /* o's strings change on reload */
     o.config = d->cfgbuf;
     crash_context(d, &rexx, &rd);              /* (CRASHLOG: what a crash must close) */
-    if (!(rexx = rexx_open(d))) {
-        sd_msg(d, "A dock named %s is already running", (LONG)d->portname);
-        rc = RETURN_WARN;
-        goto out;
+    if (!(rexx = rexx_open(d))) {                /* SIMPLEDOCK taken and another file given (a Shell start: */
+        if (Stricmp((STRPTR)o.config, (STRPTR)SD_CONFIG) && strlen(FilePart(o.config)) < sizeof(d->portname)) {
+            strcpy(d->portname, FilePart(o.config));   /*  CONFIG=file): a second dock, its port named after the file */
+            rexx = rexx_open(d);
+        }
+        if (!rexx) {
+            sd_msg(d, "A dock named %s is already running", (LONG)d->portname);
+            rc = RETURN_WARN;
+            goto out;
+        }
     }
     TRACE("config");
     if (!config_load(d, NULL)) config_free(d);   /* unreadable config: start empty, never overwrite it */

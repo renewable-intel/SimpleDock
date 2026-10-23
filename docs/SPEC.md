@@ -69,7 +69,15 @@ if the icon has it), then a Shell command line over both.
 
 Several docks: a config file with a project icon whose default tool is
 SimpleDock starts a dock with that file; the file name is then its ARexx port
+name. Save as... writes such an icon next to the new file (default tool: this
+program's full path; an existing icon is kept), so a copy made there is a dock
+on double-click. CONFIG=file from a Shell does the same: when the port
+SIMPLEDOCK is taken and the file is not the default one, the port is the file's
 name.
+
+Keys: a description naming Left Amiga with N or M (Intuition's screen keys) is
+refused like an invalid one (the dock's handler, at priority 51, would take it
+from Intuition).
 
 ## 3. Config file: settings and icons
 

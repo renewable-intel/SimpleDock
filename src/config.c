@@ -21,6 +21,7 @@
 #include <clib/alib_protos.h>
 #include <libraries/asl.h>
 #include <proto/asl.h>
+#include <workbench/startup.h>
 #include "sd.h"
 
 /* New entry before 'before' (NULL = at the end). */
@@ -250,6 +251,39 @@ void config_created(struct Dock *d)
 
 /* Settings and icons into 'path' (NULL: the dock's own config file), via a
    temporary file. A dock made from a drawer keeps its settings in the icon. */
+/* The full path of this program (0: unknown): its home drawer, then its name. */
+static BOOL prog_path(char *out, LONG size)
+{
+    extern struct WBStartup *WBenchMsg;
+    struct Process *me = (struct Process *)FindTask(NULL);
+    char nm[108];
+    out[0] = 0;
+    if (me->pr_HomeDir && GetProgramName(nm, sizeof(nm)) && NameFromLock(me->pr_HomeDir, out, size) &&
+        AddPart(out, FilePart(nm), size)) return TRUE;
+    out[0] = 0;
+    if (WBenchMsg && WBenchMsg->sm_NumArgs > 0 && WBenchMsg->sm_ArgList[0].wa_Name &&
+        NameFromLock(WBenchMsg->sm_ArgList[0].wa_Lock, out, size) &&
+        AddPart(out, WBenchMsg->sm_ArgList[0].wa_Name, size)) return TRUE;
+    out[0] = 0;
+    return FALSE;
+}
+
+/* Save as...: the new file gets a project icon whose default tool is this
+   program, so a double-click starts a dock from it (another dock, with its
+   own settings). An icon that is already there is left alone. */
+static void save_icon(struct Dock *d, CONST_STRPTR path)
+{
+    struct DiskObject *dobj;
+    char prog[512];
+    if ((dobj = GetDiskObject(path))) { FreeDiskObject(dobj); return; }
+    if (!prog_path(prog, sizeof(prog)) || !(dobj = GetDefDiskObject(WBPROJECT))) return;
+    dobj->do_DefaultTool = prog;
+    dobj->do_ToolTypes = NULL;
+    dobj->do_CurrentX = dobj->do_CurrentY = NO_ICON_POSITION;
+    if (PutDiskObject(path, dobj)) sd_verbose(d, "%s has an icon now: double-click it for a dock from this file", (LONG)path);
+    FreeDiskObject(dobj);
+}
+
 BOOL config_save(struct Dock *d, CONST_STRPTR path)
 {
     char tmp[SD_LINEMAX + 8], bak[SD_LINEMAX + 8];
@@ -298,6 +332,7 @@ BOOL config_save(struct Dock *d, CONST_STRPTR path)
         DeleteFile(tmp);
         sd_msg(d, "Cannot save %s", (LONG)file);
     }
+    if (ok && path && Stricmp((STRPTR)path, (STRPTR)d->o->config)) save_icon(d, path);   /* (a copy: its icon) */
     return ok;
 }
 

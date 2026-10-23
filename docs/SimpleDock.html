@@ -331,7 +331,9 @@ section{break-before:auto}h2,h3{break-after:avoid}pre{break-inside:avoid}}
 <h2>Settings buttons</h2>
 <pre>  <b>Undo changes</b>     Restore the settings from when the window opened.
   <b>Load...</b>          Load settings and icons from another file.
-  <b>Save as...</b>       Save a copy of your settings and icons to a file.
+  <b>Save as...</b>       Save a copy of your settings and icons to a file,
+                     with an icon that starts a dock from it
+                     (<a href="#moredocks">More than one dock</a>).
   <b>Advanced &gt;&gt;</b>      Show more settings; <b>&lt;&lt; Simple</b> hides them.</pre>
 <p>Numbers and text take effect on <b>Return</b> or <b>Tab</b>. A value that is not valid, or one that would push icons off the dock, is refused with a beep and the old value comes back.</p>
 <p class="note">Load and Save as do not change the dock&#x27;s startup settings file. The default is ENVARC:SimpleDock.config; see <a href="#moredocks">More than one dock</a> to start a dock with a different file.</p>
@@ -347,7 +349,8 @@ section{break-before:auto}h2,h3{break-after:avoid}pre{break-inside:avoid}}
 <section id="moredocks">
 <h2>More than one dock</h2>
 <p>You can run two docks at once, each with its own icons and settings - say your programs along the bottom and your drawers along the right.</p>
-<p>Make a second settings file (Save as... in the settings window, then edit it), give it a project icon with SimpleDock as its default tool, and double-click it: a second SimpleDock starts from that file and opens its own dock. Its ARexx port is named after the file, so scripts can address each dock on its own.</p>
+<p>Open the settings window and choose <b>Save as...</b>, giving the new file a name of your own, say Drawers.config. The file is written with a project icon whose default tool is SimpleDock. Double-click that icon: a second SimpleDock starts from the file and opens its own dock. Set its edge and icons in its own settings window; they are saved to its file. Its ARexx port is the file&#x27;s name as spelled, Drawers.config, so scripts can address each dock on its own (in quotes: address &#x27;Drawers.config&#x27;).</p>
+<p>To start it with Workbench, move the file and its icon to SYS:WBStartup. From a Shell or a script: SimpleDock CONFIG=&lt;file&gt; - while a dock is already running, this one takes the file&#x27;s name as its port.</p>
 <p>A dock can also be made from a <b>drawer of icons</b> (CONFIG set to the drawer): its settings live in its icon&#x27;s tooltypes.</p>
 <nav aria-label="Topic navigation"><a href="#main">Contents</a> <a href="#shellicons">Previous</a> <a href="#configfile">Next</a></nav>
 </section>

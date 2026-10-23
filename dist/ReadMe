@@ -481,7 +481,9 @@ SETTINGS BUTTONS
 ================
   Undo changes     Restore the settings from when the window opened.
   Load...          Load settings and icons from another file.
-  Save as...       Save a copy of your settings and icons to a file.
+  Save as...       Save a copy of your settings and icons to a file,
+                     with an icon that starts a dock from it
+                     (More than one dock).
   Advanced >>      Show more settings; << Simple hides them.
 
 Numbers and text take effect on Return or Tab. A value that is not
@@ -511,11 +513,17 @@ MORE THAN ONE DOCK
 You can run two docks at once, each with its own icons and settings -
 say your programs along the bottom and your drawers along the right.
 
-Make a second settings file (Save as... in the settings window, then
-edit it), give it a project icon with SimpleDock as its default tool,
-and double-click it: a second SimpleDock starts from that file and opens
-its own dock. Its ARexx port is named after the file, so scripts can
-address each dock on its own.
+Open the settings window and choose Save as..., giving the new file
+a name of your own, say Drawers.config. The file is written with a
+project icon whose default tool is SimpleDock. Double-click that icon: a
+second SimpleDock starts from the file and opens its own dock. Set its
+edge and icons in its own settings window; they are saved to its file.
+Its ARexx port is the file's name as spelled, Drawers.config, so scripts
+can address each dock on its own (in quotes: address 'Drawers.config').
+
+To start it with Workbench, move the file and its icon to SYS:WBStartup.
+From a Shell or a script: SimpleDock CONFIG=<file> - while a dock is
+already running, this one takes the file's name as its port.
 
 A dock can also be made from a drawer of icons (CONFIG set to the
 drawer): its settings live in its icon's tooltypes.
