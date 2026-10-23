@@ -7,9 +7,9 @@
   as on 3.1.4), for people whose ARexx scripts manage Workbench's menus
   and are upset by an extra title (TOOLSMENU).
 - The hotkey can be the middle mouse button: HOTKEY=mbutton (pressed and
-  let go), or with modifiers (ctrl mbutton); with several docks every dock
-  that has it answers. MBUTTON plus a key (mbutton 1, mbutton f1) is the
-  button held while that key is pressed: that dock alone. The button and
+  let go), or with modifiers (ctrl mbutton). MBUTTON plus a key (mbutton 1,
+  mbutton f1) is the button held while that key is pressed, and such a
+  dock ignores the bare click. The button and
   the keys pressed while it is held do not reach the active window. For
   systems where another program (Directory Opus) has Ctrl+Alt+Shift.
 - Left Amiga + N or M (Intuition's screen keys) are refused as a hotkey or
@@ -24,7 +24,7 @@
   changeable in its Advanced window). A dock opening where another dock
   already is moves beside it or to a free edge and keeps that place.
   A further dock adds nothing to the Workbench menus; the main dock's
-  Advanced window lists the other docks (Programs, Other docks) with
+  Advanced window lists the other docks (Docks group, Other docks) with
   Settings... and Quit for the one picked. The icon Save as... writes
   carries the SimpleDock image. The hotkey works all docks: a key or
   middle-button hotkey caught by one dock is passed on to the others.

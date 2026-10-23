@@ -281,9 +281,9 @@ The dock never removes it by itself: a disk may just not be inserted.
 
 @{b}Show the dock: Ctrl+Alt+Shift@{ub}
 Press together, then release: see @{"Auto-hide" link autohide} for how this
-hotkey behaves when auto-hide is on. With several docks, the hotkey
-works all of them; give each dock MBUTTON plus a key of its own
-(MBUTTON 1, MBUTTON 2) to show one at a time. Another program using the same
+hotkey behaves when auto-hide is on. With several docks, every dock
+with the same hotkey answers it; give a dock MBUTTON plus a key of its
+own (MBUTTON 2) and only that chord shows it. Another program using the same
 keys (Directory Opus does): change it under Keys ({Shell drops and
 Keys|advshell}) - other modifiers, a key, or the middle mouse button
 (MBUTTON, or CTRL MBUTTON and the like).
@@ -392,8 +392,7 @@ window. The dock stays shown while the window is open.
   Hotkey           the keys that show the dock: CTRL ALT SHIFT; or the
                    middle mouse button: MBUTTON (pressed and let go),
                    CTRL MBUTTON; or MBUTTON 1, MBUTTON F1 (the button
-                   held while that key is pressed: this dock alone,
-                   a bare middle click still shows every dock) (HOTKEY)
+                   held while that key is pressed) (HOTKEY)
                    (modifiers only: pressed together, let go), or a
                    combination with a key, such as CTRL ALT D
 
@@ -467,9 +466,6 @@ ones. On a small screen, they replace the basic settings:
                    (WBHIDE)
   Hidden programs  the programs you dragged off the dock, by name; pick
                    one and @{b}Remove@{ub} to see it again (IGNORE)
-  Other docks      the other docks running (main dock only): Settings...
-                   opens that dock's settings, Quit closes it
-                   (@{"More than one dock" link moredocks})
 
 @{i}Programs get into Hidden programs by being dragged off the dock while@{ui}
 @{i}they run (@{"Running programs" link running}); you never type a name there.@{ui}
@@ -516,6 +512,11 @@ ones. On a small screen, they replace the basic settings:
                    Workbench menus by ARexx (TOOLSMENU)
   Crash reports    off by default; see @{"Crash reports" link crash} (CRASHLOG)
   No border        no thin border around the dock (NOBORDER)
+
+@{b}Docks@{ub}
+  Other docks      the other docks running (main dock only): Settings...
+                   opens that dock's settings, Quit closes it
+                   (@{"More than one dock" link moredocks})
 @endnode
 
 @node buttons "Settings buttons"

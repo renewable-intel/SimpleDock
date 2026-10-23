@@ -320,7 +320,6 @@ static const struct { const char *label, *key; UBYTE kind; const char *const *na
     { "Programs not on the dock", "RUNHIDE", K_LIST, othername, NULL, 0 },
     { "Workbench icon", "WBHIDE", K_LIST, othername, NULL, 0 },
     { "Hidden programs", "IGNORE", K_HIDE },
-    { "Other docks", "DOCKS", K_DOCKS },
     { "Icons into a Shell", "SHELLDROP", K_LIST, sdropname, sdropval, 1, "Shell drops" },
     { "Unpack archives to", "UNPACKTO", K_LIST, unpackname, unpackval, 0 },
     { "Unpack drawer", "UNPACKDIR", K_STR },
@@ -334,7 +333,8 @@ static const struct { const char *label, *key; UBYTE kind; const char *const *na
     { "Beep", "NOBEEP", K_LIST, beepname, NULL, 0 },
     { "Menu", "TOOLSMENU", K_LIST, menuname, NULL, 0 },
     { "Crash reports", "CRASHLOG", K_SWITCH },
-    { "No border", "NOBORDER", K_SWITCH } };
+    { "No border", "NOBORDER", K_SWITCH },
+    { "Other docks", "DOCKS", K_DOCKS, NULL, NULL, 0, "Docks" } };   /* (last: its own group, the right column) */
 #define HIDEROWS 6                      /* the Hidden programs list: rows high */
 #define NADV ((LONG)(sizeof(adv) / sizeof(adv[0])))
 static const char *const alignname[] = { "Centre", "Start", "End", NULL };
@@ -459,8 +459,8 @@ static LONG slots(struct Slot *ss, struct Slot *as, LONG *na, BOOL compact)
     for (i = 0; i < NSORDER; i++)
         if (!compact || sorder[i] >= 0) { ss[ns].what = sorder[i]; ss[ns++].h = 1; }
     for (i = 0; i < NADV && n < MAXSLOT - 1; i++) {
+        if (adv[i].kind == K_DOCKS && !docks_row) continue;   /* (the main dock only: row and heading) */
         if (adv[i].head && !compact) { as[n].what = -1 - i; as[n++].h = 1; }   /* (a heading: its row's index) */
-        if (adv[i].kind == K_DOCKS && !docks_row) continue;   /* (the main dock only) */
         as[n].what = i;
         as[n++].h = adv[i].kind == K_HIDE ? (compact ? 2 : HIDEROWS) + 1 :      /* (+1: Remove beneath it) */
                     adv[i].kind == K_DOCKS ? (compact ? 2 : DOCKROWS) + 1 : 1;  /* (+1: Settings... and Quit) */

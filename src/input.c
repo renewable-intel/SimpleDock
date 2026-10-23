@@ -68,10 +68,10 @@ static UWORD tap_parse(CONST_STRPTR desc)
 
 static BOOL ix_parse(CONST_STRPTR desc, IX *ix);
 
-/* The middle-button forms: "mbutton" (pressed and let go, with nothing else:
-   every dock that has the form answers), "ctrl mbutton" (the same with those
-   modifiers held), or "mbutton 1" / "mbutton f1" / "mbutton ctrl 1": the
-   middle button held while that key is pressed - this dock alone. Returns
+/* The middle-button forms: "mbutton" (pressed and let go, with nothing else),
+   "ctrl mbutton" (the same with those modifiers held), or "mbutton 1" /
+   "mbutton f1" / "mbutton ctrl 1": the middle button held while that key is
+   pressed (and not the bare click). Every dock whose hotkey it is answers. Returns
    0x8000 + the modifier groups (0: not this form); *keyix and *haskey say
    whether a key belongs to it. */
 static UWORD mb_parse(CONST_STRPTR desc, IX *keyix, BOOL *haskey)
@@ -388,7 +388,7 @@ void in_watch(struct InputEvent *ev)
             }
             if (raw && code == (IECODE_MBUTTON | IECODE_UP_PREFIX) && in_mbheld) {   /* up: alone = the hotkey */
                 in_mbheld = FALSE;
-                if (!in_mbused && in_mbqual == (in_mbneed & 0x1F)) {
+                if (!in_mbused && !in_mbkey && in_mbqual == (in_mbneed & 0x1F)) {   /* (a key form: the chord only) */
                     in_dock->hotkey = TRUE;
                     hk_stat[HK_FIRED]++;
                     Signal(in_task, in_sigmask);
