@@ -120,6 +120,9 @@ static volatile BOOL in_mbkey;
 static volatile BOOL in_mbheld, in_mbused;   /* the button is down; a key was pressed meanwhile */
 static UWORD in_mbqual;                 /* the modifier groups held when it went down */
 static UWORD in_mbcode = 0xFFFF;        /* the chord key while down: its repeats and release are swallowed */
+static UWORD in_mbticks;                /* input.device timer ticks (about 10 a second) since it went down */
+static BOOL in_mbqualok;                /* this system marks events with IEQUALIFIER_MIDBUTTON while it is held */
+#define SD_NULLED 0x5D                  /* ie_SubClass of an event a dock took (other docks follow the chord by it) */
 
 /* The hotkey from its description ("ctrl alt d", "ctrl alt shift", or
    "mbutton" / "ctrl mbutton"); matched in in_watch. */
@@ -320,7 +323,8 @@ void in_watch(struct InputEvent *ev)
                         Signal(in_task, in_sigmask);
                     }
                 }
-            } else if ((ev->ie_Class == IECLASS_RAWMOUSE || ev->ie_Class == IECLASS_NULL) && !(ev->ie_Code & IECODE_UP_PREFIX) &&
+            } else if ((ev->ie_Class == IECLASS_RAWMOUSE || (ev->ie_Class == IECLASS_NULL && ev->ie_SubClass == SD_NULLED)) &&
+                       !(ev->ie_Code & IECODE_UP_PREFIX) &&
                        (ev->ie_Code == IECODE_LBUTTON || ev->ie_Code == IECODE_RBUTTON || ev->ie_Code == IECODE_MBUTTON)) {
                 if (in_taparmed) hk_stat[HK_BTNOFF]++;   /* a button pressed meanwhile: no tap (movement */
                 in_taparmed = FALSE;                 /* is fine: its code is NOBUTTON, 0xFF - never */
@@ -333,27 +337,33 @@ void in_watch(struct InputEvent *ev)
             hk_stat[HK_LMBFIX]++;                /* else the hotkey (and auto-hide) would wait for a click */
         }
         if (in_mbneed && in_dock && in_task) {   /* the middle-button chord (another dock may have nulled */
-            UWORD code = ev->ie_Code;            /* the event already: its code still says what it was) */
-            BOOL raw = ev->ie_Class == IECLASS_RAWMOUSE || ev->ie_Class == IECLASS_NULL;
-            BOOL key = ev->ie_Class == IECLASS_RAWKEY || ev->ie_Class == IECLASS_NULL;
-            if (in_mbheld && ev->ie_Class == IECLASS_RAWMOUSE && code == IECODE_NOBUTTON &&
-                !(ev->ie_Qualifier & IEQUALIFIER_MIDBUTTON)) in_mbheld = FALSE;   /* (a release missed: cleared) */
+            UWORD code = ev->ie_Code;            /* the event already: its code still says what it was; */
+            BOOL ours = ev->ie_Class == IECLASS_NULL && ev->ie_SubClass == SD_NULLED;   /* only a dock's mark counts) */
+            BOOL raw = ev->ie_Class == IECLASS_RAWMOUSE || ours;
+            BOOL key = ev->ie_Class == IECLASS_RAWKEY || ours;
+            if (in_mbheld) {                     /* a release missed: not held any more - after ~4 s of timer */
+                if (ev->ie_Qualifier & IEQUALIFIER_MIDBUTTON) in_mbqualok = TRUE;   /* ticks (no chord is that */
+                if ((ev->ie_Class == IECLASS_TIMER && ++in_mbticks > 40) ||          /* long; drivers may not */
+                    (in_mbqualok && ev->ie_Class == IECLASS_RAWMOUSE && code == IECODE_NOBUTTON &&   /* stamp */
+                     !(ev->ie_Qualifier & IEQUALIFIER_MIDBUTTON))) in_mbheld = FALSE;   /* events), or by the */
+            }                                    /* qualifier where this system is seen to keep it */
             if (in_mbcode != 0xFFFF && ev->ie_Class == IECLASS_RAWKEY && (code & ~IECODE_UP_PREFIX) == in_mbcode) {
                 if (code & IECODE_UP_PREFIX) in_mbcode = 0xFFFF;   /* the chord key's repeats and release: swallowed too */
-                ev->ie_Class = IECLASS_NULL;
+                ev->ie_Class = IECLASS_NULL; ev->ie_SubClass = SD_NULLED;
                 continue;
             }
             if (raw && code == IECODE_MBUTTON) { /* down: held from now; what follows decides */
                 in_mbheld = TRUE; in_mbused = FALSE;
                 in_mbqual = tap_groups(ev->ie_Qualifier);
-                ev->ie_Class = IECLASS_NULL;
+                in_mbticks = 0;
+                ev->ie_Class = IECLASS_NULL; ev->ie_SubClass = SD_NULLED;
                 continue;
             }
             if (raw && code == (IECODE_MBUTTON | IECODE_UP_PREFIX) && in_mbheld) {   /* up: alone = the hotkey */
                 in_mbheld = FALSE;
                 if (!in_mbused && !in_mbkey && in_mbqual == (in_mbneed & 0x1F) && tap_groups(ev->ie_Qualifier) == in_mbqual)
                     hk_fire();
-                ev->ie_Class = IECLASS_NULL;
+                ev->ie_Class = IECLASS_NULL; ev->ie_SubClass = SD_NULLED;
                 continue;
             }
             if (in_mbheld && key && (code & ~IECODE_UP_PREFIX) < 0x60) {   /* a key while held: this dock's, if it */
@@ -365,7 +375,7 @@ void in_watch(struct InputEvent *ev)
                     if (ev->ie_Class == IECLASS_RAWKEY) in_mbcode = code;   /* (its repeats and release: above) */
                     if (in_mbkey && !(ev->ie_Qualifier & IEQUALIFIER_REPEAT) && MatchIX(&e, &in_mbix)) hk_fire();
                 }
-                ev->ie_Class = IECLASS_NULL;
+                ev->ie_Class = IECLASS_NULL; ev->ie_SubClass = SD_NULLED;
                 continue;
             }
         }

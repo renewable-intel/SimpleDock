@@ -10,8 +10,8 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.2"
-#define SD_BUILD   "109"              /* build number: +1 for every build, test or release (version stays x.y) */
-#define SD_DATE    "22.10.2026"
+#define SD_BUILD   "110"              /* build number: +1 for every build, test or release (version stays x.y) */
+#define SD_DATE    "23.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
 void sd_trace(CONST_STRPTR s);

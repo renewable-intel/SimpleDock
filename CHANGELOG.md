@@ -1,5 +1,11 @@
 # Changelog
 
+## Next
+
+- The middle-button hotkey works every time: a click no longer fails when
+  the mouse moves a little between press and release (on systems whose
+  mouse driver does not mark events with the middle button held).
+
 ## 1.2 (22.10.2026)
 
 - New program icon: SD on a dark disc.
