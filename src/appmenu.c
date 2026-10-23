@@ -394,7 +394,8 @@ static struct { WORD right, top; CONST_STRPTR name; } chname[NLIST];
 static UWORD textpen = 1;
 static struct TextFont *namefont;       /* the screen font, for those names */
 static BOOL wide;                       /* the Advanced side is shown */
-static WORD wleft = -1, wtop;           /* where the window was (it is rebuilt to fold out) */
+static WORD wleft = -1, wtop;           /* where the window was (it is rebuilt to fold out): its centre */
+static BOOL wcentre;                    /* ... wleft/wtop hold that centre, not the corner */
 static WORD divx = -1, divy, divh;      /* the divider between the two sides */
 static WORD linex = -1, liney, linew;   /* the line above the buttons */
 #define SNAPLEN 4096                    /* the settings lines (buffers below, allocated while needed) */
@@ -845,7 +846,8 @@ static void prefs_close_win(void)
     struct Node *n;
     if (pw) {
         if (nch) RemoveGList(pw, chobj[0], nch);
-        wleft = pw->LeftEdge; wtop = pw->TopEdge; CloseWindow(pw); pw = NULL;
+        wleft = pw->LeftEdge + pw->Width / 2; wtop = pw->TopEdge + pw->Height / 2; wcentre = TRUE;   /* (the new */
+        CloseWindow(pw); pw = NULL;              /*  size opens around the same centre: folding out stays put) */
     }
     for (k = 0; k < nch; k++) DisposeObject((Object *)chobj[k]);
     nch = 0;
@@ -1163,6 +1165,7 @@ static BOOL build(struct Dock *d)
     }
     if (!g) return FALSE;
     if (wleft < 0) { wleft = (s->Width - iw) / 2; wtop = (s->Height - ih - fh) / 2; }
+    else if (wcentre) { wleft -= (iw + s->WBorLeft + s->WBorRight) / 2; wtop -= (ih + fh + 4) / 2; wcentre = FALSE; }
     if (wleft + iw + s->WBorLeft + s->WBorRight > s->Width) wleft = s->Width - iw - s->WBorLeft - s->WBorRight;
     if (wtop + ih + fh + 4 > s->Height) wtop = s->Height - ih - fh - 4;
     if (wleft < 0) wleft = 0;
