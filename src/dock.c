@@ -1167,8 +1167,9 @@ BOOL dock_event(struct Dock *d, struct IntuiMessage *im)
                 else if (run_is_drawer(it)) { if (!run_front(d, it)) launch_item(d, it); }   /* (open: to the front) */
                 else if (it->temp != RUN_MORE &&
                          (!!(im->Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT)) != d->o->clicknew ||
-                          !run_front(d, it)))
-                    launch_item(d, it);
+                          !run_front(d, it)) &&
+                         launch_item(d, it))
+                    run_started(d, it);          /* (its dot and number at once) */
                 run_clicked(d);
             }
             if (d->o->noicon) tip_update(d);  /* the label under the pointer: highlighted again */

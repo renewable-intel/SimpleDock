@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.2"
-#define SD_BUILD   "112"              /* build number: +1 for every build, test or release (version stays x.y) */
+#define SD_BUILD   "113"              /* build number: +1 for every build, test or release (version stays x.y) */
 #define SD_DATE    "23.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -68,6 +68,8 @@ struct Item {
     WORD   iw, ih;                    /* icon image size */
     WORD   lw;                        /* label width in pixels */
     WORD   running;                   /* copies of its program that run (running.c) */
+    WORD   expect;                    /* ... the number shown since a click started one, not yet seen */
+    LONG   expectby;                  /* ... until (seconds, DateStamp): then the count as found */
     UBYTE  temp;                      /* not kept: RUN_TEMP a program running, RUN_MORE the "more" cell,
                                          RUN_WB Workbench's drawer windows */
     BOOL   mini;                      /* windows of its program are minimised (running.c) */
@@ -260,6 +262,7 @@ LONG dock_other_names(struct Dock *d, STRPTR *names, char *buf, LONG size, LONG 
 BOOL dock_marked(struct Window *w);                         /* a dock window (any dock's) */
 LONG dock_tasks(struct Task **out, LONG max);               /* the tasks of every dock window, all screens (caller Forbids) */
 BOOL run_is_self(struct Item *it);                          /* the item is this program */
+void run_started(struct Dock *d, struct Item *it);          /* a click started a copy: its number now */
 BOOL run_path_is_self(CONST_STRPTR path);                   /* the file is this program */
 BOOL rexx_send(CONST_STRPTR port, CONST_STRPTR cmd);          /* one command to another dock (no wait) */
 ULONG rexx_outbox_sig(void);                                 /* its replies: signal for the main loop */

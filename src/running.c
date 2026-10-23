@@ -659,6 +659,30 @@ static BOOL is_it(struct Own *o, struct Item *it)
 
 /* An icon the dock follows: a program, the Shell, a docked drawer, or
    Workbench's drawers. */
+static LONG now_secs(void)
+{
+    struct DateStamp ds;
+    DateStamp(&ds);
+    return ds.ds_Days * 86400 + ds.ds_Minute * 60 + ds.ds_Tick / TICKS_PER_SECOND;
+}
+
+/* A click (or Shift+click) started a copy of it: one more on its icon now,
+   not when the next look at the windows finds it (a program started by
+   Workbench is only seen once its window opens). The number is kept while
+   the copy starts, and given up after 10 s if none appears. */
+void run_started(struct Dock *d, struct Item *it)
+{
+    if (!d->o->running || (it->temp && it->temp != RUN_TEMP) || !run_is_tool(it) || is_shell(it) ||
+        it->running < 0 || it->running >= 99) return;
+    it->running++;
+    it->expect = it->running;
+    it->expectby = now_secs() + 10;
+    if (d->win && d->vis == d->full && !d->dragging) {
+        dock_show_item(d, it, FALSE);
+        if (d->tip && d->tipcell >= 0 && dock_item(d, d->tipcell) == it) { tip_hide(d); tip_update(d); }
+    }
+}
+
 /* Is the item SimpleDock (its icon on the dock)? Any copy counts - the one
    in its drawer while the dock runs from WBStartup, say - by its name: this
    program's, or "SimpleDock". A click then opens the settings and a long
@@ -1319,6 +1343,10 @@ static BOOL scan(struct Dock *d)
             for (i = 0; i < n; i++) copies += is_it(&own[i], it);
         else if (run_is_tool(it)) copies = copies_of(it, n);
         if (copies > 99) copies = 99;
+        if (it->expect) {                        /* a copy a click started: shown until it is seen (or 10 s) */
+            if (copies >= it->expect || now_secs() > it->expectby) it->expect = 0;
+            else copies = it->expect;
+        }
         {                                        /* minimised windows: a pulsing dot */
             BOOL m = FALSE;
             for (i = 0; i < n && !m; i++) m = own[i].hid && is_it(&own[i], it);

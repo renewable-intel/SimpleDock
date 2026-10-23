@@ -6,6 +6,9 @@
   the mouse moves a little between press and release (on systems whose
   mouse driver does not mark events with the middle button held), and
   the button can be held as long as you like for MBUTTON + key chords.
+- A click or Shift+click that starts a program shows its dot and number
+  at once (before: when the next look at the windows found it, which for
+  a program Workbench starts is when its window opens).
 - The long-press list shows up to 32 windows (was 12), as many as fit on
   the screen - the Workbench icon with many drawers open, for one.
 
