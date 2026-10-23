@@ -33,38 +33,67 @@ struct MsgPort *rexx_open(struct Dock *d)
     return port;
 }
 
-/* One command to another dock's port (SETTINGS, QUIT), waiting up to ~6 s for
-   its answer. FALSE: no such port, no answer, or it failed. */
+/* Commands to other docks (SETTINGS, QUIT, REVEAL) go out through one port
+   and are not waited for: the answers come back as a signal the main loop
+   serves (rexx_reap frees them). Nothing blocks, and a dock that is slow to
+   answer (in a requester) can never reply into a freed port. */
+static struct MsgPort *outbox;
+static LONG outstanding;
+
+ULONG rexx_outbox_sig(void)
+{
+    if (!outbox && !(outbox = CreateMsgPort())) return 0;
+    return 1UL << outbox->mp_SigBit;
+}
+
+void rexx_reap(void)
+{
+    struct RexxMsg *rm;
+    while (outbox && (rm = (struct RexxMsg *)GetMsg(outbox))) {
+        ClearRexxMsg(rm, 1);
+        DeleteRexxMsg(rm);
+        outstanding--;
+    }
+}
+
+/* FALSE: no such port (or no memory); the command's own result is not seen. */
 BOOL rexx_send(CONST_STRPTR portname, CONST_STRPTR cmd)
 {
-    struct MsgPort *reply, *port;
+    struct MsgPort *port;
     struct RexxMsg *rm;
-    struct Message *m = NULL;
+    if (!RexxSysBase || !outbox || !(rm = CreateRexxMsg(outbox, NULL, NULL))) return FALSE;
+    rm->rm_Action = RXCOMM;
+    if (!(rm->rm_Args[0] = CreateArgstring((STRPTR)cmd, strlen((char *)cmd)))) { DeleteRexxMsg(rm); return FALSE; }
+    Forbid();
+    if ((port = FindPort((STRPTR)portname))) { PutMsg(port, &rm->rm_Node); outstanding++; }
+    Permit();
+    if (!port) { ClearRexxMsg(rm, 1); DeleteRexxMsg(rm); }
+    return port != NULL;
+}
+
+/* At the end: the answers still out are waited for a moment; any that never
+   come leave the port behind, made deaf (PA_IGNORE, no task), so a late reply
+   can do no harm. */
+static void outbox_close(void)
+{
     LONG t;
-    BOOL ok = FALSE;
-    if (!RexxSysBase || !(reply = CreateMsgPort())) return FALSE;
-    if ((rm = CreateRexxMsg(reply, NULL, NULL))) {
-        rm->rm_Action = RXCOMM;
-        if ((rm->rm_Args[0] = CreateArgstring((STRPTR)cmd, strlen((char *)cmd)))) {
-            Forbid();
-            if ((port = FindPort((STRPTR)portname))) PutMsg(port, &rm->rm_Node);
-            Permit();
-            if (port) {
-                for (t = 0; t < 60 && !(m = GetMsg(reply)); t++) Delay(5);
-                if (!m) return FALSE;            /* no answer: the message and the port stay (it may still reply) */
-                ok = rm->rm_Result1 == 0;
-            }
-        }
-        if (rm->rm_Args[0]) ClearRexxMsg(rm, 1);
-        DeleteRexxMsg(rm);
-    }
-    DeleteMsgPort(reply);
-    return ok;
+    if (!outbox) return;
+    for (t = 0; outstanding > 0 && t < 40; t++) { Delay(5); rexx_reap(); }   /* (up to ~4 s) */
+    rexx_reap();
+    if (outstanding > 0) {
+        Forbid();
+        outbox->mp_Flags = PA_IGNORE;
+        outbox->mp_SigTask = NULL;
+        Permit();
+        FreeSignal(outbox->mp_SigBit);
+    } else DeleteMsgPort(outbox);
+    outbox = NULL;
 }
 
 void rexx_close(struct MsgPort *port)
 {
     struct RexxMsg *rm;
+    outbox_close();
     if (!port) return;
     Forbid();                                   /* nobody can find it and send to it meanwhile */
     RemPort(port);
@@ -235,6 +264,7 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
             struct Item *it;
             BOOL names = word(&cmd, "NAMES");
             LONG len = 1, n = 0, pass;
+            BOOL first = TRUE;
             for (pass = 0; pass < 2; pass++)     /* those shown, then those that do not fit */
                 for (it = (struct Item *)(pass ? &d->extra : &d->items)->mlh_Head; it->node.mln_Succ;
                      it = (struct Item *)it->node.mln_Succ)
@@ -247,7 +277,8 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
                         CONST_STRPTR s = names ? (it->label ? it->label : FilePart(it->path)) : it->path;
                         if (it->temp) continue;          /* running, not kept */
                         if (names && !*s) s = it->path;   /* a disk without a label */
-                        if (n) big[n++] = '\n';
+                        if (!first) big[n++] = '\n';
+                        first = FALSE;
                         strcpy(big + n, s); n += strlen(s);
                     }
                 out = big;
@@ -257,7 +288,7 @@ BOOL rexx_handle(struct Dock *d, struct MsgPort *port)
             struct Item *before, *it;
             BPTR lock = 0;
             if (!(ra = rargs(cmd, "PATH/A,AT/K/N,AFTER/K,BEFORE/K,LABEL/K", a, 5)) ||
-                !(lock = Lock((STRPTR)a[0], ACCESS_READ)) ||                    /* no such file */
+                !*(STRPTR)a[0] || !(lock = Lock((STRPTR)a[0], ACCESS_READ)) ||   /* no such file ("" would be the */
                 (!d->hidden && d->nkept + d->pushed + 1 > d->fit)) rc = RC_ERROR;            /* the dock is full */
             else if (changing(d), !where(d, (LONG *)a[1], (STRPTR)a[2], (STRPTR)a[3], &before)) {
                 rc = RC_ERROR;

@@ -208,6 +208,18 @@
 - Auto-hide: the shown dock stays out while the pointer is within an
   icon's size of it on every side (before: only along the dock; away
   from the edge, a few pixels).
+- Audit of the 1.2 changes (three reviews, host fuzzers): commands to
+  other docks are sent without waiting (the dock never froze on a slow
+  dock, and a late answer can no longer reach a freed port); a long
+  press on an icon whose disk is out no longer brings up "please insert
+  volume"; a dock yields to another only at start-up and LOAD, not at
+  every settings change; two docks starting together see each other
+  after their icons load; Save as... onto the dock's own file no longer
+  writes a stray icon; the middle-button chord ignores the dock's own
+  wake-up events, swallows the chord key's repeats and release, and
+  heals if a release was missed; a hotkey description that could never
+  fire (a mouse button or timer class) is refused; ARexx ADD "" is
+  refused; a settings value too long to load again is refused when set.
 - The Other docks list in an open settings window follows docks that
   start or quit (checked every 2 s).
 - The SimpleDock icon on the dock: a click opens the settings window, a

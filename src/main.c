@@ -76,7 +76,7 @@ char *sd_strdup(CONST_STRPTR s)
 BOOL sd_prog_path(char *out, LONG size)
 {
     struct Process *me = (struct Process *)FindTask(NULL);
-    char nm[108];
+    char nm[256];
     out[0] = 0;
     if (me->pr_HomeDir && GetProgramName(nm, sizeof(nm)) && NameFromLock(me->pr_HomeDir, out, size) &&
         AddPart(out, FilePart(nm), size)) return TRUE;
@@ -185,7 +185,7 @@ int main(void)
     int rc = RETURN_FAIL;
     BOOL run = TRUE;
     CONST_STRPTR missing;
-    ULONG ptrsig = 0, timersig = 0, menusig = 0, animsig = 0, runsig = 0;
+    ULONG ptrsig = 0, timersig = 0, menusig = 0, animsig = 0, runsig = 0, outsig = 0;
 
     if (!(SysBase->AttnFlags & AFF_68020)) {     /* (built for the 68020: a 68000/010 would crash) */
         if (!WBenchMsg) PutStr(SD_NAME " needs a 68020 or better.\n");
@@ -210,7 +210,8 @@ int main(void)
     o.config = d->cfgbuf;
     crash_context(d, &rexx, &rd);              /* (CRASHLOG: what a crash must close) */
     if (!(rexx = rexx_open(d))) {                /* SIMPLEDOCK taken and another file given (a Shell start: */
-        if (Stricmp((STRPTR)o.config, (STRPTR)SD_CONFIG) && strlen(FilePart(o.config)) < sizeof(d->portname)) {
+        if (Stricmp((STRPTR)o.config, (STRPTR)SD_CONFIG) && Stricmp(FilePart(o.config), d->portname) &&
+            strlen(FilePart(o.config)) < sizeof(d->portname)) {
             strcpy(d->portname, FilePart(o.config));   /*  CONFIG=file): a second dock, its port named after the file */
             rexx = rexx_open(d);
         }
@@ -228,6 +229,8 @@ int main(void)
     timersig = ah_open(d);                     /* timers first: the dock's drawing is timed (debug) */
     animsig = an_open();
     runsig = run_open();
+    outsig = rexx_outbox_sig();
+    d->yieldok = TRUE;                         /* (the first open may move out of another dock's way) */
     if (!dock_open(d)) goto out;
     ptrsig = in_open(d);
     am_build(d);
@@ -241,7 +244,7 @@ int main(void)
         if (d->quitreq) break;               /* (Quit from the dock's own icon: asked and confirmed) */
         ULONG wsig = d->win ? 1UL << d->win->UserPort->mp_SigBit : 0;
         ULONG psig = am_prefs_sig();             /* the settings window, while open */
-        ULONG sigs = Wait(wsig | 1UL << rexx->mp_SigBit | ptrsig | timersig | menusig | animsig | runsig | psig |
+        ULONG sigs = Wait(wsig | 1UL << rexx->mp_SigBit | outsig | ptrsig | timersig | menusig | animsig | runsig | psig |
                           SIGBREAKF_CTRL_C);
         if (sigs & SIGBREAKF_CTRL_C) { TRACE("quit: ctrl-c"); run = FALSE; }
         if (d->win && (sigs & wsig)) {
@@ -253,9 +256,10 @@ int main(void)
             }
         }
         if (sigs & 1UL << rexx->mp_SigBit && !rexx_handle(d, rexx)) run = FALSE;
+        if (sigs & outsig) rexx_reap();          /* answers to commands sent to other docks */
         if (sigs & ptrsig) {
             if (d->raisecheck) { d->raisecheck = FALSE; dock_settle(d); }
-            am_build(d);                         /* (a dock after the first: a menu while no main dock runs) */
+            am_docks_refresh(d);                 /* (the Other docks list follows, also with RUNNING=0) */
             if (d->hotkey) {
                 d->hotkey = FALSE;
                 ah_hotkey(d);

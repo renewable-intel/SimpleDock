@@ -78,12 +78,16 @@ void am_build(struct Dock *d)
 {
     ULONG title = 0;
     struct AppMenuItem *t;
-    BOOL tools = WorkbenchBase->lib_Version < 45 || d->o->toolsmenu;
+    BOOL tools;
 
-    if (!amport) return;
-    if (Stricmp((STRPTR)d->portname, (STRPTR)SD_PORTNAME) && FindPort((STRPTR)SD_PORTNAME)) {   /* a dock after the first, */
-        if (nami) remove_all();                  /* while a main dock runs: no menu (the main dock's Other docks */
-        return;                                  /* list reaches it); the menu comes when the main dock is gone */
+    if (!amport || !WorkbenchBase) return;
+    tools = WorkbenchBase->lib_Version < 45 || d->o->toolsmenu;
+    if (Stricmp((STRPTR)d->portname, (STRPTR)SD_PORTNAME)) {   /* a dock after the first, while a main dock runs: */
+        BOOL main;                               /* no menu (the main dock's Other docks list reaches it); */
+        Forbid();                                /* the menu comes when the main dock is gone */
+        main = FindPort((STRPTR)SD_PORTNAME) != NULL;
+        Permit();
+        if (main) { if (nami) remove_all(); return; }
     }
     if (nami) { if (tools == am_tools) return; remove_all(); }
     am_tools = tools;
@@ -97,7 +101,12 @@ void am_build(struct Dock *d)
         return;
     }
     t = AddAppMenuItem(0, 0, "Dock", amport, WBAPPMENUA_GetTitleKey, &title, TAG_END);
-    if (!t) { sd_verbose(d, "Cannot add the Dock menu (is Workbench running?)"); return; }
+    if (!t) {                                    /* (tried again every 2 s from look(); said once) */
+        static BOOL told;
+        if (!told) sd_verbose(d, "Cannot add the Dock menu (is Workbench running?)");
+        told = TRUE;
+        return;
+    }
     ami[nami++] = t;
     add("Show / Hide Dock", AM_TOGGLE, title);   /* (as the hotkey) */
     add("Settings...", AM_SETTINGS, title);      /* (Load... / Save as...: in the settings window) */
@@ -1551,10 +1560,7 @@ void am_prefs_handle(struct Dock *d)
                 if (dsel >= 0 && dsel < ndocks) {
                     LONG k;
                     if (!rexx_send(dnode[dsel].ln_Name, id == G_BDSET ? "SETTINGS" : "QUIT")) sd_beep(d);
-                    if (id == G_BDQUIT) {
-                        Delay(10);               /* (its window is gone by now) */
-                        for (k = 0; k < NADV; k++) if (ag[k] && adv[k].kind == K_DOCKS) docks_show(d, ag[k]);
-                    }
+                    (void)k;                     /* (the list follows the dock's end: am_docks_refresh) */
                 }
             }
             else if (id >= G_ADV && id < G_ADV + NADV) adv_apply(d, id - G_ADV, code);

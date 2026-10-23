@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.2"
-#define SD_BUILD   " T95"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T96"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "22.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -117,6 +117,8 @@ struct Dock {
     char              posbuf[4];      /* POS changed in the settings window, or by yielding to another dock */
     UBYTE             yield;          /* edges tried while opening where another dock is (dock.c) */
     BOOL              yielded;        /* moved out of another dock's way: saved once open */
+    BOOL              yieldok;        /* the next open may yield (start-up and LOAD; not a reopen) */
+    STRPTR            pos0;           /* o->pos as it was before yielding (every edge taken: back to it) */
     BOOL              quitreq;        /* Quit chosen on the dock's own icon (running.c): the main loop ends */
     char              keybuf[64];     /* HOTKEY changed in the settings window */
     char              custbuf[8];     /* CUSTOMTINT (and TINT) from the colour picker: "#rrggbb" */
@@ -256,8 +258,11 @@ void ah_show(struct Dock *d, BOOL on);                      /* held out (the set
 BOOL in_set_hotkey(CONST_STRPTR desc);                      /* commodities description; FALSE: not valid */
 LONG dock_other_names(struct Dock *d, STRPTR *names, char *buf, LONG size, LONG max);   /* the other docks' ports */
 BOOL dock_marked(struct Window *w);                         /* a dock window (any dock's) */
+LONG dock_tasks(struct Task **out, LONG max);               /* the tasks of every dock window, all screens (caller Forbids) */
 BOOL run_is_self(struct Item *it);                          /* the item is this program */
-BOOL rexx_send(CONST_STRPTR port, CONST_STRPTR cmd);          /* one command to another dock */
+BOOL rexx_send(CONST_STRPTR port, CONST_STRPTR cmd);          /* one command to another dock (no wait) */
+ULONG rexx_outbox_sig(void);                                 /* its replies: signal for the main loop */
+void rexx_reap(void);                                         /* free the replies that came back */
 BOOL in_hotkey_shared(void);                                /* the hotkey reaches every dock by itself */
 BOOL in_hotkey_valid(CONST_STRPTR desc);                    /* the same check, the hotkey in use unchanged */
 #define NKEYS       3                 /* the other keys (MINKEY, MINALLKEY, AHKEY), in that order */

@@ -262,6 +262,18 @@ void config_created(struct Dock *d)
 
 /* Settings and icons into 'path' (NULL: the dock's own config file), via a
    temporary file. A dock made from a drawer keeps its settings in the icon. */
+/* The same file under two names (ENVARC: vs SYS:Prefs/Env-Archive)? */
+static BOOL same_file(CONST_STRPTR a, CONST_STRPTR b)
+{
+    BPTR la, lb;
+    BOOL same = FALSE;
+    if ((la = Lock((STRPTR)a, SHARED_LOCK))) {
+        if ((lb = Lock((STRPTR)b, SHARED_LOCK))) { same = SameLock(la, lb) == LOCK_SAME; UnLock(lb); }
+        UnLock(la);
+    }
+    return same;
+}
+
 /* Save as...: the new file gets a project icon whose default tool is this
    program, so a double-click starts a dock from it (another dock, with its
    own settings). An icon that is already there is left alone. */
@@ -335,7 +347,7 @@ BOOL config_save(struct Dock *d, CONST_STRPTR path)
         DeleteFile(tmp);
         sd_msg(d, "Cannot save %s", (LONG)file);
     }
-    if (ok && path && Stricmp((STRPTR)path, (STRPTR)d->o->config)) save_icon(d, path);   /* (a copy: its icon) */
+    if (ok && path && !same_file(path, d->o->config)) save_icon(d, path);   /* (a copy: its icon) */
     return ok;
 }
 
@@ -359,6 +371,7 @@ BOOL config_reload(struct Dock *d, CONST_STRPTR path)
         config_free(d);
         if (path && !config_load(d, NULL)) config_free(d);   /* still a dock: empty, to drop on */
     }
+    d->yieldok = TRUE;                           /* (a loaded position may be another dock's place) */
     if (dock_open(d)) { ah_start(d); config_created(d); }
     return ok;
 }

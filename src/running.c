@@ -505,14 +505,7 @@ static LONG collect(BOOL titles)
     Forbid();                                    /* (the windows' tasks can't end meanwhile) */
     held_ibase = TRUE;                           /* (crash recovery: undone there) */
     snap_tasks();                                /* the tasks there now */
-    {                                            /* the other docks' tasks: not programs to show */
-        struct Screen *ds;
-        struct Window *dw;
-        ndtask = 0;
-        for (ds = IntuitionBase->FirstScreen; ds && ndtask < MAXDTASK; ds = ds->NextScreen)
-            for (dw = ds->FirstWindow; dw && ndtask < MAXDTASK; dw = dw->NextWindow)
-                if (dock_marked(dw) && dw->UserPort->mp_SigTask) dtask[ndtask++] = (struct Task *)dw->UserPort->mp_SigTask;
-    }
+    ndtask = dock_tasks(dtask, MAXDTASK);        /* the other docks' tasks: not programs to show */
     if (!wb || tasksmore || !alive(wb) || !wb->tc_Node.ln_Name || strcmp(wb->tc_Node.ln_Name, "Workbench"))
         wb = FindTask("Workbench");
     for (s = IntuitionBase->FirstScreen, ns = 0; s && n < MAXWIN && ns < 32; s = s->NextScreen, ns++) {
@@ -677,9 +670,15 @@ BOOL run_is_self(struct Item *it)
     BOOL same = FALSE;
     if (!known) { known = TRUE; sd_prog_path(mine, sizeof(mine)); }
     if (!mine[0] || it->temp || it->nofile || !it->dobj || it->dobj->do_Type != WBTOOL) return FALSE;
-    if ((lk = Lock(it->path, SHARED_LOCK))) {
-        if (NameFromLock(lk, path, sizeof(path))) same = !Stricmp((STRPTR)path, (STRPTR)mine);
-        UnLock(lk);
+    {
+        struct Process *me = (struct Process *)FindTask(NULL);
+        APTR wp = me->pr_WindowPtr;
+        me->pr_WindowPtr = (APTR)-1;             /* (a disk not inserted: no "please insert" requester) */
+        if ((lk = Lock(it->path, SHARED_LOCK))) {
+            if (NameFromLock(lk, path, sizeof(path))) same = !Stricmp((STRPTR)path, (STRPTR)mine);
+            UnLock(lk);
+        }
+        me->pr_WindowPtr = wp;
     }
     return same;
 }

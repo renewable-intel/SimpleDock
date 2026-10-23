@@ -196,8 +196,7 @@ static LONG other_docks(struct Dock *d, struct DockRect *r, LONG max)
         ULONG ud = (ULONG)w->UserData;
         WORD full = (WORD)(ud & 0xFFFF);
         UBYTE edge = (ud >> 16) & 0xFF;
-        if (w == d->win || (ud >> 24) != 0x5D || !(w->Flags & WFLG_BORDERLESS) || full <= 0 ||
-            (edge != 'T' && edge != 'B' && edge != 'L' && edge != 'R')) continue;
+        if (w == d->win || !dock_marked(w)) continue;
         r[n].x0 = w->LeftEdge; r[n].x1 = w->LeftEdge + w->Width - 1;
         r[n].y0 = w->TopEdge;  r[n].y1 = w->TopEdge + w->Height - 1;
         switch (edge) {
@@ -212,11 +211,28 @@ static LONG other_docks(struct Dock *d, struct DockRect *r, LONG max)
     return n;
 }
 
-/* Is w a dock window (this dock's or another's)? Only its fields are read. */
+/* Is w a dock window (this dock's or another's)? Only its fields are read;
+   the mark is checked whole (a foreign UserData that happens to start with
+   0x5D also needs an edge letter and a sane extent). */
 BOOL dock_marked(struct Window *w)
 {
     ULONG ud = (ULONG)w->UserData;
-    return (ud >> 24) == 0x5D && (w->Flags & WFLG_BORDERLESS) && w->UserPort != NULL;
+    UBYTE edge = (ud >> 16) & 0xFF;
+    WORD full = (WORD)(ud & 0xFFFF);
+    return (ud >> 24) == 0x5D && (w->Flags & WFLG_BORDERLESS) && w->UserPort != NULL &&
+           (edge == 'T' || edge == 'B' || edge == 'L' || edge == 'R') && full > 0 && full <= 4096;
+}
+
+/* The tasks of every dock window on every screen (the caller holds Forbid). */
+LONG dock_tasks(struct Task **out, LONG max)
+{
+    struct Screen *s;
+    struct Window *w;
+    LONG n = 0;
+    for (s = IntuitionBase->FirstScreen; s && n < max; s = s->NextScreen)
+        for (w = s->FirstWindow; w && n < max; w = w->NextWindow)
+            if (dock_marked(w) && w->UserPort->mp_SigTask) out[n++] = (struct Task *)w->UserPort->mp_SigTask;
+    return n;
 }
 
 /* The other docks on this screen by name: the public port of the task that
@@ -347,15 +363,15 @@ static void layout(struct Dock *d)
     place_on_edge(d, sw, sh);
     if (!d->win && d->yield < 4) {               /* opening where another dock is: beside it, else a free edge */
         struct DockRect r[8];
-        LONG n = other_docks(d, r, 8);
-        if (n && !dock_clear(d, r, n)) {
+        LONG nr = other_docks(d, r, 8);
+        if (nr && !dock_clear(d, r, nr)) {
             static const char al[2][2] = { { 'L', 'R' }, { 'T', 'B' } }, edges[] = "BTRL";
             char was = d->align;
             LONG k;
             for (k = 0; k < 2; k++) {            /* the same edge, at its start or end */
                 d->align = al[horiz ? 0 : 1][k];
                 place_on_edge(d, sw, sh);
-                if (dock_clear(d, r, n)) break;
+                if (dock_clear(d, r, nr)) break;
             }
             if (k < 2) {
                 d->posbuf[0] = d->edge; d->posbuf[1] = d->align; d->posbuf[2] = 0;
@@ -371,8 +387,10 @@ static void layout(struct Dock *d)
                     layout(d);
                     return;
                 }
-                place_on_edge(d, sw, sh);        /* every edge taken: where it was */
+                d->o->pos = d->pos0;             /* every edge taken: back where it was (laid out once more) */
                 d->yielded = FALSE;
+                layout(d);
+                return;
             }
         }
     }
@@ -566,9 +584,17 @@ BOOL dock_open(struct Dock *d)
     d->opacity = d->o->transparent ? d->o->opacity : 100;
     pens(d, TRUE);                             /* before the icons: scale.c uses them */
     TRACE("layout");
-    d->yield = 0;
+    d->yield = d->yieldok ? 0 : 4;             /* yielding to another dock: at start-up and LOAD, not at a reopen */
+    d->yieldok = FALSE;
+    d->yielded = FALSE;
+    d->pos0 = d->o->pos;
     scale_why = 0;
     layout(d);
+    if (d->yield < 4) {                        /* (another dock may have opened while the icons loaded) */
+        struct DockRect r[8];
+        LONG nr = other_docks(d, r, 8);
+        if (nr && !dock_clear(d, r, nr)) layout(d);
+    }
     if (scale_why) sd_verbose(d, "Some icons are shown at their own size (reason %ld: 1 pens, 2 Picasso96, "
                                  "8/16 bitmap, 32 memory)", scale_why);
     d->vis = d->full;

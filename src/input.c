@@ -86,7 +86,7 @@ static UWORD mb_parse(CONST_STRPTR desc, IX *keyix, BOOL *haskey)
         if (!Strnicmp((STRPTR)desc + i, (STRPTR)"mbutton", 7) && (i == 0 || desc[i - 1] == ' ') &&
             (i + 7 == n || desc[i + 7] == ' ')) break;
     }
-    if (i + 7 > n) return 0;
+    if (i + 7 > n || n - 7 > (LONG)sizeof(rest) - 1) return 0;   /* (too long for rest[]: not this form) */
     for (m = 0; m < n; m++) {
         if (m == i) { m += 6; continue; }
         if (k < (LONG)sizeof(rest) - 1) rest[k++] = desc[m];
@@ -109,28 +109,32 @@ static BOOL ix_parse(CONST_STRPTR desc, IX *ix)
     if (!CxBase || !desc || !*desc) return FALSE;
     ix->ix_Version = IX_VERSION;
     if (ParseIX((STRPTR)desc, ix) != 0) return FALSE;
-    if (ix->ix_Class == IECLASS_RAWKEY && (ix->ix_Code == 0x36 || ix->ix_Code == 0x37) &&
-        (ix->ix_Qualifier & IEQUALIFIER_LCOMMAND)) return FALSE;
+    if (ix->ix_Class != IECLASS_RAWKEY) return FALSE;   /* (only keys are matched: "rbutton", "timer"... would never fire) */
+    if ((ix->ix_Code == 0x36 || ix->ix_Code == 0x37) && (ix->ix_Qualifier & IEQUALIFIER_LCOMMAND)) return FALSE;
     return TRUE;
 }
 
-static UWORD in_mbneed;                 /* the hotkey is the middle button: 0x8000 + its modifier groups */
+static volatile UWORD in_mbneed;        /* the hotkey is the middle button: 0x8000 + its modifier groups */
 static IX in_mbix;                      /* ... with this key pressed while it is held (in_mbkey) */
-static BOOL in_mbkey;
-static BOOL in_mbheld, in_mbused;       /* the button is down; a key was pressed meanwhile */
+static volatile BOOL in_mbkey;
+static volatile BOOL in_mbheld, in_mbused;   /* the button is down; a key was pressed meanwhile */
 static UWORD in_mbqual;                 /* the modifier groups held when it went down */
+static UWORD in_mbcode = 0xFFFF;        /* the chord key while down: its repeats and release are swallowed */
 
 /* The hotkey from its description ("ctrl alt d", "ctrl alt shift", or
    "mbutton" / "ctrl mbutton"); matched in in_watch. */
 BOOL in_set_hotkey(CONST_STRPTR desc)
 {
+    BOOL ok;
+    Forbid();                                    /* (the handler runs as a task: it sees one state or the other) */
     in_ixok = FALSE;
     in_taparmed = FALSE;
-    in_mbneed = 0; in_mbheld = FALSE;
-    if ((in_tapneed = tap_parse(desc))) return TRUE;
-    if ((in_mbneed = mb_parse(desc, &in_mbix, &in_mbkey))) return TRUE;
-    in_ixok = ix_parse(desc, &in_ix);
-    return in_ixok;
+    in_mbneed = 0; in_mbheld = FALSE; in_mbcode = 0xFFFF;
+    if ((in_tapneed = tap_parse(desc))) ok = TRUE;
+    else if ((in_mbneed = mb_parse(desc, &in_mbix, (BOOL *)&in_mbkey))) ok = TRUE;
+    else ok = in_ixok = ix_parse(desc, &in_ix);
+    Permit();
+    return ok;
 }
 
 /* The other keys (minimise, minimise all, auto-hide on/off): ordinary
@@ -188,6 +192,14 @@ volatile WORD in_on;                    /* read by inhandler.s */
 static struct Dock *in_dock;
 static struct Task *in_task;
 static ULONG in_sigmask;
+
+/* The hotkey fired: the dock task does the rest. */
+static void hk_fire(void)
+{
+    in_dock->hotkey = TRUE;
+    hk_stat[HK_FIRED]++;
+    Signal(in_task, in_sigmask);
+}
 static struct MsgPort *in_port;
 static struct IOStdReq *in_io;
 static struct Interrupt in_int;
@@ -308,7 +320,7 @@ void in_watch(struct InputEvent *ev)
                         Signal(in_task, in_sigmask);
                     }
                 }
-            } else if (ev->ie_Class == IECLASS_RAWMOUSE && !(ev->ie_Code & IECODE_UP_PREFIX) &&
+            } else if ((ev->ie_Class == IECLASS_RAWMOUSE || ev->ie_Class == IECLASS_NULL) && !(ev->ie_Code & IECODE_UP_PREFIX) &&
                        (ev->ie_Code == IECODE_LBUTTON || ev->ie_Code == IECODE_RBUTTON || ev->ie_Code == IECODE_MBUTTON)) {
                 if (in_taparmed) hk_stat[HK_BTNOFF]++;   /* a button pressed meanwhile: no tap (movement */
                 in_taparmed = FALSE;                 /* is fine: its code is NOBUTTON, 0xFF - never */
@@ -319,6 +331,43 @@ void in_watch(struct InputEvent *ev)
         if (ev->ie_Class == IECLASS_RAWKEY && in_lmb && !(ev->ie_Qualifier & IEQUALIFIER_LEFTBUTTON)) {
             in_lmb = FALSE;                      /* a button release missed (the key's qualifier says so): */
             hk_stat[HK_LMBFIX]++;                /* else the hotkey (and auto-hide) would wait for a click */
+        }
+        if (in_mbneed && in_dock && in_task) {   /* the middle-button chord (another dock may have nulled */
+            UWORD code = ev->ie_Code;            /* the event already: its code still says what it was) */
+            BOOL raw = ev->ie_Class == IECLASS_RAWMOUSE || ev->ie_Class == IECLASS_NULL;
+            BOOL key = ev->ie_Class == IECLASS_RAWKEY || ev->ie_Class == IECLASS_NULL;
+            if (in_mbheld && ev->ie_Class == IECLASS_RAWMOUSE && code == IECODE_NOBUTTON &&
+                !(ev->ie_Qualifier & IEQUALIFIER_MIDBUTTON)) in_mbheld = FALSE;   /* (a release missed: cleared) */
+            if (in_mbcode != 0xFFFF && ev->ie_Class == IECLASS_RAWKEY && (code & ~IECODE_UP_PREFIX) == in_mbcode) {
+                if (code & IECODE_UP_PREFIX) in_mbcode = 0xFFFF;   /* the chord key's repeats and release: swallowed too */
+                ev->ie_Class = IECLASS_NULL;
+                continue;
+            }
+            if (raw && code == IECODE_MBUTTON) { /* down: held from now; what follows decides */
+                in_mbheld = TRUE; in_mbused = FALSE;
+                in_mbqual = tap_groups(ev->ie_Qualifier);
+                ev->ie_Class = IECLASS_NULL;
+                continue;
+            }
+            if (raw && code == (IECODE_MBUTTON | IECODE_UP_PREFIX) && in_mbheld) {   /* up: alone = the hotkey */
+                in_mbheld = FALSE;
+                if (!in_mbused && !in_mbkey && in_mbqual == (in_mbneed & 0x1F) && tap_groups(ev->ie_Qualifier) == in_mbqual)
+                    hk_fire();
+                ev->ie_Class = IECLASS_NULL;
+                continue;
+            }
+            if (in_mbheld && key && (code & ~IECODE_UP_PREFIX) < 0x60) {   /* a key while held: this dock's, if it */
+                if (!(code & IECODE_UP_PREFIX)) {                         /* names it; every key is kept from the */
+                    struct InputEvent e = *ev;                            /* active window meanwhile */
+                    e.ie_Class = IECLASS_RAWKEY;
+                    e.ie_Qualifier &= ~(IEQUALIFIER_MIDBUTTON | IEQUALIFIER_LEFTBUTTON | IEQUALIFIER_RBUTTON);
+                    in_mbused = TRUE;
+                    if (ev->ie_Class == IECLASS_RAWKEY) in_mbcode = code;   /* (its repeats and release: above) */
+                    if (in_mbkey && !(ev->ie_Qualifier & IEQUALIFIER_REPEAT) && MatchIX(&e, &in_mbix)) hk_fire();
+                }
+                ev->ie_Class = IECLASS_NULL;
+                continue;
+            }
         }
         if (ev->ie_Class == IECLASS_RAWKEY && in_dock && in_task) {   /* Del over a running icon: it closes */
             if (ev->ie_Code == (0x46 | IECODE_UP_PREFIX) && in_delup) {
@@ -374,42 +423,6 @@ void in_watch(struct InputEvent *ev)
                 }
                 in_kcode = ev->ie_Code;
                 ev->ie_Class = IECLASS_NULL;     /* nobody else gets the key */
-                continue;
-            }
-        }
-        if (in_mbneed && in_dock && in_task) {   /* the middle-button chord (another dock may have nulled */
-            UWORD code = ev->ie_Code;            /* the event already: its code still says what it was) */
-            BOOL raw = ev->ie_Class == IECLASS_RAWMOUSE || ev->ie_Class == IECLASS_NULL;
-            if (raw && code == IECODE_MBUTTON) { /* down: held from now; what follows decides */
-                in_mbheld = TRUE; in_mbused = FALSE;
-                in_mbqual = tap_groups(ev->ie_Qualifier);
-                ev->ie_Class = IECLASS_NULL;
-                continue;
-            }
-            if (raw && code == (IECODE_MBUTTON | IECODE_UP_PREFIX) && in_mbheld) {   /* up: alone = the hotkey */
-                in_mbheld = FALSE;
-                if (!in_mbused && !in_mbkey && in_mbqual == (in_mbneed & 0x1F)) {   /* (a key form: the chord only) */
-                    in_dock->hotkey = TRUE;
-                    hk_stat[HK_FIRED]++;
-                    Signal(in_task, in_sigmask);
-                }
-                ev->ie_Class = IECLASS_NULL;
-                continue;
-            }
-            if (in_mbheld && (ev->ie_Class == IECLASS_RAWKEY || ev->ie_Class == IECLASS_NULL) && code < 0x60) {
-                struct InputEvent e = *ev;       /* a key while held: this dock's, if it names it; every key */
-                e.ie_Class = IECLASS_RAWKEY;     /* is kept from the active window while the button is held */
-                in_mbused = TRUE;
-                if (in_mbkey && !(ev->ie_Qualifier & IEQUALIFIER_REPEAT) && MatchIX(&e, &in_mbix)) {
-                    in_dock->hotkey = TRUE;
-                    hk_stat[HK_FIRED]++;
-                    Signal(in_task, in_sigmask);
-                }
-                ev->ie_Class = IECLASS_NULL;
-                continue;
-            }
-            if (in_mbheld && ev->ie_Class == IECLASS_RAWKEY && (code & ~IECODE_UP_PREFIX) < 0x60) {
-                ev->ie_Class = IECLASS_NULL;     /* (its release too) */
                 continue;
             }
         }
@@ -538,6 +551,7 @@ void in_poke(void)
     if (!in_io) return;
     ie.ie_NextEvent = NULL;
     ie.ie_Class = IECLASS_NULL;
+    ie.ie_Code = IECODE_NOBUTTON;                /* (no key or button: the chord code reads nulled events' codes) */
     in_io->io_Command = IND_WRITEEVENT;
     in_io->io_Data = &ie;
     in_io->io_Length = sizeof(ie);

@@ -166,6 +166,9 @@ BOOL opts_check(STRPTR *lines)
 {
     LONG a[A_COUNT], keep = ah_disabled;
     struct RDArgs *rd;
+    STRPTR *l;
+    for (l = lines; l && *l; l++)                /* a line the next load would skip as too long (config.c */
+        if (strlen(*l) > 510) return FALSE;      /* reads 511 + the newline): refused now, not lost later */
     memset(a, 0, sizeof(a));
     rd = parse_list(lines, a);
     ah_disabled = keep;
