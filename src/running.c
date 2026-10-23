@@ -54,7 +54,7 @@ extern struct Window *volatile in_prevwin;
 #define FAST_N    6                     /* ... this many times */
 #define RETRY_US  300000                /* a look put off (sliding, button held) */
 #define MAXWIN    64                    /* windows looked at */
-#define MAXLIST   12                    /* windows in the held list */
+#define MAXLIST   32                    /* windows in the held list (and no more than fit on the screen) */
 #define NAMELEN   32
 #define TITLELEN  48
 #define PADX      8
