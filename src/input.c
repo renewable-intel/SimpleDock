@@ -120,7 +120,6 @@ static volatile BOOL in_mbkey;
 static volatile BOOL in_mbheld, in_mbused;   /* the button is down; a key was pressed meanwhile */
 static UWORD in_mbqual;                 /* the modifier groups held when it went down */
 static UWORD in_mbcode = 0xFFFF;        /* the chord key while down: its repeats and release are swallowed */
-static UWORD in_mbticks;                /* input.device timer ticks (about 10 a second) since it went down */
 static BOOL in_mbqualok;                /* this system marks events with IEQUALIFIER_MIDBUTTON while it is held */
 #define SD_NULLED 0x5D                  /* ie_SubClass of an event a dock took (other docks follow the chord by it) */
 
@@ -341,12 +340,13 @@ void in_watch(struct InputEvent *ev)
             BOOL ours = ev->ie_Class == IECLASS_NULL && ev->ie_SubClass == SD_NULLED;   /* only a dock's mark counts) */
             BOOL raw = ev->ie_Class == IECLASS_RAWMOUSE || ours;
             BOOL key = ev->ie_Class == IECLASS_RAWKEY || ours;
-            if (in_mbheld) {                     /* a release missed: not held any more - after ~4 s of timer */
-                if (ev->ie_Qualifier & IEQUALIFIER_MIDBUTTON) in_mbqualok = TRUE;   /* ticks (no chord is that */
-                if ((ev->ie_Class == IECLASS_TIMER && ++in_mbticks > 40) ||          /* long; drivers may not */
-                    (in_mbqualok && ev->ie_Class == IECLASS_RAWMOUSE && code == IECODE_NOBUTTON &&   /* stamp */
-                     !(ev->ie_Qualifier & IEQUALIFIER_MIDBUTTON))) in_mbheld = FALSE;   /* events), or by the */
-            }                                    /* qualifier where this system is seen to keep it */
+            if (in_mbheld) {                     /* a release missed: not held any more once the left or right */
+                if (ev->ie_Qualifier & IEQUALIFIER_MIDBUTTON) in_mbqualok = TRUE;   /* button is pressed (no */
+                if ((ev->ie_Class == IECLASS_RAWMOUSE && (code == IECODE_LBUTTON || code == IECODE_RBUTTON)) ||
+                    (in_mbqualok && ev->ie_Class == IECLASS_RAWMOUSE && code == IECODE_NOBUTTON &&   /* chord */
+                     !(ev->ie_Qualifier & IEQUALIFIER_MIDBUTTON))) in_mbheld = FALSE;   /* uses them), or by the */
+            }                                    /* qualifier where this system is seen to keep it (time and */
+                                                 /* movement say nothing: a chord may be held as long as wanted) */
             if (in_mbcode != 0xFFFF && ev->ie_Class == IECLASS_RAWKEY && (code & ~IECODE_UP_PREFIX) == in_mbcode) {
                 if (code & IECODE_UP_PREFIX) in_mbcode = 0xFFFF;   /* the chord key's repeats and release: swallowed too */
                 ev->ie_Class = IECLASS_NULL; ev->ie_SubClass = SD_NULLED;
@@ -355,7 +355,6 @@ void in_watch(struct InputEvent *ev)
             if (raw && code == IECODE_MBUTTON) { /* down: held from now; what follows decides */
                 in_mbheld = TRUE; in_mbused = FALSE;
                 in_mbqual = tap_groups(ev->ie_Qualifier);
-                in_mbticks = 0;
                 ev->ie_Class = IECLASS_NULL; ev->ie_SubClass = SD_NULLED;
                 continue;
             }
