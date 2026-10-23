@@ -44,7 +44,7 @@ icon and as settings lines in the config file (section 3).
 | RADIUS/K/N | corner radius, 0-32 (default 12) |
 | DELAY/K/N | wait n/50 s before opening |
 | QUIET/S, VERBOSE/S | fewer / more messages |
-| HOTKEY/K | key to bring the dock out: a commodities description, or modifier names only (held together, then let go with nothing else between; default `ctrl alt shift`) |
+| HOTKEY/K | key to bring the dock out: a commodities description, or modifier names only (held together, then let go with nothing else between; default `ctrl alt shift`), or `mbutton` / modifiers then `mbutton` (the middle mouse button pressed with exactly those modifiers; the press and its release are swallowed) |
 | MINKEY/K, MINALLKEY/K, AHKEY/K | the same form: minimise the active window (default `ctrl alt m`), minimise all - by what is active: a drawer, all drawer windows; a program's window, all its windows; nothing, every window; nothing showing, bring them back (default `ctrl alt shift m`), auto-hide on/off (default `ctrl alt h`); `none` switches one off |
 | SHELLASK/S | icons set to start from a Shell show the "Execute a file" requester first (DONOTPROMPT icons start at once) |
 | SHELLDROP/K/N | icons dropped into a Shell window (or onto the dock's Shell icon) have their paths typed at the cursor: 1 on (default), 0 off |

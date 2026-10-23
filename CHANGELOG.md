@@ -6,6 +6,9 @@
   bar, as before) or In Tools menu (the four SimpleDock items under Tools,
   as on 3.1.4), for people whose ARexx scripts manage Workbench's menus
   and are upset by an extra title (TOOLSMENU).
+- The hotkey can be the middle mouse button: HOTKEY=mbutton, or with
+  modifiers (ctrl mbutton, alt shift mbutton); the press is not passed on.
+  For systems where another program (Directory Opus) has Ctrl+Alt+Shift.
 
 ## 1.1 (21.10.2026)
 

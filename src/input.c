@@ -66,6 +66,27 @@ static UWORD tap_parse(CONST_STRPTR desc)
     return g;
 }
 
+/* "mbutton", or modifier names then "mbutton" ("ctrl mbutton"): the middle
+   mouse button, pressed with exactly those modifiers held. Returns 0x8000 +
+   the tap groups required (0: not this form). */
+static UWORD mb_parse(CONST_STRPTR desc)
+{
+    char mods[48];
+    LONG n, m;
+    UWORD g = 0;
+    if (!desc) return 0;
+    n = strlen((char *)desc);
+    while (n && desc[n - 1] == ' ') n--;
+    if (n < 7 || Strnicmp((STRPTR)desc + n - 7, (STRPTR)"mbutton", 7) || (n > 7 && desc[n - 8] != ' ')) return 0;
+    for (m = n - 7; m && desc[m - 1] == ' '; m--) ;
+    if (m >= (LONG)sizeof(mods)) return 0;
+    if (m) {
+        memcpy(mods, desc, m); mods[m] = 0;
+        if (!(g = tap_parse(mods))) return 0;    /* (something that is not a modifier) */
+    }
+    return 0x8000 | g;
+}
+
 /* A commodities key description into *ix. FALSE: not one (or no commodities). */
 static BOOL ix_parse(CONST_STRPTR desc, IX *ix)
 {
@@ -75,13 +96,18 @@ static BOOL ix_parse(CONST_STRPTR desc, IX *ix)
     return ParseIX((STRPTR)desc, ix) == 0;
 }
 
-/* The hotkey from its description ("ctrl alt d", or "ctrl alt shift");
-   matched in in_watch. */
+static UWORD in_mbneed;                 /* the hotkey is the middle button: 0x8000 + its modifier groups */
+static BOOL in_mbdown;                  /* ... and it is down: its release is swallowed too */
+
+/* The hotkey from its description ("ctrl alt d", "ctrl alt shift", or
+   "mbutton" / "ctrl mbutton"); matched in in_watch. */
 BOOL in_set_hotkey(CONST_STRPTR desc)
 {
     in_ixok = FALSE;
     in_taparmed = FALSE;
+    in_mbneed = 0;
     if ((in_tapneed = tap_parse(desc))) return TRUE;
+    if ((in_mbneed = mb_parse(desc))) return TRUE;
     in_ixok = ix_parse(desc, &in_ix);
     return in_ixok;
 }
@@ -121,7 +147,7 @@ ULONG in_set_keys(CONST_STRPTR *desc)
 BOOL in_hotkey_valid(CONST_STRPTR desc)
 {
     IX ix;
-    return tap_parse(desc) || ix_parse(desc, &ix);
+    return tap_parse(desc) || mb_parse(desc) || ix_parse(desc, &ix);
 }
 
 
@@ -317,6 +343,21 @@ void in_watch(struct InputEvent *ev)
                 }
                 in_kcode = ev->ie_Code;
                 ev->ie_Class = IECLASS_NULL;     /* nobody else gets the key */
+                continue;
+            }
+        }
+        if (in_mbneed && in_dock && in_task && ev->ie_Class == IECLASS_RAWMOUSE) {   /* the middle-button hotkey */
+            if (ev->ie_Code == IECODE_MBUTTON && tap_groups(ev->ie_Qualifier) == (in_mbneed & 0x1F)) {
+                in_dock->hotkey = TRUE;
+                hk_stat[HK_FIRED]++;
+                Signal(in_task, in_sigmask);
+                in_mbdown = TRUE;
+                ev->ie_Class = IECLASS_NULL;     /* nobody else gets the press, nor its release */
+                continue;
+            }
+            if (ev->ie_Code == (IECODE_MBUTTON | IECODE_UP_PREFIX) && in_mbdown) {
+                in_mbdown = FALSE;
+                ev->ie_Class = IECLASS_NULL;
                 continue;
             }
         }

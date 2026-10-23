@@ -222,7 +222,10 @@ The dock never removes it by itself: a disk may just not be inserted.
 @node keys "Keyboard shortcuts"
 == Show the dock: Ctrl+Alt+Shift
 Press together, then release: see {Auto-hide|autohide} for how this
-hotkey behaves when auto-hide is on.
+hotkey behaves when auto-hide is on. Another program using the same
+keys (Directory Opus does): change it under Keys ({Shell drops and
+Keys|advshell}) - other modifiers, a key, or the middle mouse button
+(MBUTTON, or CTRL MBUTTON and the like).
 
 == Minimise a window: Ctrl+Alt+M
 Minimise the active window, just like Minimise in the long-press list.
@@ -310,7 +313,9 @@ window. The dock stays shown while the window is open.
   Gap to edge      space between the dock and the screen edge
   Auto-hide        off, or how fast the dock hides
   In front         keep the dock in front of other windows
-  Hotkey           the keys that show the dock: CTRL ALT SHIFT
+  Hotkey           the keys that show the dock: CTRL ALT SHIFT; or the
+                   middle mouse button: MBUTTON, CTRL MBUTTON, ALT
+                   SHIFT MBUTTON... (HOTKEY)
                    (modifiers only: pressed together, let go), or a
                    combination with a key, such as CTRL ALT D
 
@@ -497,7 +502,8 @@ Settings file, tooltypes and command line alike.
   CUSTOMTINT=#rrggbb  the custom colour in the settings window's list
   AUTOHIDE=<n>        0 off, 1 instant; otherwise n x 70 ms per slide
   ONTOP               stay in front of other windows
-  HOTKEY=<keys>       the hotkey (default ctrl alt shift)
+  HOTKEY=<keys>       the hotkey (default ctrl alt shift); mbutton or
+                      ctrl mbutton...: the middle mouse button
   MINKEY=<keys>       minimise the active window (default ctrl alt m)
   MINALLKEY=<keys>    minimise all (default ctrl alt shift m)
   AHKEY=<keys>        auto-hide on/off (default ctrl alt h); none = off
