@@ -64,7 +64,7 @@ static BOOL replace(struct Job *j, LONG k)
         "\"%s\" is already in\n%s\n\nReplace it?", "Replace|Skip" };
     char dst[256];
     if (!NameFromLock(j->dest, dst, sizeof(dst))) strcpy(dst, "that drawer");
-    return EasyRequest(NULL, &es, NULL, (LONG)j->name[k], (LONG)dst) == 1;
+    { LONG a[2]; a[0] = (LONG)j->name[k]; a[1] = (LONG)dst; return sd_request(NULL, &es, a) == 1; }
 }
 
 /* Dates, protection bits and comment of the source (fib) onto the copy. */

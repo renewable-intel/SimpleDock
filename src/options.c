@@ -191,7 +191,9 @@ static struct RDArgs *read_tooltypes(LONG *args, char *portname, LONG portlen, S
         if (!rd) {                                               /* a bad tooltype: say so, use defaults */
             struct EasyStruct es = { sizeof(struct EasyStruct), 0, SD_NAME,
                                      "A tooltype of %s is not valid.\nStarting with default settings.", "Ok" };
-            EasyRequest(NULL, &es, NULL, (LONG)wa->wa_Name);
+            LONG a[1];
+            a[0] = (LONG)wa->wa_Name;
+            sd_request(NULL, &es, a);
             memset(args, 0, A_COUNT * sizeof(LONG));
         }
     }

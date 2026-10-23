@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.2"
-#define SD_BUILD   " T92"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T93"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "22.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -194,6 +194,7 @@ struct Dock {
 
 /* main.c */
 void sd_putch(void);                                        /* rawfmt.s, for RawDoFmt */
+LONG sd_request(struct Dock *d, struct EasyStruct *es, APTR args);   /* a requester, centred; as EasyRequest */
 void sd_beep(struct Dock *d);                               /* DisplayBeep on the dock's screen, unless NOBEEP */
 #define SD_FMT(buf, fmt, args) RawDoFmt((STRPTR)(fmt), (APTR)(args), (void (*)())sd_putch, (APTR)(buf))
 void sd_msg(struct Dock *d, CONST_STRPTR fmt, ...);

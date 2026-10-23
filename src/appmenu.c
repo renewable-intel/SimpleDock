@@ -81,8 +81,11 @@ void am_build(struct Dock *d)
     BOOL tools = WorkbenchBase->lib_Version < 45 || d->o->toolsmenu;
 
     if (!amport) return;
-    if (Stricmp((STRPTR)d->portname, (STRPTR)SD_PORTNAME) && FindPort((STRPTR)SD_PORTNAME)) return;   /* a dock after */
-    if (nami) { if (tools == am_tools) return; remove_all(); }   /* the first: reached from the main dock's Other docks */
+    if (Stricmp((STRPTR)d->portname, (STRPTR)SD_PORTNAME) && FindPort((STRPTR)SD_PORTNAME)) {   /* a dock after the first, */
+        if (nami) remove_all();                  /* while a main dock runs: no menu (the main dock's Other docks */
+        return;                                  /* list reaches it); the menu comes when the main dock is gone */
+    }
+    if (nami) { if (tools == am_tools) return; remove_all(); }
     am_tools = tools;
     if (tools) {                                     /* menu titles need workbench.library V45 (3.9): */
         static const struct { const char *text; ULONG id; } tool[4] = {   /* in the Tools menu instead */
@@ -201,6 +204,11 @@ static CONST_STRPTR key_now(struct Dock *d, LONG i);
 
 static struct Window *aboutw;           /* the About requester while open (not modal) */
 
+static void centre(struct Window *w)     /* (Intuition opens requesters at the top left) */
+{
+    if (w->WScreen) ChangeWindowBox(w, (w->WScreen->Width - w->Width) / 2, (w->WScreen->Height - w->Height) / 2, w->Width, w->Height);
+}
+
 static void about_close(void)
 {
     if (aboutw) { FreeSysRequest(aboutw); aboutw = NULL; }
@@ -223,7 +231,7 @@ static void about_open(struct Dock *d)
     if (aboutw) { WindowToFront(aboutw); return; }
     key_case(shown, in_hotkey_valid(d->o->hotkey) ? d->o->hotkey : (CONST_STRPTR)"none", sizeof(shown), TRUE);
     w = BuildEasyRequestArgs(NULL, &es, 0, (APTR)&key);   /* on the Workbench screen, with the menu */
-    if (w && w != (struct Window *)1) aboutw = w;
+    if (w && w != (struct Window *)1) { aboutw = w; centre(w); }
 }
 
 /* "n icons do not fit" as a requester that doesn't stop the dock (it may
@@ -249,7 +257,7 @@ void am_note_overflow(struct Dock *d, LONG n)
     if (!WBenchMsg || d->o->quiet) { sd_msg(d, (CONST_STRPTR)es.es_TextFormat, n); return; }
     note_close();
     w = BuildEasyRequestArgs(NULL, &es, 0, (APTR)&n);
-    if (w && w != (struct Window *)1) notew = w;
+    if (w && w != (struct Window *)1) { notew = w; centre(w); }
 }
 
 /* --- the settings window --- */

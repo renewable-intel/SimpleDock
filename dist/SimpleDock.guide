@@ -583,8 +583,8 @@ change them.
 A further dock adds nothing to the Workbench menus. To reach it, open
 the main dock's settings window: Advanced, Programs, @{b}Other docks@{ub} lists
 the docks running. Pick one, then @{b}Settings...@{ub} opens that dock's own
-settings window and @{b}Quit@{ub} closes it. (A dock started while no main
-dock is running keeps a Dock menu of its own.)
+settings window and @{b}Quit@{ub} closes it. While no main dock is running, a
+further dock shows a Dock menu of its own.
 
 A dock that opens where another dock already is moves beside it on the
 same edge, or to a free edge, and keeps that place. The dock that was

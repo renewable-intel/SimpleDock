@@ -208,6 +208,10 @@
 - Auto-hide: the shown dock stays out while the pointer is within an
   icon's size of it on every side (before: only along the dock; away
   from the edge, a few pixels).
+- Requesters (messages, Remove / Keep, Replace / Skip, About) open in the
+  middle of the screen instead of the top left.
+- A further dock shows a Dock menu of its own whenever no main dock is
+  running, and takes it away again when one is.
 - The settings window keeps its centre when it folds out to Advanced or
   back (before: its top-left corner, so Advanced grew towards the bottom
   right and ended up against the screen edge).

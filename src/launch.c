@@ -34,7 +34,9 @@ BOOL launch_item(struct Dock *d, struct Item *it)
         return FALSE;
     }
     dock_show_item(d, it, FALSE);                /* marked as missing */
-    if (EasyRequest(d->win, &es, NULL, (LONG)(*name ? name : it->path)) == 1) {
+    LONG a[1];
+    a[0] = (LONG)(*name ? name : it->path);
+    if (sd_request(d, &es, a) == 1) {
         dz_suspend();                            /* the list changes: not for the zone hook now */
         dock_unhide(d);
         config_remove(d, it);

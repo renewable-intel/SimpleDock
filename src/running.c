@@ -982,7 +982,7 @@ BOOL run_hide(struct Dock *d, struct Item *it)
     CONST_STRPTR name = FilePart(it->path), old = d->o->ignore ? d->o->ignore : (STRPTR)"";
     LONG n = strlen(old);
     if (!*name || n + strlen(name) + 12 > SD_LINEMAX) { sd_beep(d); return FALSE; }
-    if (EasyRequest(d->win, &es, NULL, (LONG)name) != 1) return FALSE;
+    { LONG a[1]; a[0] = (LONG)name; if (sd_request(d, &es, a) != 1) return FALSE; }
     strcpy(line, "IGNORE=\"");
     strcat(line, old);
     while (n > 0 && (line[8 + n - 1] == ' ' || line[8 + n - 1] == ',')) line[8 + --n] = 0;
@@ -1341,6 +1341,7 @@ static BOOL shown(struct Dock *d) { return d->win && d->vis > 0; }
 /* Look now, and again in a while (hidden by auto-hide: only until done). */
 static void look(struct Dock *d)
 {
+    am_build(d);                                 /* (a dock after the first: its menu while no main dock runs) */
     ULONG us = 0;
     if (!d->o->running || !d->win) return;       /* (RUNNING=0, or no dock window: no looking) */
     if (!scan(d)) { us = RETRY_US; if (!shown(d)) soon = TRUE; }
@@ -2221,7 +2222,7 @@ static void end_program(struct Dock *d, struct Item *it)
 #ifdef SD_DEBUG
     if (!fq_noask)
 #endif
-    if (EasyRequest(d->win, &es, NULL, (LONG)name) != 1) return;
+    { LONG a[1]; a[0] = (LONG)name; if (sd_request(d, &es, a) != 1) return; }
     m = prog_tasks(it, t, MAXPT, TRUE);
     for (k = 0; k < m; k++) {
         Forbid();

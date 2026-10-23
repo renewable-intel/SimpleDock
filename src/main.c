@@ -71,6 +71,21 @@ char *sd_strdup(CONST_STRPTR s)
     return p;
 }
 
+/* A requester in the middle of the screen (Intuition puts them at the top
+   left). Returns what EasyRequest would: 1 for the leftmost button ... 0 for
+   the rightmost. */
+LONG sd_request(struct Dock *d, struct EasyStruct *es, APTR args)
+{
+    struct Window *w = BuildEasyRequestArgs(d && d->win ? d->win : NULL, es, 0, args);
+    LONG r;
+    if ((ULONG)w <= 1) return (LONG)w;
+    if (w->WScreen)
+        ChangeWindowBox(w, (w->WScreen->Width - w->Width) / 2, (w->WScreen->Height - w->Height) / 2, w->Width, w->Height);
+    do r = SysReqHandler(w, NULL, TRUE); while (r == -2);
+    FreeSysRequest(w);
+    return r;
+}
+
 static void vmsg(struct Dock *d, CONST_STRPTR fmt, APTR args)
 {
     if (!WBenchMsg) {
@@ -80,7 +95,7 @@ static void vmsg(struct Dock *d, CONST_STRPTR fmt, APTR args)
     } else if (IntuitionBase) {
         struct EasyStruct es = { sizeof(struct EasyStruct), 0, SD_NAME, NULL, "Ok" };
         es.es_TextFormat = (STRPTR)fmt;
-        EasyRequestArgs(d && d->win ? d->win : NULL, &es, NULL, args);
+        sd_request(d, &es, args);
     }
 }
 
@@ -222,6 +237,7 @@ int main(void)
         if (sigs & 1UL << rexx->mp_SigBit && !rexx_handle(d, rexx)) run = FALSE;
         if (sigs & ptrsig) {
             if (d->raisecheck) { d->raisecheck = FALSE; dock_settle(d); }
+            am_build(d);                         /* (a dock after the first: a menu while no main dock runs) */
             if (d->hotkey) {
                 d->hotkey = FALSE;
                 ah_hotkey(d);
