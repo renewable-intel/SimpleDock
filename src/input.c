@@ -149,6 +149,13 @@ ULONG in_set_keys(CONST_STRPTR *desc)
     return bad;
 }
 
+/* Is the hotkey in use a modifier tap? (A key or the middle button is taken
+   out of the input stream by the first dock that matches it; a tap is not.) */
+BOOL in_hotkey_tap(void)
+{
+    return in_tapneed != 0;
+}
+
 BOOL in_hotkey_valid(CONST_STRPTR desc)
 {
     IX ix;

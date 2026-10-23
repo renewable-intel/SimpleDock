@@ -23,7 +23,8 @@
   A further dock adds nothing to the Workbench menus; the main dock's
   Advanced window lists the other docks (Programs, Other docks) with
   Settings... and Quit for the one picked. The icon Save as... writes
-  carries the SimpleDock image.
+  carries the SimpleDock image. The hotkey works all docks: a key or
+  middle-button hotkey caught by one dock is passed on to the others.
 
 ## 1.1 (21.10.2026)
 

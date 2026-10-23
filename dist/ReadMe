@@ -264,7 +264,8 @@ KEYBOARD SHORTCUTS
 Show the dock: Ctrl+Alt+Shift
 -----------------------------
 Press together, then release: see Auto-hide for how this
-hotkey behaves when auto-hide is on. Another program using the same
+hotkey behaves when auto-hide is on. With several docks, the hotkey
+works all of them. Another program using the same
 keys (Directory Opus does): change it under Keys ({Shell drops and
 Keys|advshell}) - other modifiers, a key, or the middle mouse button
 (MBUTTON, or CTRL MBUTTON and the like).
