@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.2"
-#define SD_BUILD   "108"              /* build number: +1 for every build, test or release (version stays x.y) */
+#define SD_BUILD   "109"              /* build number: +1 for every build, test or release (version stays x.y) */
 #define SD_DATE    "22.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -31,7 +31,6 @@ void sd_prof(LONG slot, struct timeval *t0);
 #define SD_PORTNAME "SIMPLEDOCK"      /* ARexx port; a project config file uses its name */
 #define SD_LINEMAX  256               /* config file line, incl. NUL */
 #define SD_CONFIG   "ENVARC:SimpleDock.config"   /* settings + icons, when CONFIG is not given */
-#define SD_GEARICON "Icons/Settings"     /* the dock's own icon on the dock: drawn with this, beside it (if there) */
 
 struct Opts {
     STRPTR config, pos, font, pubscreen, tint, hotkey, customtint, ignore;

@@ -129,25 +129,14 @@ static void load_icons(struct Dock *d, WORD *cw, WORD *ch)
                 scale_icon(d, it);
             }
         } else if (!it->dobj) {                  /* (loaded: dock_relayout) */
-            BOOL gear = FALSE;
             it->missing = !dock_exists(it->path);
-            if (!it->image && !it->missing && run_path_is_self(it->path) && strlen(it->path) + 16 < sizeof(buf)) {
-                strcpy(buf, it->path);                   /* the dock's own icon: drawn as the settings button */
-                *PathPart(buf) = 0;                      /* it is - Icons/Settings beside the program, else */
-                AddPart(buf, SD_GEARICON, sizeof(buf));  /* beside this copy of it (PROGDIR:) */
-                if (!(it->dobj = GetIconTags(buf, ICONGETA_Screen, d->scr, ICONGETA_FailIfUnavailable, FALSE, TAG_END)))
-                    it->dobj = GetIconTags("PROGDIR:" SD_GEARICON, ICONGETA_Screen, d->scr,
-                                           ICONGETA_FailIfUnavailable, FALSE, TAG_END);
-                gear = TRUE;
-            }
             if (n > 5 && !Stricmp((STRPTR)name + n - 5, ".info") && n < (LONG)sizeof(buf)) {
                 strcpy(buf, name); buf[n - 5] = 0; name = buf;
             } else if (n && name[n - 1] == ':' && n + 4 < (LONG)sizeof(buf)) {
                 strcpy(buf, name); strcat(buf, "Disk"); name = buf;   /* a volume: its Disk.info */
             }
-            if (!gear)
-                it->dobj = GetIconTags(name, ICONGETA_Screen, d->scr, ICONGETA_FailIfUnavailable, FALSE, TAG_END);
-            if (!it->dobj && (it->image || gear))    /* (no such image: its own) */
+            it->dobj = GetIconTags(name, ICONGETA_Screen, d->scr, ICONGETA_FailIfUnavailable, FALSE, TAG_END);
+            if (!it->dobj && it->image)              /* (no such image: its own) */
                 it->dobj = GetIconTags(it->path, ICONGETA_Screen, d->scr, ICONGETA_FailIfUnavailable, FALSE, TAG_END);
             if (!it->dobj && it->missing)        /* not there: a standard icon, to show the "?" on */
                 it->dobj = GetIconTags(NULL, ICONGETA_GetDefaultType, it->path[0] && it->path[strlen(it->path) - 1] == ':'

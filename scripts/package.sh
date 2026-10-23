@@ -22,8 +22,6 @@ mk.write_icon(os.path.join(r, "SimpleDock", "SimpleDock.guide.info"), mk.WBPROJE
               tool="SYS:Utilities/MultiView", art=mk.shade_page)
 PY
 cp art/SimpleDock.info "$R/SimpleDock/SimpleDock.info"            # the program icon (art/README.md)
-mkdir -p "$R/SimpleDock/Icons"                                  # (no Icons.info: hidden unless Show All)
-cp art/Settings.info "$R/SimpleDock/Icons/Settings.info"         # the gear on the dock
 python3 scripts/lha.py "$R/SimpleDock.lha" "$R" SimpleDock   # no drawer icon: Workbench uses its own
 cp dist/SimpleDock.readme "$R/SimpleDock.readme"
 ls -l "$R"

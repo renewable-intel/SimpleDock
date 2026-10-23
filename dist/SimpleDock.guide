@@ -147,9 +147,8 @@ hotkey hides the dock when it is already visible.
 
 Changes to the dock's icons are saved as you make them.
 
-The SimpleDock icon itself can go on the dock, where it shows as a
-settings gear: a click on it opens the settings window, a long press
-offers Quit SimpleDock.
+The SimpleDock icon itself can go on the dock: a click on it opens the
+settings window, a long press offers Quit SimpleDock.
 
 Open @{b}Dock > Settings...@{ub} in the Workbench menu bar to change its
 appearance and behaviour: see @{"Basic settings" link simple}. The Dock menu also
