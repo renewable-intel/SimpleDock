@@ -507,6 +507,26 @@ static void docks_fill(struct Dock *d)
     dsel = -1;
 }
 
+static void docks_show(struct Dock *d, struct Gadget *lv);
+
+/* The Other docks list follows the docks that come and go while the
+   settings window is open (running.c, every 2 s): refilled only on a change. */
+void am_docks_refresh(struct Dock *d)
+{
+    STRPTR names[MAXDOCKS];
+    char buf[MAXDOCKS * 40];
+    LONG n, i, k;
+    if (!pw) return;
+    for (k = 0; k < NADV && !(ag[k] && adv[k].kind == K_DOCKS); k++) ;
+    if (k == NADV) return;
+    n = dock_other_names(d, names, buf, sizeof(buf), MAXDOCKS);
+    if (n == ndocks) {
+        for (i = 0; i < n && !strcmp(names[i], dnode[i].ln_Name); i++) ;
+        if (i == n) return;
+    }
+    docks_show(d, ag[k]);
+}
+
 static void docks_show(struct Dock *d, struct Gadget *lv)
 {
     GT_SetGadgetAttrs(lv, pw, NULL, GTLV_Labels, ~0UL, TAG_END);

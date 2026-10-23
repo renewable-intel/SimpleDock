@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.2"
-#define SD_BUILD   " T94"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T95"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "22.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -360,6 +360,7 @@ struct Window *am_prefs_win(void);                          /* the settings wind
 void am_prefs_sync(struct Dock *d);                         /* ... shows settings changed elsewhere */
 void am_prefs_close(struct Dock *d);                        /* close it, keeping its changes (ARexx, quitting) */
 void am_note_overflow(struct Dock *d, LONG n);              /* "n icons do not fit" (not modal) */
+void am_docks_refresh(struct Dock *d);                      /* the Other docks list, if the window is open */
 void am_settings(struct Dock *d, BOOL more);                /* the settings window (more: Advanced) */
 void am_close(void);
 void dock_bench(struct Dock *d, char *res);                 /* ARexx BENCH (bench.c) */

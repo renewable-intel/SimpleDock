@@ -208,6 +208,8 @@
 - Auto-hide: the shown dock stays out while the pointer is within an
   icon's size of it on every side (before: only along the dock; away
   from the edge, a few pixels).
+- The Other docks list in an open settings window follows docks that
+  start or quit (checked every 2 s).
 - The SimpleDock icon on the dock: a click opens the settings window, a
   long press offers Quit SimpleDock... (asked first). Before, a click
   started a second copy, which stopped with "already running".

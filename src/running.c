@@ -1378,6 +1378,7 @@ static BOOL shown(struct Dock *d) { return d->win && d->vis > 0; }
 static void look(struct Dock *d)
 {
     am_build(d);                                 /* (a dock after the first: its menu while no main dock runs) */
+    am_docks_refresh(d);                         /* (the settings window's Other docks list follows) */
     ULONG us = 0;
     if (!d->o->running || !d->win) return;       /* (RUNNING=0, or no dock window: no looking) */
     if (!scan(d)) { us = RETRY_US; if (!shown(d)) soon = TRUE; }
