@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.2"
-#define SD_BUILD   " T86"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T87"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "22.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -252,6 +252,8 @@ enum { HK_ARMED, HK_FIRED, HK_KEYOFF, HK_BTNOFF, HK_LMBFIX, HK_HANDLED, HK_BUSY,
 extern LONG hk_stat[HK_N];
 void ah_show(struct Dock *d, BOOL on);                      /* held out (the settings window) or not */
 BOOL in_set_hotkey(CONST_STRPTR desc);                      /* commodities description; FALSE: not valid */
+LONG dock_other_names(struct Dock *d, STRPTR *names, char *buf, LONG size, LONG max);   /* the other docks' ports */
+BOOL rexx_send(CONST_STRPTR port, CONST_STRPTR cmd);          /* one command to another dock */
 BOOL in_hotkey_valid(CONST_STRPTR desc);                    /* the same check, the hotkey in use unchanged */
 #define NKEYS       3                 /* the other keys (MINKEY, MINALLKEY, AHKEY), in that order */
 #define KEY_MIN     1                 /* their bits in keyact */

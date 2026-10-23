@@ -212,6 +212,25 @@ static LONG other_docks(struct Dock *d, struct DockRect *r, LONG max)
     return n;
 }
 
+/* The other docks on this screen by name (their ARexx ports), copied into buf. */
+LONG dock_other_names(struct Dock *d, STRPTR *names, char *buf, LONG size, LONG max)
+{
+    struct Window *w;
+    LONG n = 0, used = 0, l;
+    if (!d->scr) return 0;
+    Forbid();
+    for (w = d->scr->FirstWindow; w && n < max; w = w->NextWindow) {
+        ULONG ud = (ULONG)w->UserData;
+        if (w == d->win || (ud >> 24) != 0x5D || !(w->Flags & WFLG_BORDERLESS) || !w->Title) continue;
+        l = strlen((char *)w->Title);
+        if (!l || used + l + 1 > size) continue;
+        names[n++] = strcpy(buf + used, (char *)w->Title);
+        used += l + 1;
+    }
+    Permit();
+    return n;
+}
+
 static BOOL dock_clear(struct Dock *d, const struct DockRect *r, LONG n)   /* overlaps none of them */
 {
     LONG i;
@@ -548,6 +567,7 @@ BOOL dock_open(struct Dock *d)
     d->win = OpenWindowTags(NULL,
         WA_PubScreen, d->scr, WA_Left, d->left, WA_Top, d->top, WA_Width, d->w, WA_Height, d->h,
         WA_MinWidth, 1, WA_MinHeight, 1, WA_MaxWidth, ~0, WA_MaxHeight, ~0,
+        WA_Title, d->portname,             /* (never drawn: the main dock's Other docks list reads it) */
         WA_Borderless, TRUE, WA_Activate, FALSE, WA_ReportMouse, TRUE,
         WA_SmartRefresh, TRUE,             /* keeps its contents while auto-hide slides it */
         WA_BackFill, LAYERS_NOBACKFILL,    /* a part uncovered while it grows is not cleared to grey first */

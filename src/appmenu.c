@@ -81,7 +81,8 @@ void am_build(struct Dock *d)
     BOOL tools = WorkbenchBase->lib_Version < 45 || d->o->toolsmenu;
 
     if (!amport) return;
-    if (nami) { if (tools == am_tools) return; remove_all(); }
+    if (Stricmp((STRPTR)d->portname, (STRPTR)SD_PORTNAME) && FindPort((STRPTR)SD_PORTNAME)) return;   /* a dock after */
+    if (nami) { if (tools == am_tools) return; remove_all(); }   /* the first: reached from the main dock's Other docks */
     am_tools = tools;
     if (tools) {                                     /* menu titles need workbench.library V45 (3.9): */
         static const struct { const char *text; ULONG id; } tool[4] = {   /* in the Tools menu instead */
@@ -260,7 +261,7 @@ void am_note_overflow(struct Dock *d, LONG n)
    changes goes back to how it opened. */
 #define NGROUP 11                       /* cycle gadgets; then the hotkey (a string gadget) */
 #define NROWS (NGROUP + 1)
-enum { G_KEY = NGROUP, G_ADV = 20, G_BRECALL = 100, G_BMORE, G_BLOAD, G_BSAVEAS, G_BPICK, G_BHREM, G_BDIR };
+enum { G_KEY = NGROUP, G_ADV = 20, G_BRECALL = 100, G_BMORE, G_BLOAD, G_BSAVEAS, G_BPICK, G_BHREM, G_BDIR, G_BDSET, G_BDQUIT };
 static const char *const posname[] = { "Top", "Bottom", "Left", "Right" };
 static const char *const textname[] = { "Below icons", "On hover", "Off", "Labels only" };
 static const char *const frontname[] = { "Off", "On" };
@@ -277,7 +278,7 @@ static const char *const shead[] = { "Place", "Icons", "Look" };
 static const BYTE sorder[] = { -1, 0, 4, 5, 6, G_KEY, -2, 2, 3, 1, -3, 7, 8, 9, 10 };
 #define NSORDER ((LONG)sizeof(sorder))
 
-enum { K_ALIGN, K_INT, K_STR, K_SWITCH, K_ICON, K_MSG, K_LIST, K_HIDE, K_KEY };
+enum { K_ALIGN, K_INT, K_STR, K_SWITCH, K_ICON, K_MSG, K_LIST, K_HIDE, K_KEY, K_DOCKS };
 static const char *const runname[] = { "Off", "Dot", "Dot and number", NULL };
 static const LONG runval[] = { 0, 1, 2 };
 static const char *const clickname[] = { "Bring to front", "New copy", NULL };
@@ -319,6 +320,7 @@ static const struct { const char *label, *key; UBYTE kind; const char *const *na
     { "Programs not on the dock", "RUNHIDE", K_LIST, othername, NULL, 0 },
     { "Workbench icon", "WBHIDE", K_LIST, othername, NULL, 0 },
     { "Hidden programs", "IGNORE", K_HIDE },
+    { "Other docks", "DOCKS", K_DOCKS },
     { "Icons into a Shell", "SHELLDROP", K_LIST, sdropname, sdropval, 1, "Shell drops" },
     { "Unpack archives to", "UNPACKTO", K_LIST, unpackname, unpackval, 0 },
     { "Unpack drawer", "UNPACKDIR", K_STR },
@@ -407,7 +409,7 @@ static char keyshown[64];               /* the hotkey as the gadget shows it (ca
 
 /* A side of the window, top to bottom: rows (some taller) and headings. */
 struct Slot { WORD what; UBYTE h; };    /* what: a row's index, or a heading -1 - k */
-#define MAXSLOT 40
+#define MAXSLOT 48
 #define MAXHEAD 8
 static struct { WORD x, y, w; CONST_STRPTR name; } heads[MAXHEAD];   /* drawn by divider() */
 static LONG nheads;
@@ -449,6 +451,8 @@ static LONG columns(const struct Slot *sl, LONG n, LONG maxrows, LONG maxcols, U
 
 /* Both sides of the window as slots (compact: no headings, a shorter
    Hidden programs list). Returns the simple side's count, *na the other. */
+#define DOCKROWS 3                      /* the Other docks list: rows high */
+static BOOL docks_row;                  /* this is the main dock: the Other docks row is shown */
 static LONG slots(struct Slot *ss, struct Slot *as, LONG *na, BOOL compact)
 {
     LONG i, ns = 0, n = 0;
@@ -456,8 +460,10 @@ static LONG slots(struct Slot *ss, struct Slot *as, LONG *na, BOOL compact)
         if (!compact || sorder[i] >= 0) { ss[ns].what = sorder[i]; ss[ns++].h = 1; }
     for (i = 0; i < NADV && n < MAXSLOT - 1; i++) {
         if (adv[i].head && !compact) { as[n].what = -1 - i; as[n++].h = 1; }   /* (a heading: its row's index) */
+        if (adv[i].kind == K_DOCKS && !docks_row) continue;   /* (the main dock only) */
         as[n].what = i;
-        as[n++].h = adv[i].kind != K_HIDE ? 1 : (compact ? 2 : HIDEROWS) + 1;   /* (+1: Remove beneath it) */
+        as[n++].h = adv[i].kind == K_HIDE ? (compact ? 2 : HIDEROWS) + 1 :      /* (+1: Remove beneath it) */
+                    adv[i].kind == K_DOCKS ? (compact ? 2 : DOCKROWS) + 1 : 1;  /* (+1: Settings... and Quit) */
     }
     *na = n;
     return ns;
@@ -470,6 +476,36 @@ static struct Node hnode[MAXHID];
 static char hbuf[SD_LINEMAX];
 static LONG nhid, hsel = -1;            /* ... and the one picked (-1: none) */
 static struct Gadget *hremg;            /* its Remove button */
+
+/* The Other docks list (the main dock only): the other docks running, by
+   port name; Settings... opens that dock's settings window, Quit closes it
+   (both by ARexx). */
+#define MAXDOCKS 8
+static struct List dlist;
+static struct Node dnode[MAXDOCKS];
+static char dbuf[MAXDOCKS * 40];
+static LONG ndocks, dsel = -1;
+static struct Gadget *dsetg, *dquitg;
+static WORD dlabx = -1, dlaby;
+
+static void docks_fill(struct Dock *d)
+{
+    STRPTR names[MAXDOCKS];
+    LONG i;
+    NewList(&dlist);
+    ndocks = dock_other_names(d, names, dbuf, sizeof(dbuf), MAXDOCKS);
+    for (i = 0; i < ndocks; i++) { dnode[i].ln_Name = names[i]; AddTail(&dlist, &dnode[i]); }
+    dsel = -1;
+}
+
+static void docks_show(struct Dock *d, struct Gadget *lv)
+{
+    GT_SetGadgetAttrs(lv, pw, NULL, GTLV_Labels, ~0UL, TAG_END);
+    docks_fill(d);
+    GT_SetGadgetAttrs(lv, pw, NULL, GTLV_Labels, &dlist, GTLV_Selected, ~0UL, TAG_END);
+    if (dsetg) GT_SetGadgetAttrs(dsetg, pw, NULL, GA_Disabled, TRUE, TAG_END);
+    if (dquitg) GT_SetGadgetAttrs(dquitg, pw, NULL, GA_Disabled, TRUE, TAG_END);
+}
 static WORD hlabx = -1, hlaby;          /* its name: right end, top */
 
 static void hidden_fill(struct Dock *d)
@@ -735,6 +771,7 @@ static void sync(struct Dock *d)
         case K_KEY:    { char kb[64]; key_case(kb, key_now(d, i), sizeof(kb), TRUE); str_set(ag[i], kb); } break;
         case K_LIST:   list_set(ag[i], NGROUP + i, NULL, list_choice(i, v)); break;
         case K_HIDE:   hidden_show(d, ag[i]); break;
+        case K_DOCKS:  docks_show(d, ag[i]); break;
         default:       GT_SetGadgetAttrs(ag[i], pw, NULL, GTCB_Checked, v[0] == '1', TAG_END); break;
         }
     }
@@ -819,9 +856,10 @@ static void prefs_close_win(void)
     if (glist) { FreeGadgets(glist); glist = NULL; }
     if (vi) { FreeVisualInfo(vi); vi = NULL; }
     if (pscr) { UnlockPubScreen(NULL, pscr); pscr = NULL; }   /* (after FreeVisualInfo) */
-    keyg = recallg = hremg = NULL;
+    keyg = recallg = hremg = dsetg = dquitg = NULL;
     nheads = 0;
     hlabx = -1;
+    dlabx = -1;
     memset(cyc, 0, sizeof(cyc));
     memset(ag, 0, sizeof(ag));
     divx = linex = -1;
@@ -854,6 +892,10 @@ static void divider(void)
         if (hlabx >= 0) {
             Move(rp, hlabx - TextLength(rp, "Hidden programs", 15), hlaby + rp->TxBaseline);
             Text(rp, "Hidden programs", 15);
+        }
+        if (dlabx >= 0) {
+            Move(rp, dlabx - TextLength(rp, "Other docks", 11), dlaby + rp->TxBaseline);
+            Text(rp, "Other docks", 11);
         }
         SetSoftStyle(rp, FSF_BOLD, FSF_BOLD);   /* (headings: bold, also with a font that has none) */
         for (k = 0; k < nheads; k++) {          /* a heading: its name, then a line to the column's end */
@@ -899,6 +941,7 @@ static BOOL build(struct Dock *d)
             FreeScreenDrawInfo(s, dri);
         }
     }
+    docks_row = !Stricmp((STRPTR)d->portname, (STRPTR)SD_PORTNAME);
     nss = slots(ss, as, &nas, FALSE);           /* the two sides as slots */
     for (i = 0; i < NGROUP; i++) {
         LONG j, w = TextLength(rp, (STRPTR)group[i].name, strlen(group[i].name));
@@ -967,6 +1010,7 @@ static BOOL build(struct Dock *d)
     ng.ng_Flags = PLACETEXT_LEFT;
     nheads = 0;
     hlabx = -1;
+    dlabx = -1;
     for (k = 0; k < nss; k++)                    /* the headings */
         if (ss[k].what < 0 && showsimple && nheads < MAXHEAD) {
             heads[nheads].x = xs + scol[k] * colws + 10;
@@ -1036,6 +1080,32 @@ static BOOL build(struct Dock *d)
             ng.ng_GadgetID = G_BHREM;
             ng.ng_Flags = PLACETEXT_IN;
             g = hremg = CreateGadget(BUTTON_KIND, g, &ng, GA_Disabled, TRUE, TAG_END);
+            ng.ng_Flags = PLACETEXT_LEFT;
+            continue;
+        }
+        if (adv[i].kind == K_DOCKS) {            /* the other docks (name drawn by divider()); Settings... */
+            LONG sbw = TextLength(rp, "Settings...", 11) + 16, qbw = TextLength(rp, "Quit", 4) + 16;   /* and Quit */
+            docks_fill(d);                       /* beneath it, at the right */
+            dlabx = ng.ng_LeftEdge - 8;
+            dlaby = ng.ng_TopEdge + 2;
+            ng.ng_GadgetText = NULL;
+            ng.ng_Height = (as[k].h - 2) * step + fh + 4;
+            g = ag[i] = CreateGadget(LISTVIEW_KIND, g, &ng, GTLV_Labels, &dlist, GTLV_ShowSelected, NULL, TAG_END);
+            if (!g) break;
+            ng.ng_TopEdge += (as[k].h - 1) * step;
+            ng.ng_Height = fh + 4;
+            ng.ng_Flags = PLACETEXT_IN;
+            ng.ng_LeftEdge += gw - qbw - 8 - sbw;
+            ng.ng_Width = sbw;
+            ng.ng_GadgetText = (STRPTR)"Settings...";
+            ng.ng_GadgetID = G_BDSET;
+            g = dsetg = CreateGadget(BUTTON_KIND, g, &ng, GA_Disabled, TRUE, TAG_END);
+            if (!g) break;
+            ng.ng_LeftEdge += sbw + 8;
+            ng.ng_Width = qbw;
+            ng.ng_GadgetText = (STRPTR)"Quit";
+            ng.ng_GadgetID = G_BDQUIT;
+            g = dquitg = CreateGadget(BUTTON_KIND, g, &ng, GA_Disabled, TRUE, TAG_END);
             ng.ng_Flags = PLACETEXT_LEFT;
             continue;
         }
@@ -1440,6 +1510,21 @@ void am_prefs_handle(struct Dock *d)
             else if (id >= G_ADV && id < G_ADV + NADV && adv[id - G_ADV].kind == K_HIDE) {   /* a name picked */
                 hsel = code < nhid ? code : -1;
                 if (hremg) GT_SetGadgetAttrs(hremg, pw, NULL, GA_Disabled, hsel < 0, TAG_END);
+            }
+            else if (id >= G_ADV && id < G_ADV + NADV && adv[id - G_ADV].kind == K_DOCKS) {   /* a dock picked */
+                dsel = code < ndocks ? code : -1;
+                if (dsetg) GT_SetGadgetAttrs(dsetg, pw, NULL, GA_Disabled, dsel < 0, TAG_END);
+                if (dquitg) GT_SetGadgetAttrs(dquitg, pw, NULL, GA_Disabled, dsel < 0, TAG_END);
+            }
+            else if (id == G_BDSET || id == G_BDQUIT) {   /* that dock's settings window / its end */
+                if (dsel >= 0 && dsel < ndocks) {
+                    LONG k;
+                    if (!rexx_send(dnode[dsel].ln_Name, id == G_BDSET ? "SETTINGS" : "QUIT")) sd_beep(d);
+                    if (id == G_BDQUIT) {
+                        Delay(10);               /* (its window is gone by now) */
+                        for (k = 0; k < NADV; k++) if (ag[k] && adv[k].kind == K_DOCKS) docks_show(d, ag[k]);
+                    }
+                }
             }
             else if (id >= G_ADV && id < G_ADV + NADV) adv_apply(d, id - G_ADV, code);
             else if (id == G_BHREM) hidden_remove(d);

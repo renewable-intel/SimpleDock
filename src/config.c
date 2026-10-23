@@ -286,12 +286,21 @@ static void save_icon(struct Dock *d, CONST_STRPTR path)
 {
     struct DiskObject *dobj;
     char prog[512];
+    STRPTR tool, *tt;
+    struct DrawerData *dd;
+    UBYTE type;
     if ((dobj = GetDiskObject(path))) { FreeDiskObject(dobj); return; }
-    if (!prog_path(prog, sizeof(prog)) || !(dobj = GetDefDiskObject(WBPROJECT))) return;
+    if (!prog_path(prog, sizeof(prog))) return;
+    if (!(dobj = GetDiskObject(prog)) && !(dobj = GetDefDiskObject(WBPROJECT))) return;   /* the program's own image */
+    tool = dobj->do_DefaultTool; tt = dobj->do_ToolTypes; dd = dobj->do_DrawerData; type = dobj->do_Type;
+    dobj->do_Type = WBPROJECT;
     dobj->do_DefaultTool = prog;
     dobj->do_ToolTypes = NULL;
+    dobj->do_DrawerData = NULL;
     dobj->do_CurrentX = dobj->do_CurrentY = NO_ICON_POSITION;
     if (PutDiskObject(path, dobj)) sd_verbose(d, "%s has an icon now: double-click it for a dock from this file", (LONG)path);
+    else sd_msg(d, "Cannot write an icon for %s", (LONG)path);
+    dobj->do_DefaultTool = tool; dobj->do_ToolTypes = tt; dobj->do_DrawerData = dd; dobj->do_Type = type;
     FreeDiskObject(dobj);
 }
 

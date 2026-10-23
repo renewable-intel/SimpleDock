@@ -20,6 +20,10 @@
   dock starts as a launcher (Other programs and Workbench icon Hide, both
   changeable in its Advanced window). A dock opening where another dock
   already is moves beside it or to a free edge and keeps that place.
+  A further dock adds nothing to the Workbench menus; the main dock's
+  Advanced window lists the other docks (Programs, Other docks) with
+  Settings... and Quit for the one picked. The icon Save as... writes
+  carries the SimpleDock image.
 
 ## 1.1 (21.10.2026)
 

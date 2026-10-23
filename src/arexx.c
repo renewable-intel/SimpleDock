@@ -33,6 +33,35 @@ struct MsgPort *rexx_open(struct Dock *d)
     return port;
 }
 
+/* One command to another dock's port (SETTINGS, QUIT), waiting up to ~6 s for
+   its answer. FALSE: no such port, no answer, or it failed. */
+BOOL rexx_send(CONST_STRPTR portname, CONST_STRPTR cmd)
+{
+    struct MsgPort *reply, *port;
+    struct RexxMsg *rm;
+    struct Message *m = NULL;
+    LONG t;
+    BOOL ok = FALSE;
+    if (!RexxSysBase || !(reply = CreateMsgPort())) return FALSE;
+    if ((rm = CreateRexxMsg(reply, NULL, NULL))) {
+        rm->rm_Action = RXCOMM;
+        if ((rm->rm_Args[0] = CreateArgstring((STRPTR)cmd, strlen((char *)cmd)))) {
+            Forbid();
+            if ((port = FindPort((STRPTR)portname))) PutMsg(port, &rm->rm_Node);
+            Permit();
+            if (port) {
+                for (t = 0; t < 60 && !(m = GetMsg(reply)); t++) Delay(5);
+                if (!m) return FALSE;            /* no answer: the message and the port stay (it may still reply) */
+                ok = rm->rm_Result1 == 0;
+            }
+        }
+        if (rm->rm_Args[0]) ClearRexxMsg(rm, 1);
+        DeleteRexxMsg(rm);
+    }
+    DeleteMsgPort(reply);
+    return ok;
+}
+
 void rexx_close(struct MsgPort *port)
 {
     struct RexxMsg *rm;

@@ -380,6 +380,9 @@ ones. On a small screen, they replace the basic settings:
                    (WBHIDE)
   Hidden programs  the programs you dragged off the dock, by name; pick
                    one and *Remove* to see it again (IGNORE)
+  Other docks      the other docks running (main dock only): Settings...
+                   opens that dock's settings, Quit closes it
+                   ({More than one dock|moredocks})
 
 -- Programs get into Hidden programs by being dragged off the dock while
 -- they run ({Running programs|running}); you never type a name there.
@@ -464,6 +467,12 @@ programs that are not docked and the Workbench icon. Every further dock
 starts as a plain launcher for its own icons - Other programs and
 Workbench icon are set to Hide in its Advanced window, where you can
 change them.
+
+A further dock adds nothing to the Workbench menus. To reach it, open
+the main dock's settings window: Advanced, Programs, *Other docks* lists
+the docks running. Pick one, then *Settings...* opens that dock's own
+settings window and *Quit* closes it. (A dock started while no main
+dock is running keeps a Dock menu of its own.)
 
 A dock that opens where another dock already is moves beside it on the
 same edge, or to a free edge, and keeps that place. The dock that was

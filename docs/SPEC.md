@@ -79,6 +79,12 @@ on double-click. CONFIG=file from a Shell does the same: when the port
 SIMPLEDOCK is taken and the file is not the default one, the port is the file's
 name.
 
+A dock whose port is not SIMPLEDOCK adds no AppMenu while a port SIMPLEDOCK
+exists. The main dock's Advanced window lists the other docks (window UserData
+mark + the port name as the window title) with Settings... and Quit, sent as
+ARexx commands to that dock's port. Save as... writes the program's own icon
+image as the project icon.
+
 Keys: a description naming Left Amiga with N or M (Intuition's screen keys) is
 refused like an invalid one (the dock's handler, at priority 51, would take it
 from Intuition).
