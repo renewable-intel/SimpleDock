@@ -10,7 +10,7 @@
 
 #define SD_NAME    "SimpleDock"
 #define SD_VERSION "1.2"
-#define SD_BUILD   " T90"            /* test build ("" for a release): shown with the version */
+#define SD_BUILD   " T91"            /* test build ("" for a release): shown with the version */
 #define SD_DATE    "22.10.2026"
 
 #ifdef SD_DEBUG              /* trace to Output(), flushed (survives a crash) */
@@ -146,8 +146,7 @@ struct Dock {
     volatile BOOL     raisecheck;     /* input handler: windows may have changed (dock_settle) */
     volatile BOOL     hotkey;         /* input handler: the hotkey was pressed (ah_hotkey) */
     volatile UBYTE    keyact;         /* input handler: other keys pressed (KEY_MIN ...) */
-    volatile BOOL     pinned;         /* auto-hide: out by the hotkey until the pointer was on it and left */
-    volatile BOOL     pinentered;
+    volatile BOOL     pinned;         /* auto-hide: out by the hotkey until the hotkey hides it again */
     volatile BOOL     parked;         /* auto-hide: hidden by the hotkey until the pointer has left the edge */
     volatile BOOL     parkleft;
     volatile BOOL     showing;        /* auto-hide: held out while the settings window is open */

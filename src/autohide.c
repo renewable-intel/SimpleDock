@@ -135,9 +135,9 @@ void ah_hidden_moved(struct Dock *d)
 /* The hotkey, a toggle on what is seen. With auto-hide: the dock fully out
    and not covered is hidden, and kept hidden until the pointer has left the
    edge and come back (parked - else a pointer near the edge would bring it
-   straight back); otherwise it comes out and in front, until the pointer
-   has been on it and left (pinned). Press it before dragging an icon to a
-   hidden dock. Without auto-hide it brings the dock to the front. */
+   straight back); otherwise it comes out and in front, and stays out until
+   the hotkey hides it (pinned) - so it can be used, dragged to, and left.
+   Without auto-hide it brings the dock to the front. */
 void ah_hotkey(struct Dock *d)
 {
     hk_stat[HK_HANDLED]++;
@@ -157,7 +157,6 @@ void ah_hotkey(struct Dock *d)
     } else {                                     /* hidden, sliding, covered: out and in front */
         hk_stat[HK_PIN]++;
         d->parked = FALSE;
-        d->pinentered = FALSE;                   /* (before pinned, as above) */
         d->pinned = TRUE;
         d->want = TRUE;
         WindowToFront(d->win);

@@ -202,6 +202,9 @@
   data model), and it uses about 40 KB less memory while idle: the
   settings window's buffers, the crash report's spare stack and ARexx
   SET's buffers are only taken while needed.
+- Auto-hide: a dock shown by the hotkey stays out until the hotkey hides
+  it again (before: until the pointer had visited it and left), so it can
+  be used and dragged to without disappearing.
 - Auto-hide: the shown dock stays out while the pointer is within an
   icon's size of it on every side (before: only along the dock; away
   from the edge, a few pixels).

@@ -186,9 +186,8 @@ With *Auto-hide* on in the settings, the dock hides when the pointer
 has moved an icon's size away from it. Move the pointer to that screen
 edge to reveal it again.
 
-The *hotkey* (Ctrl+Alt+Shift) shows it and keeps it shown until the
-pointer has visited it and left; pressed while the dock is shown, it
-hides it. *Ctrl+Alt+H* switches auto-hide on or off
+The *hotkey* (Ctrl+Alt+Shift) shows it and keeps it shown, so you can
+use it and drag to it, until you press the hotkey again: that hides it. *Ctrl+Alt+H* switches auto-hide on or off
 ({Keyboard shortcuts|keys}).
 
 -- With auto-hide, icons cannot be dropped onto the hidden dock, because

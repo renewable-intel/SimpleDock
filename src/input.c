@@ -500,11 +500,7 @@ void in_check(struct InputEvent *ev)
         if (near && !in_near && !in_lmb) raise_check();
         in_near = near;
     }
-    if (d->pinned) {                    /* out by the hotkey: until the pointer was on it and left */
-        if (want) d->pinentered = TRUE;
-        else if (d->pinentered) d->pinned = FALSE;
-        if (d->pinned) want = TRUE;
-    }
+    if (d->pinned) want = TRUE;         /* out by the hotkey: until the hotkey hides it again */
     if (d->parked) {                    /* hidden by the hotkey: until the pointer has left the edge and come back */
         if (!want) d->parkleft = TRUE;
         else if (d->parkleft) d->parked = FALSE;
