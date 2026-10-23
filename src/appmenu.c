@@ -226,7 +226,7 @@ static void about_close(void)
 static void about_open(struct Dock *d)
 {
     static struct EasyStruct es = { sizeof(struct EasyStruct), 0, "About " SD_NAME,
-        SD_NAME " " SD_VERSION SD_BUILD " (" SD_DATE ")\n"
+        SD_NAME " " SD_VERSION ", build " SD_BUILD " (" SD_DATE ")\n"
         "A simple, macOS-inspired dock for AmigaOS 3.x\n\n"
         "Copyright \251 2026 renewable-intel\n"
         "https://github.com/renewable-intel/SimpleDock\n\n"
@@ -1207,7 +1207,7 @@ static BOOL build(struct Dock *d)
     if (wtop + ih + fh + 4 > s->Height) wtop = s->Height - ih - fh - 4;
     if (wleft < 0) wleft = 0;
     if (wtop < 0) wtop = 0;
-    pw = OpenWindowTags(NULL, WA_PubScreen, s, WA_Title, SD_NAME " " SD_VERSION SD_BUILD " Settings",
+    pw = OpenWindowTags(NULL, WA_PubScreen, s, WA_Title, SD_NAME " " SD_VERSION " Settings",
                         WA_InnerWidth, iw, WA_InnerHeight, ih, WA_Left, wleft, WA_Top, wtop,
                         WA_DragBar, TRUE, WA_DepthGadget, TRUE, WA_CloseGadget, TRUE, WA_Activate, TRUE,
                         WA_SimpleRefresh, TRUE, WA_Gadgets, glist, WA_AutoAdjust, TRUE,

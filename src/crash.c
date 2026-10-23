@@ -109,7 +109,7 @@ static void report(struct Dock *d)
     ULONG off;
     struct Item *it;
     if (!fh) return;
-    FPuts(fh, "SimpleDock crash report\n\nVersion: " SD_NAME " " SD_VERSION SD_BUILD " (" SD_DATE ")\n");
+    FPuts(fh, "SimpleDock crash report\n\nVersion: " SD_NAME " " SD_VERSION ", build " SD_BUILD " (" SD_DATE ")\n");
     v[0] = (LONG)what(crash_no); v[1] = crash_no;
     put(fh, "Error: %s (trap %ld)\n", v);
     v[0] = where(crash_pc, &off); v[1] = off; v[2] = crash_pc;

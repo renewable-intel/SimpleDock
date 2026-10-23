@@ -21,7 +21,7 @@
 
 extern struct WBStartup *WBenchMsg;
 
-static const char version[] = "$VER: " SD_NAME " " SD_VERSION SD_BUILD " (" SD_DATE ")";
+static const char version[] = "$VER: " SD_NAME " " SD_VERSION " (" SD_DATE ") build " SD_BUILD;   /* (Version reads x.y) */
 
 /* vbcc startup: switch to a stack of at least this size (a Shell gives 4 KB). */
 unsigned long __stack = 32768;
