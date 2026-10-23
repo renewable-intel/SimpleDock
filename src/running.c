@@ -659,27 +659,22 @@ static BOOL is_it(struct Own *o, struct Item *it)
 
 /* An icon the dock follows: a program, the Shell, a docked drawer, or
    Workbench's drawers. */
-/* Is the item this very program (its icon on the dock)? A click then opens
-   the settings and a long press offers Quit, instead of a second copy. */
+/* Is the item SimpleDock (its icon on the dock)? Any copy counts - the one
+   in its drawer while the dock runs from WBStartup, say - by its name: this
+   program's, or "SimpleDock". A click then opens the settings and a long
+   press offers Quit, instead of a second copy. */
 BOOL run_path_is_self(CONST_STRPTR p)
 {
-    static char mine[512];
+    static char mine[108];
     static BOOL known;
     char path[512];
-    BPTR lk;
-    BOOL same = FALSE;
-    struct Process *me = (struct Process *)FindTask(NULL);
-    APTR wp;
-    if (!known) { known = TRUE; sd_prog_path(mine, sizeof(mine)); }
-    if (!mine[0] || !p || Stricmp(FilePart((STRPTR)p), FilePart(mine))) return FALSE;   /* (most: by the name alone) */
-    wp = me->pr_WindowPtr;
-    me->pr_WindowPtr = (APTR)-1;                 /* (a disk not inserted: no "please insert" requester) */
-    if ((lk = Lock((STRPTR)p, SHARED_LOCK))) {
-        if (NameFromLock(lk, path, sizeof(path))) same = !Stricmp((STRPTR)path, (STRPTR)mine);
-        UnLock(lk);
+    if (!known) {
+        known = TRUE;
+        if (sd_prog_path(path, sizeof(path)) && strlen(FilePart(path)) < sizeof(mine)) strcpy(mine, FilePart(path));
     }
-    me->pr_WindowPtr = wp;
-    return same;
+    if (!p || !*p) return FALSE;
+    p = FilePart((STRPTR)p);
+    return !Stricmp((STRPTR)p, (STRPTR)SD_NAME) || (mine[0] && !Stricmp((STRPTR)p, (STRPTR)mine));
 }
 
 BOOL run_is_self(struct Item *it)
