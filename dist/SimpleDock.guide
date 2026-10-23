@@ -48,6 +48,7 @@ to find a topic alphabetically. The Browse buttons move between topics.
   @{"Known limitations" link limits}
   @{"Crash reports" link crash}
   @{"Bug reports" link bugs}
+  @{"Support" link support} - if you like it
   @{"History" link history}
 
 @{i}You can stop after Start here and have a working dock.@{ui}
@@ -788,7 +789,7 @@ settings. Attach it to your @{"bug report" link bugs}.
 @node bugs "Bug reports"
 @toc main
 @prev crash
-@next history
+@next support
 @{b}@{u}Bug reports@{uu}@{ub}
 
 Report bugs at: https://github.com/renewable-intel/SimpleDock/issues
@@ -808,9 +809,23 @@ For a Shell-drop problem, include the output of:
 For a hotkey problem, replace DROPINFO with HOTKEYINFO.
 @endnode
 
-@node history "History"
+@node support "Support"
 @toc main
 @prev bugs
+@next history
+@{b}@{u}Support@{uu}@{ub}
+
+SimpleDock is free software and will stay so. If it has earned its
+place on your screen and you feel like buying me a coffee:
+
+  https://ko-fi.com/re_intel_soft/donate
+
+Bug reports, ideas and a word on the forums are just as welcome.
+@endnode
+
+@node history "History"
+@toc main
+@prev support
 @next index
 @{b}@{u}History@{uu}@{ub}
 
@@ -858,6 +873,7 @@ For a hotkey problem, replace DROPINFO with HOTKEYINFO.
   @{"Shell drops" link shelldrops}
   @{"Shell drops and Keys" link advshell}
   @{"Shell icons and projects" link shellicons}
+  @{"Support" link support}
   @{"System" link system}
   @{"The settings file" link configfile}
   @{"What it is" link what}

@@ -40,6 +40,7 @@ to find a topic alphabetically. The Browse buttons move between topics.
   {Known limitations|limits}
   {Crash reports|crash}
   {Bug reports|bugs}
+  {Support|support} - if you like it
   {History|history}
 
 -- You can stop after Start here and have a working dock.
@@ -668,6 +669,15 @@ For a Shell-drop problem, include the output of:
     rx "options results; address SIMPLEDOCK 'DROPINFO'; say result"
 
 For a hotkey problem, replace DROPINFO with HOTKEYINFO.
+@end
+
+@node support "Support"
+SimpleDock is free software and will stay so. If it has earned its
+place on your screen and you feel like buying me a coffee:
+
+  https://ko-fi.com/re_intel_soft/donate
+
+Bug reports, ideas and a word on the forums are just as welcome.
 @end
 
 @node history "History"

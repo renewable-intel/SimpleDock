@@ -18,6 +18,9 @@ the macOS dock.
 > in the archive; all three come from [docs/guide.txt](docs/guide.txt) via
 > `scripts/mkguide.py`. Developers: [docs/SPEC.md](docs/SPEC.md),
 > [CHANGELOG.md](CHANGELOG.md).
+>
+> SimpleDock is free software (GPL-3). If it earns a coffee:
+> https://ko-fi.com/re_intel_soft/donate
 
 ## Goals
 
